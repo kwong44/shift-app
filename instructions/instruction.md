@@ -1,3 +1,20 @@
+Project Overview
+RealityShift is a mobile application designed to empower users to transform their lives through a personalized, structured roadmap. Leveraging React Native and Expo, the app delivers daily exercises, AI-driven insights, and adaptive progress tracking to guide users toward their goals. The target audience includes individuals seeking self-improvement, habit formation, and mindset shifts. The app supports iOS and Android platforms.
+
+Features
+1. Onboarding with In-Depth Self-Assessment
+2. Personalized Transformation Roadmap Generation
+3. Daily Engagement Exercises
+    * Guided Binaural Beats Session
+    * Visualization or Affirmation Exercise
+    * Prioritized Task Planner
+    * Deep Work Session
+    * Mindfulness Check-Ins
+    * Journaling with AI-Powered Insights
+    * Self-Reflection Exercise
+4. Weekly Reflections and AI Feedback Sessions
+5. Quarterly Progress Reports
+6. AI-Powered Roadmap Adaptation
 Requirements for Each Feature
 
 1. Onboarding with In-Depth Self-Assessment
