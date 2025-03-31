@@ -49,14 +49,14 @@ const OnboardingComplete = ({ navigation, route }) => {
       // Submit the assessment data
       await submitSelfAssessment(user.id, assessmentData);
       
-      // Show success message
+      // Show success message and navigate to App stack
       Alert.alert(
         'Assessment Complete!',
         'Your personalized transformation roadmap has been created. Let\'s begin your journey!',
         [
           {
             text: 'Start Journey',
-            onPress: () => navigation.navigate('Home')
+            onPress: () => navigation.replace('App')
           }
         ]
       );
