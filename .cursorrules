@@ -4,6 +4,7 @@
 - You are building a mobile app using React Native and Expo that helps users make life transformation.
 - Always add debug logs and comments to your code.
 - Every time you choose to apply a rule(s), explicitly state the rule(s) in the output. You can abbreviate the rule(s) to a single word or phrase.
+
 # Current Project Structure
 .
 ├── App.js

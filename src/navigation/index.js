@@ -23,32 +23,6 @@ import HomeScreen from '../screens/app/HomeScreen';
 
 const Stack = createStackNavigator();
 
-// Create separate stacks for better organization
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Welcome" component={WelcomeScreen} />
-    <Stack.Screen name="SignIn" component={SignInScreen} />
-    <Stack.Screen name="SignUp" component={SignUpScreen} />
-  </Stack.Navigator>
-);
-
-const OnboardingStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
-    <Stack.Screen name="Habits" component={HabitsScreen} />
-    <Stack.Screen name="ImprovementAreas" component={ImprovementAreasScreen} />
-    <Stack.Screen name="Goals" component={GoalsScreen} />
-    <Stack.Screen name="Preferences" component={PreferencesScreen} />
-    <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
-  </Stack.Navigator>
-);
-
-const AppStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="HomeScreen" component={HomeScreen} />
-  </Stack.Navigator>
-);
-
 const Navigation = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
@@ -94,11 +68,25 @@ const Navigation = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!userSession ? (
-          <Stack.Screen name="Auth" component={AuthStack} />
+          // Auth Stack
+          <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </>
         ) : !hasCompletedOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingStack} />
+          // Onboarding Stack
+          <>
+            <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
+            <Stack.Screen name="Habits" component={HabitsScreen} />
+            <Stack.Screen name="ImprovementAreas" component={ImprovementAreasScreen} />
+            <Stack.Screen name="Goals" component={GoalsScreen} />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
+          </>
         ) : (
-          <Stack.Screen name="App" component={AppStack} />
+          // Main App Stack
+          <Stack.Screen name="HomeScreen" component={HomeScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

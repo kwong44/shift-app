@@ -5,6 +5,7 @@ import CustomButton from '../../components/common/CustomButton';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
 import { supabase } from '../../config/supabase';
 import { submitSelfAssessment } from '../../api/selfAssessment';
+import { createRoadmap } from '../../api/roadmap';
 
 const OnboardingComplete = ({ navigation, route }) => {
   const { assessmentData } = route.params || { assessmentData: {} };
@@ -48,15 +49,24 @@ const OnboardingComplete = ({ navigation, route }) => {
       
       // Submit the assessment data
       await submitSelfAssessment(user.id, assessmentData);
+
+      // Generate and store the roadmap
+      await createRoadmap(user.id, assessmentData);
       
-      // Show success message and navigate to App stack
+      // Show success message and navigate to HomeScreen
       Alert.alert(
         'Assessment Complete!',
         'Your personalized transformation roadmap has been created. Let\'s begin your journey!',
         [
           {
             text: 'Start Journey',
-            onPress: () => navigation.replace('App')
+            onPress: () => {
+              // Force a navigation state refresh by updating the parent navigator
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'HomeScreen' }],
+              });
+            }
           }
         ]
       );
