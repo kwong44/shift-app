@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
+import { useTheme } from 'react-native-paper';
 import { supabase } from '../config/supabase';
 import { getSession } from '../api/auth';
 import { hasCompletedAssessment } from '../api/selfAssessment';
@@ -24,13 +25,86 @@ import HomeScreen from '../screens/app/HomeScreen';
 // Exercise screens
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
 import MindfulnessScreen from '../screens/exercises/MindfulnessScreen';
+import BinauralScreen from '../screens/exercises/BinauralScreen';
+import VisualizationScreen from '../screens/exercises/VisualizationScreen';
+import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen';
+import DeepWorkScreen from '../screens/exercises/DeepWorkScreen';
+import JournalingScreen from '../screens/exercises/JournalingScreen';
+import SelfReflectionScreen from '../screens/exercises/SelfReflectionScreen';
 
 const Stack = createStackNavigator();
+
+// Define transition configurations
+const screenOptions = {
+  headerShown: false,
+  cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+  transitionSpec: {
+    open: {
+      animation: 'spring',
+      config: {
+        stiffness: 1000,
+        damping: 500,
+        mass: 3,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+    close: {
+      animation: 'spring',
+      config: {
+        stiffness: 1000,
+        damping: 500,
+        mass: 3,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+  },
+  cardStyle: { backgroundColor: 'transparent' },
+  gestureEnabled: true,
+  gestureDirection: 'horizontal',
+};
+
+// Define modal transition for specific screens
+const modalScreenOptions = {
+  headerShown: false,
+  cardStyleInterpolator: CardStyleInterpolators.forModalPresentationIOS,
+  transitionSpec: {
+    open: {
+      animation: 'spring',
+      config: {
+        stiffness: 1000,
+        damping: 500,
+        mass: 3,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+    close: {
+      animation: 'spring',
+      config: {
+        stiffness: 1000,
+        damping: 500,
+        mass: 3,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+  },
+  cardStyle: { backgroundColor: 'transparent' },
+  gestureEnabled: true,
+  gestureDirection: 'vertical',
+};
 
 const Navigation = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userSession, setUserSession] = useState(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const theme = useTheme();
 
   useEffect(() => {
     checkSession();
@@ -69,31 +143,115 @@ const Navigation = () => {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer theme={{
+      colors: {
+        background: theme.colors.background,
+      },
+    }}>
+      <Stack.Navigator>
         {!userSession ? (
           // Auth Stack
           <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="SignIn" component={SignInScreen} />
-            <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen 
+              name="Welcome" 
+              component={WelcomeScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="SignIn" 
+              component={SignInScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="SignUp" 
+              component={SignUpScreen}
+              options={modalScreenOptions}
+            />
           </>
         ) : !hasCompletedOnboarding ? (
           // Onboarding Stack
           <>
-            <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
-            <Stack.Screen name="Habits" component={HabitsScreen} />
-            <Stack.Screen name="ImprovementAreas" component={ImprovementAreasScreen} />
-            <Stack.Screen name="Goals" component={GoalsScreen} />
-            <Stack.Screen name="Preferences" component={PreferencesScreen} />
-            <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
+            <Stack.Screen 
+              name="OnboardingStart" 
+              component={OnboardingStart}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="Habits" 
+              component={HabitsScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="ImprovementAreas" 
+              component={ImprovementAreasScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="Goals" 
+              component={GoalsScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="Preferences" 
+              component={PreferencesScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="OnboardingComplete" 
+              component={OnboardingComplete}
+              options={modalScreenOptions}
+            />
           </>
         ) : (
           // Main App Stack
           <>
-            <Stack.Screen name="HomeScreen" component={HomeScreen} />
-            <Stack.Screen name="Exercises" component={ExercisesDashboard} />
-            <Stack.Screen name="Mindfulness" component={MindfulnessScreen} />
+            <Stack.Screen 
+              name="HomeScreen" 
+              component={HomeScreen}
+              options={screenOptions}
+            />
+            
+            {/* Exercise Stack */}
+            <Stack.Screen 
+              name="Exercises" 
+              component={ExercisesDashboard}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="Mindfulness" 
+              component={MindfulnessScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="BinauralBeats" 
+              component={BinauralScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="Visualization" 
+              component={VisualizationScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="TaskPlanner" 
+              component={TaskPlannerScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="DeepWork" 
+              component={DeepWorkScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="Journaling" 
+              component={JournalingScreen}
+              options={modalScreenOptions}
+            />
+            <Stack.Screen 
+              name="SelfReflection" 
+              component={SelfReflectionScreen}
+              options={modalScreenOptions}
+            />
           </>
         )}
       </Stack.Navigator>

@@ -6,8 +6,11 @@ import {
   useTheme, 
   Surface,
   Appbar,
-  Divider,
-  Card
+  Card,
+  Button,
+  Portal,
+  Dialog,
+  Snackbar,
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
 import ExerciseCard from '../../components/exercises/ExerciseCard';
@@ -16,58 +19,67 @@ import { supabase } from '../../config/supabase';
 const EXERCISES = [
   {
     id: 'binaural',
-    title: 'Binaural Beats Session',
-    description: 'Enhance focus and relaxation with scientifically designed audio frequencies',
+    title: 'Binaural Beats',
+    description: 'Enhance focus and relaxation through audio entrainment',
     icon: 'headphones',
-    duration: '10-20 min',
+    duration: '10-15 min',
+    route: 'BinauralBeats'
   },
   {
     id: 'visualization',
-    title: 'Visualization Exercise',
-    description: 'Strengthen your mindset through guided visualization and affirmations',
+    title: 'Visualization',
+    description: 'Strengthen your mindset through guided visualization',
     icon: 'eye',
-    duration: '5-10 min',
+    duration: '5 min',
+    route: 'Visualization'
   },
   {
     id: 'tasks',
     title: 'Task Planner',
-    description: 'Plan and prioritize your daily tasks for maximum productivity',
+    description: 'Break down your goals into actionable tasks',
     icon: 'checkbox-marked-outline',
-    duration: '5-15 min',
+    duration: '5-10 min',
+    route: 'TaskPlanner'
   },
   {
-    id: 'deep-work',
-    title: 'Deep Work Session',
+    id: 'deepwork',
+    title: 'Deep Work',
     description: 'Focus intensely on important tasks without distractions',
     icon: 'timer-outline',
     duration: '25-50 min',
+    route: 'DeepWork'
   },
   {
     id: 'mindfulness',
-    title: 'Mindfulness Check-In',
-    description: 'Check in with your current emotional and mental state',
+    title: 'Mindfulness',
+    description: 'Practice presence and emotional awareness',
     icon: 'meditation',
-    duration: '2-5 min',
+    duration: '5-10 min',
+    route: 'Mindfulness'
   },
   {
-    id: 'journal',
+    id: 'journaling',
     title: 'Journaling',
-    description: 'Record your thoughts and receive AI-powered insights',
-    icon: 'book-edit',
+    description: 'Process thoughts and emotions through writing',
+    icon: 'book-outline',
     duration: '10-15 min',
+    route: 'Journaling'
   },
   {
     id: 'reflection',
     title: 'Self-Reflection',
-    description: 'Reflect on your progress and identify areas for growth',
-    icon: 'mirror',
-    duration: '5-10 min',
+    description: 'Review progress and gain deeper insights',
+    icon: 'lightbulb-outline',
+    duration: '15-20 min',
+    route: 'SelfReflection'
   },
 ];
 
 const ExercisesDashboard = ({ navigation }) => {
-  const [completedExercises, setCompletedExercises] = useState([]);
+  const [completedExercises, setCompletedExercises] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
   const theme = useTheme();
 
   useEffect(() => {
@@ -79,32 +91,42 @@ const ExercisesDashboard = ({ navigation }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
 
-      // Get today's completed exercises
-      const today = new Date().toISOString().split('T')[0];
-      const { data: completed, error } = await supabase
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Get today's progress logs
+      const { data: logs, error } = await supabase
         .from('progress_logs')
         .select('exercise_type')
         .eq('user_id', user.id)
-        .gte('created_at', today);
+        .gte('created_at', today.toISOString());
 
       if (error) throw error;
-      
-      setCompletedExercises(completed.map(log => log.exercise_type));
+
+      // Create a map of completed exercises
+      const completed = {};
+      logs.forEach(log => {
+        completed[log.exercise_type] = true;
+      });
+
+      setCompletedExercises(completed);
     } catch (error) {
       console.error('Error loading completed exercises:', error);
+      setError(error.message);
+      setSnackbarVisible(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExercisePress = (exerciseId) => {
-    // Navigate to the specific exercise screen
-    navigation.navigate(exerciseId.charAt(0).toUpperCase() + exerciseId.slice(1));
+  const handleExercisePress = (exercise) => {
+    navigation.navigate(exercise.route);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <Appbar.Header>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Daily Exercises" />
       </Appbar.Header>
 
@@ -115,33 +137,40 @@ const ExercisesDashboard = ({ navigation }) => {
         >
           <Card style={styles.summaryCard} mode="outlined">
             <Card.Content>
-              <Text variant="titleMedium">Today's Progress</Text>
+              <Text variant="titleMedium">Daily Progress</Text>
               <Text 
                 variant="bodyMedium" 
-                style={{ color: theme.colors.onSurfaceVariant }}
+                style={[styles.summaryText, { color: theme.colors.onSurfaceVariant }]}
               >
-                {completedExercises.length} of {EXERCISES.length} exercises completed
+                {Object.keys(completedExercises).length} of {EXERCISES.length} exercises completed today
               </Text>
             </Card.Content>
           </Card>
 
-          <Divider style={styles.divider} />
-
-          <View style={styles.exercisesContainer}>
-            {EXERCISES.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                title={exercise.title}
-                description={exercise.description}
-                icon={exercise.icon}
-                duration={exercise.duration}
-                completed={completedExercises.includes(exercise.id)}
-                onPress={() => handleExercisePress(exercise.id)}
-              />
-            ))}
-          </View>
+          {EXERCISES.map((exercise) => (
+            <ExerciseCard
+              key={exercise.id}
+              title={exercise.title}
+              description={exercise.description}
+              icon={exercise.icon}
+              duration={exercise.duration}
+              completed={completedExercises[exercise.id]}
+              onPress={() => handleExercisePress(exercise)}
+            />
+          ))}
         </ScrollView>
       </Surface>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {error || 'An error occurred. Please try again.'}
+      </Snackbar>
     </SafeAreaView>
   );
 };
@@ -159,11 +188,8 @@ const styles = StyleSheet.create({
   summaryCard: {
     marginBottom: SPACING.lg,
   },
-  divider: {
-    marginBottom: SPACING.lg,
-  },
-  exercisesContainer: {
-    gap: SPACING.md,
+  summaryText: {
+    marginTop: SPACING.xs,
   },
 });
 
