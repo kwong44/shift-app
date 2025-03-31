@@ -11,14 +11,15 @@ import {
   Chip,
   useTheme,
   Appbar,
-  Surface
+  Surface,
+  FAB
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
 import { signOut } from '../../api/auth';
 import { fetchRoadmap } from '../../api/roadmap';
 import { supabase } from '../../config/supabase';
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [roadmap, setRoadmap] = useState(null);
   const [error, setError] = useState(null);
@@ -154,6 +155,16 @@ const HomeScreen = () => {
           </>
         )}
       </ScrollView>
+
+      <FAB
+        icon="meditation"
+        label="Daily Exercises"
+        onPress={() => navigation.navigate('Exercises')}
+        style={[
+          styles.fab,
+          { backgroundColor: theme.colors.primary }
+        ]}
+      />
     </SafeAreaView>
   );
 };
@@ -220,6 +231,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
     opacity: 0.7,
+  },
+  fab: {
+    position: 'absolute',
+    margin: SPACING.lg,
+    right: 0,
+    bottom: 0,
   },
 });
 

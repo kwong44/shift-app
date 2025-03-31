@@ -21,6 +21,10 @@ import OnboardingComplete from '../screens/onboarding/OnboardingComplete';
 // Main app screens
 import HomeScreen from '../screens/app/HomeScreen';
 
+// Exercise screens
+import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
+import MindfulnessScreen from '../screens/exercises/MindfulnessScreen';
+
 const Stack = createStackNavigator();
 
 const Navigation = () => {
@@ -86,7 +90,11 @@ const Navigation = () => {
           </>
         ) : (
           // Main App Stack
-          <Stack.Screen name="HomeScreen" component={HomeScreen} />
+          <>
+            <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="Exercises" component={ExercisesDashboard} />
+            <Stack.Screen name="Mindfulness" component={MindfulnessScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
