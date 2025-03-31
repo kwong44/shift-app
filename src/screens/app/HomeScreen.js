@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  Card, 
+  Title, 
+  Paragraph, 
+  ActivityIndicator,
+  ProgressBar,
+  Chip,
+  useTheme,
+  Appbar,
+  Surface
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 import { signOut } from '../../api/auth';
 import { fetchRoadmap } from '../../api/roadmap';
 import { supabase } from '../../config/supabase';
@@ -9,6 +22,7 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [roadmap, setRoadmap] = useState(null);
   const [error, setError] = useState(null);
+  const theme = useTheme();
 
   useEffect(() => {
     loadRoadmap();
@@ -39,25 +53,37 @@ const HomeScreen = () => {
   };
 
   const renderGoal = (goal) => (
-    <View key={goal.id} style={styles.goalCard}>
-      <Text style={styles.goalTitle}>{goal.description}</Text>
-      <Text style={styles.goalTimeline}>Timeline: {goal.timeline}</Text>
-      <View style={styles.statusContainer}>
-        <Text style={[
-          styles.statusText,
-          { color: goal.status === 'completed' ? COLORS.success : COLORS.primary }
-        ]}>
-          Status: {goal.status}
-        </Text>
-      </View>
-    </View>
+    <Card key={goal.id} style={styles.goalCard} mode="outlined">
+      <Card.Content>
+        <Title>{goal.description}</Title>
+        <Paragraph style={styles.goalTimeline}>Timeline: {goal.timeline}</Paragraph>
+        <Chip 
+          mode="outlined"
+          style={[
+            styles.statusChip,
+            { 
+              backgroundColor: goal.status === 'completed' 
+                ? theme.colors.success + '20'
+                : theme.colors.primary + '20'
+            }
+          ]}
+          textStyle={{
+            color: goal.status === 'completed' 
+              ? theme.colors.success
+              : theme.colors.primary
+          }}
+        >
+          {goal.status}
+        </Chip>
+      </Card.Content>
+    </Card>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" />
           <Text style={styles.loadingText}>Loading your roadmap...</Text>
         </View>
       </SafeAreaView>
@@ -66,51 +92,63 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>RealityShift</Text>
-        <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+      <Appbar.Header>
+        <Appbar.Content title="RealityShift" />
+        <Appbar.Action icon="logout" onPress={handleSignOut} />
+      </Appbar.Header>
       
       <ScrollView style={styles.content}>
         {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              Error loading your roadmap. Please try again later.
-            </Text>
-          </View>
+          <Card 
+            style={[styles.errorCard, { backgroundColor: theme.colors.errorContainer }]} 
+            mode="outlined"
+          >
+            <Card.Content>
+              <Text style={{ color: theme.colors.error }}>
+                Error loading your roadmap. Please try again later.
+              </Text>
+            </Card.Content>
+          </Card>
         ) : (
           <>
-            <View style={styles.progressCard}>
-              <Text style={styles.progressTitle}>Your Progress</Text>
-              <Text style={styles.progressText}>
+            <Surface 
+              style={[styles.progressCard, { backgroundColor: theme.colors.surfaceVariant }]} 
+              elevation={0}
+            >
+              <Title>Your Progress</Title>
+              <ProgressBar 
+                progress={(roadmap?.progress?.completed_goals || 0) / (roadmap?.progress?.total_goals || 1)}
+                style={styles.progressBar}
+              />
+              <Paragraph style={styles.progressText}>
                 {roadmap?.progress?.completed_goals || 0} of {roadmap?.progress?.total_goals || 0} goals completed
-              </Text>
-            </View>
+              </Paragraph>
+            </Surface>
 
             <View style={styles.goalsSection}>
-              <Text style={styles.sectionTitle}>Your Goals</Text>
+              <Title style={styles.sectionTitle}>Your Goals</Title>
               {roadmap?.goals?.length > 0 ? (
                 roadmap.goals.map(renderGoal)
               ) : (
-                <Text style={styles.noGoalsText}>No goals found in your roadmap</Text>
+                <Text style={styles.noContentText}>No goals found in your roadmap</Text>
               )}
             </View>
 
             <View style={styles.milestonesSection}>
-              <Text style={styles.sectionTitle}>Upcoming Milestones</Text>
+              <Title style={styles.sectionTitle}>Upcoming Milestones</Title>
               {roadmap?.milestones?.length > 0 ? (
                 roadmap.milestones.map(milestone => (
-                  <View key={milestone.goal_id} style={styles.milestoneCard}>
-                    <Text style={styles.milestoneText}>{milestone.description}</Text>
-                    <Text style={styles.milestoneDate}>
-                      Target: {new Date(milestone.target_date).toLocaleDateString()}
-                    </Text>
-                  </View>
+                  <Card key={milestone.goal_id} style={styles.milestoneCard} mode="outlined">
+                    <Card.Content>
+                      <Paragraph>{milestone.description}</Paragraph>
+                      <Text style={styles.milestoneDate}>
+                        Target: {new Date(milestone.target_date).toLocaleDateString()}
+                      </Text>
+                    </Card.Content>
+                  </Card>
                 ))
               ) : (
-                <Text style={styles.noMilestonesText}>No upcoming milestones</Text>
+                <Text style={styles.noContentText}>No upcoming milestones</Text>
               )}
             </View>
           </>
@@ -123,27 +161,6 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  title: {
-    fontSize: FONT.size.xl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.primary,
-  },
-  signOutButton: {
-    padding: SPACING.sm,
-  },
-  signOutText: {
-    fontSize: FONT.size.sm,
-    color: COLORS.primary,
   },
   content: {
     flex: 1,
@@ -156,105 +173,53 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    fontSize: FONT.size.md,
-    color: COLORS.primary,
   },
-  errorContainer: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.errorLight,
-    borderRadius: SPACING.sm,
+  errorCard: {
     marginBottom: SPACING.lg,
-  },
-  errorText: {
-    color: COLORS.error,
-    fontSize: FONT.size.md,
-    textAlign: 'center',
   },
   progressCard: {
-    backgroundColor: COLORS.background,
-    borderRadius: SPACING.sm,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 8,
   },
-  progressTitle: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+  progressBar: {
+    marginVertical: SPACING.md,
+    height: 8,
+    borderRadius: 4,
   },
   progressText: {
-    fontSize: FONT.size.md,
-    color: COLORS.primary,
-    fontWeight: FONT.weight.medium,
+    textAlign: 'center',
   },
   goalsSection: {
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
     marginBottom: SPACING.md,
   },
   goalCard: {
-    backgroundColor: COLORS.background,
-    borderRadius: SPACING.sm,
-    padding: SPACING.lg,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  goalTitle: {
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.semiBold,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   goalTimeline: {
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
     marginBottom: SPACING.xs,
   },
-  statusContainer: {
-    marginTop: SPACING.xs,
-  },
-  statusText: {
-    fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
+  statusChip: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
   },
   milestonesSection: {
     marginBottom: SPACING.xl,
   },
   milestoneCard: {
-    backgroundColor: COLORS.background,
-    borderRadius: SPACING.sm,
-    padding: SPACING.md,
     marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  milestoneText: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   milestoneDate: {
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+    opacity: 0.7,
   },
-  noGoalsText: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
+  noContentText: {
     textAlign: 'center',
     marginTop: SPACING.md,
-  },
-  noMilestonesText: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
-    textAlign: 'center',
-    marginTop: SPACING.md,
+    opacity: 0.7,
   },
 });
 

@@ -1,45 +1,78 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, SafeAreaView } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
+import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  useTheme, 
+  Surface,
+  Avatar,
+  Card
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 
 const WelcomeScreen = ({ navigation }) => {
+  const theme = useTheme();
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <Surface style={styles.content} elevation={0}>
         <View style={styles.header}>
-          <Text style={styles.title}>RealityShift</Text>
-          <Text style={styles.subtitle}>Transform your life, one day at a time</Text>
+          <Text variant="displayMedium" style={[styles.title, { color: theme.colors.primary }]}>
+            RealityShift
+          </Text>
+          <Text 
+            variant="titleMedium" 
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
+            Transform your life, one day at a time
+          </Text>
         </View>
         
         <View style={styles.imageContainer}>
-          {/* Replace with your app logo or illustration */}
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>Logo</Text>
-          </View>
+          <Avatar.Icon 
+            size={150} 
+            icon="meditation" 
+            style={{
+              backgroundColor: theme.colors.primaryContainer
+            }}
+            color={theme.colors.onPrimaryContainer}
+          />
         </View>
         
-        <View style={styles.description}>
-          <Text style={styles.descriptionText}>
-            Take control of your personal transformation with guided exercises, 
-            AI-powered insights, and a personalized roadmap to reach your goals.
-          </Text>
-        </View>
-      </View>
+        <Card style={styles.descriptionCard} mode="contained">
+          <Card.Content>
+            <Text 
+              variant="bodyLarge" 
+              style={[
+                styles.descriptionText,
+                { color: theme.colors.onSurfaceVariant }
+              ]}
+            >
+              Take control of your personal transformation with guided exercises, 
+              AI-powered insights, and a personalized roadmap to reach your goals.
+            </Text>
+          </Card.Content>
+        </Card>
+      </Surface>
       
-      <View style={styles.buttonContainer}>
-        <CustomButton
-          title="Sign In"
+      <Surface style={styles.buttonContainer} elevation={0}>
+        <Button
+          mode="contained"
           onPress={() => navigation.navigate('SignIn')}
           style={styles.button}
-        />
-        <CustomButton
-          title="Create Account"
+          contentStyle={styles.buttonContent}
+        >
+          Sign In
+        </Button>
+        <Button
+          mode="outlined"
           onPress={() => navigation.navigate('SignUp')}
-          type="secondary"
           style={styles.button}
-        />
-      </View>
+          contentStyle={styles.buttonContent}
+        >
+          Create Account
+        </Button>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -47,7 +80,6 @@ const WelcomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
@@ -59,46 +91,30 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONT.size.xxxl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.primary,
     marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
+    textAlign: 'center',
   },
   imageContainer: {
     alignItems: 'center',
     marginVertical: SPACING.xl,
   },
-  imagePlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: COLORS.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePlaceholderText: {
-    color: COLORS.background,
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.medium,
-  },
-  description: {
+  descriptionCard: {
     marginBottom: SPACING.xl,
+    backgroundColor: 'transparent',
   },
   descriptionText: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
     textAlign: 'center',
     lineHeight: 24,
   },
   buttonContainer: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
   button: {
     marginBottom: SPACING.md,
+  },
+  buttonContent: {
+    paddingVertical: SPACING.xs,
   },
 });
 

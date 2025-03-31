@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
-import ProgressBar from '../../components/onboarding/ProgressBar';
-import OptionSelector from '../../components/common/OptionSelector';
-import CustomInput from '../../components/common/CustomInput';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  useTheme,
+  Surface,
+  Card,
+  Divider,
+  TextInput,
+  Chip,
+  ProgressBar,
+  HelperText
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 
 const improvementOptions = [
   'Focus & Concentration',
@@ -24,9 +31,9 @@ const improvementOptions = [
 
 const ImprovementAreasScreen = ({ navigation, route }) => {
   const { currentHabits } = route.params || { currentHabits: [] };
-  
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [otherArea, setOtherArea] = useState('');
+  const theme = useTheme();
   
   const handleContinue = () => {
     const areas = [...selectedAreas];
@@ -40,64 +47,107 @@ const ImprovementAreasScreen = ({ navigation, route }) => {
     });
   };
 
+  const toggleArea = (area) => {
+    setSelectedAreas(prev => 
+      prev.includes(area)
+        ? prev.filter(a => a !== area)
+        : [...prev, area]
+    );
+  };
+
+  const progress = 0.5; // 2/4 steps
+  const hasExceededLimit = selectedAreas.length > 5;
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ProgressBar currentStep={2} totalSteps={4} />
-        
-        <OnboardingHeader
-          title="Areas to Improve"
-          subtitle="Select the areas of your life you'd like to enhance or transform."
-        />
-        
-        <View style={styles.content}>
-          <OptionSelector
-            options={improvementOptions}
-            selectedOptions={selectedAreas}
-            onSelect={setSelectedAreas}
-            multiple={true}
-            label="Select up to 5 areas:"
-          />
+      <Surface style={styles.content} elevation={0}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <ProgressBar progress={progress} style={styles.progressBar} />
           
-          {selectedAreas.length > 5 && (
-            <Text style={styles.warningText}>
-              You've selected more than 5 areas. Consider focusing on your top priorities.
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.title}>
+              Areas to Improve
             </Text>
-          )}
-          
-          <View style={styles.otherContainer}>
-            <Text style={styles.otherLabel}>
-              Other areas not listed above:
+            <Text 
+              variant="titleMedium" 
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Select the areas of your life you'd like to enhance or transform.
             </Text>
-            <CustomInput
-              placeholder="E.g., Public speaking, Relationship skills, etc."
-              value={otherArea}
-              onChangeText={setOtherArea}
-              multiline={true}
-              numberOfLines={2}
-            />
           </View>
-        </View>
-      </ScrollView>
+          
+          <Card style={styles.optionsCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Select up to 5 areas:
+              </Text>
+              
+              <View style={styles.chipContainer}>
+                {improvementOptions.map((area) => (
+                  <Chip
+                    key={area}
+                    selected={selectedAreas.includes(area)}
+                    onPress={() => toggleArea(area)}
+                    style={styles.chip}
+                    showSelectedOverlay
+                  >
+                    {area}
+                  </Chip>
+                ))}
+              </View>
+
+              {hasExceededLimit && (
+                <HelperText type="warning" style={styles.warningText}>
+                  You've selected more than 5 areas. Consider focusing on your top priorities.
+                </HelperText>
+              )}
+            </Card.Content>
+          </Card>
+          
+          <Card style={styles.otherCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Other areas not listed above:
+              </Text>
+              <TextInput
+                mode="outlined"
+                placeholder="E.g., Public speaking, Relationship skills, etc."
+                value={otherArea}
+                onChangeText={setOtherArea}
+                multiline
+                numberOfLines={2}
+                style={styles.input}
+              />
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </Surface>
       
-      <View style={styles.footer}>
+      <Surface style={styles.footer} elevation={1}>
+        <Divider />
         <View style={styles.buttonContainer}>
-          <CustomButton
-            title="Back"
+          <Button
+            mode="outlined"
             onPress={() => navigation.goBack()}
-            type="secondary"
-            style={styles.backButton}
-          />
-          <CustomButton
-            title="Continue"
+            style={[styles.button, styles.backButton]}
+            contentStyle={styles.buttonContent}
+          >
+            Back
+          </Button>
+          <Button
+            mode="contained"
             onPress={handleContinue}
             disabled={selectedAreas.length === 0 && !otherArea.trim()}
-          />
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Continue
+          </Button>
         </View>
-      </View>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -105,39 +155,65 @@ const ImprovementAreasScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
   },
   content: {
     flex: 1,
   },
-  warningText: {
-    color: COLORS.accent,
-    fontSize: FONT.size.sm,
-    marginTop: SPACING.sm,
+  scrollContent: {
+    padding: SPACING.lg,
   },
-  otherContainer: {
-    marginTop: SPACING.xl,
+  progressBar: {
+    marginBottom: SPACING.lg,
+    height: 8,
+    borderRadius: 4,
   },
-  otherLabel: {
-    fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
-    color: COLORS.text,
+  header: {
+    marginBottom: SPACING.xl,
+  },
+  title: {
+    marginBottom: SPACING.sm,
+  },
+  optionsCard: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    marginBottom: SPACING.md,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  chip: {
     marginBottom: SPACING.xs,
   },
+  warningText: {
+    marginTop: SPACING.sm,
+  },
+  otherCard: {
+    marginBottom: SPACING.lg,
+  },
+  input: {
+    marginTop: SPACING.xs,
+  },
   footer: {
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    width: '100%',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: SPACING.md,
+  },
+  button: {
+    flex: 1,
   },
   backButton: {
     marginRight: SPACING.md,
+  },
+  buttonContent: {
+    paddingVertical: SPACING.xs,
   },
 });
 

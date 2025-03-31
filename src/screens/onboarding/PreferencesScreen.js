@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
-import ProgressBar from '../../components/onboarding/ProgressBar';
-import OptionSelector from '../../components/common/OptionSelector';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  useTheme,
+  Surface,
+  Card,
+  Divider,
+  Chip,
+  ProgressBar,
+  HelperText,
+  RadioButton,
+  List
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 
 const engagementTimeOptions = [
   'Morning (5am-9am)',
@@ -49,6 +58,7 @@ const PreferencesScreen = ({ navigation, route }) => {
   const [sessionLength, setSessionLength] = useState('');
   const [reminderFrequency, setReminderFrequency] = useState('');
   const [preferredExercises, setPreferredExercises] = useState([]);
+  const theme = useTheme();
   
   const handleContinue = () => {
     const engagementPrefs = {
@@ -58,7 +68,6 @@ const PreferencesScreen = ({ navigation, route }) => {
       preferredExercises
     };
     
-    // Combine all the assessment data
     const assessmentData = {
       currentHabits,
       improvementAreas,
@@ -74,90 +83,150 @@ const PreferencesScreen = ({ navigation, route }) => {
       preferredTime && 
       sessionLength && 
       reminderFrequency && 
-      preferredExercises.length > 0
+      preferredExercises.length >= 3
     );
   };
 
+  const toggleExercise = (exercise) => {
+    setPreferredExercises(prev => 
+      prev.includes(exercise)
+        ? prev.filter(e => e !== exercise)
+        : [...prev, exercise]
+    );
+  };
+
+  const progress = 1; // 4/4 steps
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ProgressBar currentStep={4} totalSteps={4} />
-        
-        <OnboardingHeader
-          title="Your Preferences"
-          subtitle="Let us know how you'd like to engage with your transformation journey."
-        />
-        
-        <View style={styles.content}>
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Best Time for Engagement</Text>
-            <OptionSelector
-              options={engagementTimeOptions}
-              selectedOptions={preferredTime}
-              onSelect={setPreferredTime}
-              multiple={false}
-            />
-          </View>
+      <Surface style={styles.content} elevation={0}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <ProgressBar progress={progress} style={styles.progressBar} />
           
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Preferred Session Length</Text>
-            <OptionSelector
-              options={sessionLengthOptions}
-              selectedOptions={sessionLength}
-              onSelect={setSessionLength}
-              multiple={false}
-            />
-          </View>
-          
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Reminder Frequency</Text>
-            <OptionSelector
-              options={reminderFrequencyOptions}
-              selectedOptions={reminderFrequency}
-              onSelect={setReminderFrequency}
-              multiple={false}
-            />
-          </View>
-          
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Preferred Exercise Types</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select at least 3 types of exercises you'd enjoy
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.title}>
+              Your Preferences
             </Text>
-            <OptionSelector
-              options={exerciseTypeOptions}
-              selectedOptions={preferredExercises}
-              onSelect={setPreferredExercises}
-              multiple={true}
-            />
-            
-            {preferredExercises.length > 0 && preferredExercises.length < 3 && (
-              <Text style={styles.warningText}>
-                Please select at least 3 exercise types
-              </Text>
-            )}
+            <Text 
+              variant="titleMedium" 
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Let us know how you'd like to engage with your transformation journey.
+            </Text>
           </View>
-        </View>
-      </ScrollView>
+          
+          <Card style={styles.preferencesCard} mode="outlined">
+            <Card.Content>
+              <List.Section>
+                <List.Subheader>Best Time for Engagement</List.Subheader>
+                <RadioButton.Group 
+                  onValueChange={value => setPreferredTime(value)} 
+                  value={preferredTime}
+                >
+                  {engagementTimeOptions.map((time) => (
+                    <RadioButton.Item
+                      key={time}
+                      label={time}
+                      value={time}
+                      labelStyle={{ color: theme.colors.onSurface }}
+                    />
+                  ))}
+                </RadioButton.Group>
+
+                <List.Subheader>Preferred Session Length</List.Subheader>
+                <RadioButton.Group 
+                  onValueChange={value => setSessionLength(value)} 
+                  value={sessionLength}
+                >
+                  {sessionLengthOptions.map((length) => (
+                    <RadioButton.Item
+                      key={length}
+                      label={length}
+                      value={length}
+                      labelStyle={{ color: theme.colors.onSurface }}
+                    />
+                  ))}
+                </RadioButton.Group>
+
+                <List.Subheader>Reminder Frequency</List.Subheader>
+                <RadioButton.Group 
+                  onValueChange={value => setReminderFrequency(value)} 
+                  value={reminderFrequency}
+                >
+                  {reminderFrequencyOptions.map((frequency) => (
+                    <RadioButton.Item
+                      key={frequency}
+                      label={frequency}
+                      value={frequency}
+                      labelStyle={{ color: theme.colors.onSurface }}
+                    />
+                  ))}
+                </RadioButton.Group>
+              </List.Section>
+            </Card.Content>
+          </Card>
+          
+          <Card style={styles.exercisesCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Preferred Exercise Types
+              </Text>
+              <Text 
+                variant="bodyMedium" 
+                style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}
+              >
+                Select at least 3 types of exercises you'd enjoy
+              </Text>
+              
+              <View style={styles.chipContainer}>
+                {exerciseTypeOptions.map((exercise) => (
+                  <Chip
+                    key={exercise}
+                    selected={preferredExercises.includes(exercise)}
+                    onPress={() => toggleExercise(exercise)}
+                    style={styles.chip}
+                    showSelectedOverlay
+                  >
+                    {exercise}
+                  </Chip>
+                ))}
+              </View>
+
+              {preferredExercises.length > 0 && preferredExercises.length < 3 && (
+                <HelperText type="warning" style={styles.warningText}>
+                  Please select at least 3 exercise types
+                </HelperText>
+              )}
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </Surface>
       
-      <View style={styles.footer}>
+      <Surface style={styles.footer} elevation={1}>
+        <Divider />
         <View style={styles.buttonContainer}>
-          <CustomButton
-            title="Back"
+          <Button
+            mode="outlined"
             onPress={() => navigation.goBack()}
-            type="secondary"
-            style={styles.backButton}
-          />
-          <CustomButton
-            title="Continue"
+            style={[styles.button, styles.backButton]}
+            contentStyle={styles.buttonContent}
+          >
+            Back
+          </Button>
+          <Button
+            mode="contained"
             onPress={handleContinue}
-            disabled={!isFormValid() || preferredExercises.length < 3}
-          />
+            disabled={!isFormValid()}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Continue
+          </Button>
         </View>
-      </View>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -165,44 +234,65 @@ const PreferencesScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
   },
   content: {
     flex: 1,
   },
-  sectionContainer: {
+  scrollContent: {
+    padding: SPACING.lg,
+  },
+  progressBar: {
+    marginBottom: SPACING.lg,
+    height: 8,
+    borderRadius: 4,
+  },
+  header: {
     marginBottom: SPACING.xl,
   },
+  title: {
+    marginBottom: SPACING.sm,
+  },
+  preferencesCard: {
+    marginBottom: SPACING.lg,
+  },
+  exercisesCard: {
+    marginBottom: SPACING.lg,
+  },
   sectionTitle: {
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
     marginBottom: SPACING.sm,
   },
   sectionSubtitle: {
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  chip: {
+    marginBottom: SPACING.xs,
   },
   warningText: {
-    color: COLORS.accent,
-    fontSize: FONT.size.sm,
     marginTop: SPACING.sm,
   },
   footer: {
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    width: '100%',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: SPACING.md,
+  },
+  button: {
+    flex: 1,
   },
   backButton: {
     marginRight: SPACING.md,
+  },
+  buttonContent: {
+    paddingVertical: SPACING.xs,
   },
 });
 

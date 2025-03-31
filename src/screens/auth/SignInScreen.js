@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import CustomInput from '../../components/common/CustomInput';
+import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { 
+  Text, 
+  TextInput, 
+  Button, 
+  useTheme, 
+  Surface,
+  HelperText,
+  TouchableRipple
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 import { signIn } from '../../api/auth';
 
 const SignInScreen = ({ navigation }) => {
@@ -10,6 +17,8 @@ const SignInScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const theme = useTheme();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -33,51 +42,79 @@ const SignInScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue your transformation journey</Text>
-      </View>
+      <Surface style={styles.content} elevation={0}>
+        <View style={styles.header}>
+          <Text variant="headlineLarge" style={styles.title}>Welcome Back</Text>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+            Sign in to continue your transformation journey
+          </Text>
+        </View>
 
-      <View style={styles.formContainer}>
-        <CustomInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Enter your email"
-          keyboardType="email-address"
-        />
+        <View style={styles.formContainer}>
+          <TextInput
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            mode="outlined"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            error={!!error}
+            style={styles.input}
+          />
 
-        <CustomInput
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter your password"
-          secureTextEntry
-        />
+          <TextInput
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            mode="outlined"
+            secureTextEntry={!showPassword}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? "eye-off" : "eye"}
+                onPress={() => setShowPassword(!showPassword)}
+              />
+            }
+            error={!!error}
+            style={styles.input}
+          />
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+          {error && (
+            <HelperText type="error" visible={!!error}>
+              {error}
+            </HelperText>
+          )}
 
-        <TouchableOpacity 
-          style={styles.forgotPassword}
-          onPress={() => Alert.alert('Feature Coming Soon', 'Password reset will be available in a future update.')}
-        >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
+          <TouchableRipple
+            onPress={() => navigation.navigate('ForgotPassword')}
+            style={styles.forgotPassword}
+          >
+            <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>
+              Forgot Password?
+            </Text>
+          </TouchableRipple>
 
-        <CustomButton
-          title="Sign In"
-          onPress={handleSignIn}
-          loading={loading}
-          style={styles.button}
-        />
-      </View>
+          <Button
+            mode="contained"
+            onPress={handleSignIn}
+            loading={loading}
+            style={styles.button}
+          >
+            Sign In
+          </Button>
+        </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-          <Text style={styles.footerLink}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.footer}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            Don't have an account?{' '}
+          </Text>
+          <TouchableRipple onPress={() => navigation.navigate('SignUp')}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>
+              Sign Up
+            </Text>
+          </TouchableRipple>
+        </View>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -85,7 +122,9 @@ const SignInScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  content: {
+    flex: 1,
     padding: SPACING.lg,
   },
   header: {
@@ -93,48 +132,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONT.size.xxl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.primary,
     marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
   },
   formContainer: {
     marginVertical: SPACING.lg,
   },
-  errorText: {
-    color: COLORS.error,
-    fontSize: FONT.size.sm,
-    marginVertical: SPACING.sm,
+  input: {
+    marginBottom: SPACING.md,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: SPACING.lg,
   },
-  forgotPasswordText: {
-    color: COLORS.primary,
-    fontSize: FONT.size.sm,
-  },
   button: {
     marginTop: SPACING.md,
+    paddingVertical: SPACING.xs,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 'auto',
     marginBottom: SPACING.lg,
-  },
-  footerText: {
-    color: COLORS.textLight,
-    fontSize: FONT.size.md,
-  },
-  footerLink: {
-    color: COLORS.primary,
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.medium,
   },
 });
 

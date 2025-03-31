@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
-import ProgressBar from '../../components/onboarding/ProgressBar';
-import OptionSelector from '../../components/common/OptionSelector';
-import CustomInput from '../../components/common/CustomInput';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  useTheme,
+  Surface,
+  Card,
+  Divider,
+  TextInput,
+  Chip,
+  ProgressBar,
+  List
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 
 const habitOptions = [
   'Regular Exercise',
@@ -24,70 +31,110 @@ const habitOptions = [
 const HabitsScreen = ({ navigation, route }) => {
   const [selectedHabits, setSelectedHabits] = useState([]);
   const [otherHabit, setOtherHabit] = useState('');
+  const theme = useTheme();
   
   const handleContinue = () => {
     const habits = [...selectedHabits];
     if (otherHabit.trim()) {
       habits.push(otherHabit.trim());
     }
-    
-    // Store habits in a context or redux store for later submission
-    // For simplicity, we'll pass it as a parameter for now
     navigation.navigate('ImprovementAreas', { currentHabits: habits });
   };
 
+  const toggleHabit = (habit) => {
+    setSelectedHabits(prev => 
+      prev.includes(habit)
+        ? prev.filter(h => h !== habit)
+        : [...prev, habit]
+    );
+  };
+
+  const progress = 0.25; // 1/4 steps
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ProgressBar currentStep={1} totalSteps={4} />
-        
-        <OnboardingHeader
-          title="Your Current Habits"
-          subtitle="Select the positive habits you already practice regularly."
-        />
-        
-        <View style={styles.content}>
-          <OptionSelector
-            options={habitOptions}
-            selectedOptions={selectedHabits}
-            onSelect={setSelectedHabits}
-            multiple={true}
-            label="Select all that apply:"
-          />
+      <Surface style={styles.content} elevation={0}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <ProgressBar progress={progress} style={styles.progressBar} />
           
-          <View style={styles.otherContainer}>
-            <Text style={styles.otherLabel}>
-              Other habits not listed above:
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.title}>
+              Your Current Habits
             </Text>
-            <CustomInput
-              placeholder="E.g., Gratitude practice, Cold showers, etc."
-              value={otherHabit}
-              onChangeText={setOtherHabit}
-              multiline={true}
-              numberOfLines={2}
-            />
+            <Text 
+              variant="titleMedium" 
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Select the positive habits you already practice regularly.
+            </Text>
           </View>
-        </View>
-      </ScrollView>
+          
+          <Card style={styles.optionsCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Select all that apply:
+              </Text>
+              
+              <View style={styles.chipContainer}>
+                {habitOptions.map((habit) => (
+                  <Chip
+                    key={habit}
+                    selected={selectedHabits.includes(habit)}
+                    onPress={() => toggleHabit(habit)}
+                    style={styles.chip}
+                    showSelectedOverlay
+                  >
+                    {habit}
+                  </Chip>
+                ))}
+              </View>
+            </Card.Content>
+          </Card>
+          
+          <Card style={styles.otherCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Other habits not listed above:
+              </Text>
+              <TextInput
+                mode="outlined"
+                placeholder="E.g., Gratitude practice, Cold showers, etc."
+                value={otherHabit}
+                onChangeText={setOtherHabit}
+                multiline
+                numberOfLines={2}
+                style={styles.input}
+              />
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </Surface>
       
-      <View style={styles.footer}>
+      <Surface style={styles.footer} elevation={1}>
+        <Divider />
         <View style={styles.buttonContainer}>
-          <CustomButton
-            title="Back"
+          <Button
+            mode="outlined"
             onPress={() => navigation.goBack()}
-            type="secondary"
-            style={styles.backButton}
-          />
-          <CustomButton
-            title="Continue"
+            style={[styles.button, styles.backButton]}
+            contentStyle={styles.buttonContent}
+          >
+            Back
+          </Button>
+          <Button
+            mode="contained"
             onPress={handleContinue}
             disabled={selectedHabits.length === 0 && !otherHabit.trim()}
-          />
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Continue
+          </Button>
         </View>
-      </View>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -95,34 +142,62 @@ const HabitsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
   },
   content: {
     flex: 1,
   },
-  otherContainer: {
-    marginTop: SPACING.xl,
+  scrollContent: {
+    padding: SPACING.lg,
   },
-  otherLabel: {
-    fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
-    color: COLORS.text,
+  progressBar: {
+    marginBottom: SPACING.lg,
+    height: 8,
+    borderRadius: 4,
+  },
+  header: {
+    marginBottom: SPACING.xl,
+  },
+  title: {
+    marginBottom: SPACING.sm,
+  },
+  optionsCard: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    marginBottom: SPACING.md,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  chip: {
     marginBottom: SPACING.xs,
   },
+  otherCard: {
+    marginBottom: SPACING.lg,
+  },
+  input: {
+    marginTop: SPACING.xs,
+  },
   footer: {
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    width: '100%',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: SPACING.md,
+  },
+  button: {
+    flex: 1,
   },
   backButton: {
     marginRight: SPACING.md,
+  },
+  buttonContent: {
+    paddingVertical: SPACING.xs,
   },
 });
 

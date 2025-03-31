@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  useTheme,
+  Surface,
+  Card,
+  Divider,
+  ActivityIndicator,
+  Portal,
+  Dialog,
+  List
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 import { supabase } from '../../config/supabase';
 import { submitSelfAssessment } from '../../api/selfAssessment';
 import { createRoadmap } from '../../api/roadmap';
@@ -11,6 +21,8 @@ const OnboardingComplete = ({ navigation, route }) => {
   const { assessmentData } = route.params || { assessmentData: {} };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const theme = useTheme();
   
   const validateAssessmentData = () => {
     if (!assessmentData.currentHabits?.length && 
@@ -40,131 +52,150 @@ const OnboardingComplete = ({ navigation, route }) => {
     setError(null);
     
     try {
-      // Get the current user
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         throw new Error('User not found. Please sign in again.');
       }
       
-      // Submit the assessment data
       await submitSelfAssessment(user.id, assessmentData);
-
-      // Generate and store the roadmap
       await createRoadmap(user.id, assessmentData);
       
-      // Show success message and navigate to HomeScreen
-      Alert.alert(
-        'Assessment Complete!',
-        'Your personalized transformation roadmap has been created. Let\'s begin your journey!',
-        [
-          {
-            text: 'Start Journey',
-            onPress: () => {
-              // Force a navigation state refresh by updating the parent navigator
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'HomeScreen' }],
-              });
-            }
-          }
-        ]
-      );
+      setShowDialog(true);
     } catch (error) {
       setError(error.message || 'Failed to submit assessment data. Please try again.');
-      
-      // Show error alert
-      Alert.alert(
-        'Submission Error',
-        error.message || 'Failed to submit assessment data. Please try again.',
-        [
-          {
-            text: 'Try Again',
-            onPress: () => setError(null)
-          }
-        ]
-      );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDialogConfirm = () => {
+    setShowDialog(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'HomeScreen' }],
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <OnboardingHeader
-          title="Assessment Complete!"
-          subtitle="Thank you for sharing your journey with us. We're ready to craft your personalized transformation roadmap."
-        />
-        
-        <View style={styles.content}>
-          <View style={styles.summaryContainer}>
-            <Text style={styles.summaryTitle}>Here's what we've learned about you:</Text>
-            
-            <View style={styles.summarySection}>
-              <Text style={styles.sectionLabel}>Current Habits:</Text>
-              <Text style={styles.sectionValue}>
-                {assessmentData.currentHabits?.length > 0 
-                  ? assessmentData.currentHabits.join(', ')
-                  : 'None specified'}
-              </Text>
-            </View>
-            
-            <View style={styles.summarySection}>
-              <Text style={styles.sectionLabel}>Areas to Improve:</Text>
-              <Text style={styles.sectionValue}>
-                {assessmentData.improvementAreas?.length > 0
-                  ? assessmentData.improvementAreas.join(', ')
-                  : 'None specified'}
-              </Text>
-            </View>
-            
-            <View style={styles.summarySection}>
-              <Text style={styles.sectionLabel}>Long-Term Goals:</Text>
-              {assessmentData.longTermGoals && Object.keys(assessmentData.longTermGoals).length > 0 ? (
-                Object.entries(assessmentData.longTermGoals).map(([key, value]) => (
-                  <Text key={key} style={styles.goalItem}>• {value}</Text>
-                ))
-              ) : (
-                <Text style={styles.sectionValue}>None specified</Text>
-              )}
-            </View>
-            
-            <View style={styles.summarySection}>
-              <Text style={styles.sectionLabel}>Preferred Engagement:</Text>
-              <Text style={styles.sectionValue}>
-                {assessmentData.engagementPrefs?.preferredTime || 'Not specified'} for {' '}
-                {assessmentData.engagementPrefs?.sessionLength || 'any duration'}
-              </Text>
-            </View>
+      <Surface style={styles.content} elevation={0}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.title}>
+              Assessment Complete!
+            </Text>
+            <Text 
+              variant="titleMedium" 
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Thank you for sharing your journey with us. We're ready to craft your personalized transformation roadmap.
+            </Text>
           </View>
+          
+          <Card style={styles.summaryCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleLarge" style={styles.summaryTitle}>
+                Here's what we've learned about you:
+              </Text>
+              
+              <List.Section>
+                <List.Subheader>Current Habits</List.Subheader>
+                <Text variant="bodyLarge" style={styles.sectionValue}>
+                  {assessmentData.currentHabits?.length > 0 
+                    ? assessmentData.currentHabits.join(', ')
+                    : 'None specified'}
+                </Text>
+
+                <List.Subheader>Areas to Improve</List.Subheader>
+                <Text variant="bodyLarge" style={styles.sectionValue}>
+                  {assessmentData.improvementAreas?.length > 0
+                    ? assessmentData.improvementAreas.join(', ')
+                    : 'None specified'}
+                </Text>
+
+                <List.Subheader>Long-Term Goals</List.Subheader>
+                {assessmentData.longTermGoals && Object.keys(assessmentData.longTermGoals).length > 0 ? (
+                  Object.entries(assessmentData.longTermGoals).map(([key, value]) => (
+                    <Text key={key} variant="bodyLarge" style={styles.goalItem}>
+                      • {value}
+                    </Text>
+                  ))
+                ) : (
+                  <Text variant="bodyLarge" style={styles.sectionValue}>
+                    None specified
+                  </Text>
+                )}
+
+                <List.Subheader>Preferred Engagement</List.Subheader>
+                <Text variant="bodyLarge" style={styles.sectionValue}>
+                  {assessmentData.engagementPrefs?.preferredTime || 'Not specified'} for {' '}
+                  {assessmentData.engagementPrefs?.sessionLength || 'any duration'}
+                </Text>
+              </List.Section>
+            </Card.Content>
+          </Card>
           
           {error && (
-            <Text style={styles.errorText}>{error}</Text>
+            <Card style={[styles.errorCard, { backgroundColor: theme.colors.errorContainer }]}>
+              <Card.Content>
+                <Text variant="bodyMedium" style={{ color: theme.colors.error }}>
+                  {error}
+                </Text>
+              </Card.Content>
+            </Card>
           )}
           
-          <Text style={styles.nextStepsText}>
-            Next, we'll use AI to generate your personalized roadmap. This may take a moment as we analyze your responses and create a plan tailored just for you.
-          </Text>
-        </View>
-      </ScrollView>
+          <Card style={styles.infoCard} mode="outlined">
+            <Card.Content>
+              <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                Next, we'll use AI to generate your personalized roadmap. This may take a moment as we analyze your responses and create a plan tailored just for you.
+              </Text>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </Surface>
       
-      <View style={styles.footer}>
+      <Surface style={styles.footer} elevation={1}>
+        <Divider />
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Creating your roadmap...</Text>
+            <ActivityIndicator size="large" />
+            <Text 
+              variant="bodyLarge"
+              style={[styles.loadingText, { color: theme.colors.primary }]}
+            >
+              Creating your roadmap...
+            </Text>
           </View>
         ) : (
-          <CustomButton
-            title="Generate My Roadmap"
+          <Button
+            mode="contained"
             onPress={handleSubmit}
-          />
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Generate My Roadmap
+          </Button>
         )}
-      </View>
+      </Surface>
+
+      <Portal>
+        <Dialog visible={showDialog} onDismiss={handleDialogConfirm}>
+          <Dialog.Title>Assessment Complete!</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              Your personalized transformation roadmap has been created. Let's begin your journey!
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleDialogConfirm}>Start Journey</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 };
@@ -172,63 +203,41 @@ const OnboardingComplete = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
   },
   content: {
     flex: 1,
   },
-  summaryContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  scrollContent: {
     padding: SPACING.lg,
+  },
+  header: {
     marginBottom: SPACING.xl,
   },
-  summaryTitle: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.semiBold,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
+  title: {
+    marginBottom: SPACING.sm,
   },
-  summarySection: {
-    marginBottom: SPACING.md,
-  },
-  sectionLabel: {
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.medium,
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
-  },
-  sectionValue: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
-    lineHeight: 22,
-  },
-  goalItem: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
-    lineHeight: 22,
-    marginTop: 2,
-  },
-  errorText: {
-    color: COLORS.error,
-    fontSize: FONT.size.md,
+  summaryCard: {
     marginBottom: SPACING.lg,
   },
-  nextStepsText: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
-    lineHeight: 22,
+  summaryTitle: {
+    marginBottom: SPACING.md,
+  },
+  sectionValue: {
+    marginBottom: SPACING.md,
+  },
+  goalItem: {
+    marginTop: SPACING.xs,
+  },
+  errorCard: {
+    marginBottom: SPACING.lg,
+  },
+  infoCard: {
     marginBottom: SPACING.lg,
   },
   footer: {
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    width: '100%',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -237,9 +246,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.sm,
-    fontSize: FONT.size.md,
-    color: COLORS.primary,
-    fontWeight: FONT.weight.medium,
+  },
+  button: {
+    marginTop: SPACING.md,
+  },
+  buttonContent: {
+    paddingVertical: SPACING.xs,
   },
 });
 

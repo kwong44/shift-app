@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { COLORS, FONT, SPACING } from '../../config/theme';
-import CustomButton from '../../components/common/CustomButton';
-import CustomInput from '../../components/common/CustomInput';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { 
+  Text, 
+  TextInput, 
+  Button, 
+  useTheme, 
+  Surface,
+  HelperText,
+  TouchableRipple,
+  Portal,
+  Dialog
+} from 'react-native-paper';
+import { SPACING } from '../../config/theme';
 import { signUp } from '../../api/auth';
 
 const SignUpScreen = ({ navigation }) => {
@@ -12,6 +21,10 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const theme = useTheme();
 
   const handleSignUp = async () => {
     // Basic validation
@@ -45,16 +58,7 @@ const SignUpScreen = ({ navigation }) => {
         });
       } else {
         // If email confirmation is required
-        Alert.alert(
-          'Check your email',
-          'We sent you a confirmation email. Please confirm your email address to continue.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('SignIn')
-            }
-          ]
-        );
+        setShowSuccessDialog(true);
       }
     } catch (error) {
       setError(error.message || 'Failed to sign up. Please try again.');
@@ -65,62 +69,125 @@ const SignUpScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join RealityShift and start your transformation journey</Text>
-        </View>
+      <Surface style={styles.content} elevation={0}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Text variant="headlineLarge" style={styles.title}>Create Account</Text>
+            <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+              Join RealityShift and start your transformation journey
+            </Text>
+          </View>
 
-        <View style={styles.formContainer}>
-          <CustomInput
-            label="Full Name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter your full name"
-            autoCapitalize="words"
-          />
+          <View style={styles.formContainer}>
+            <TextInput
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              mode="outlined"
+              autoCapitalize="words"
+              error={!!error && !name}
+              style={styles.input}
+            />
 
-          <CustomInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-          />
+            <TextInput
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              error={!!error && !email}
+              style={styles.input}
+            />
 
-          <CustomInput
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Enter your password"
-            secureTextEntry
-          />
+            <TextInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              mode="outlined"
+              secureTextEntry={!showPassword}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? "eye-off" : "eye"}
+                  onPress={() => setShowPassword(!showPassword)}
+                />
+              }
+              error={!!error && (!password || password.length < 6)}
+              style={styles.input}
+            />
 
-          <CustomInput
-            label="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            placeholder="Confirm your password"
-            secureTextEntry
-          />
+            <TextInput
+              label="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              mode="outlined"
+              secureTextEntry={!showConfirmPassword}
+              right={
+                <TextInput.Icon
+                  icon={showConfirmPassword ? "eye-off" : "eye"}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                />
+              }
+              error={!!error && (!confirmPassword || password !== confirmPassword)}
+              style={styles.input}
+            />
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+            {error && (
+              <HelperText type="error" visible={!!error}>
+                {error}
+              </HelperText>
+            )}
 
-          <CustomButton
-            title="Create Account"
-            onPress={handleSignUp}
-            loading={loading}
-            style={styles.button}
-          />
-        </View>
+            <Button
+              mode="contained"
+              onPress={handleSignUp}
+              loading={loading}
+              style={styles.button}
+            >
+              Create Account
+            </Button>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-            <Text style={styles.footerLink}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          <View style={styles.footer}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              Already have an account?{' '}
+            </Text>
+            <TouchableRipple onPress={() => navigation.navigate('SignIn')}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>
+                Sign In
+              </Text>
+            </TouchableRipple>
+          </View>
+        </ScrollView>
+      </Surface>
+
+      <Portal>
+        <Dialog
+          visible={showSuccessDialog}
+          onDismiss={() => {
+            setShowSuccessDialog(false);
+            navigation.navigate('SignIn');
+          }}
+        >
+          <Dialog.Title>Check your email</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              We sent you a confirmation email. Please confirm your email address to continue.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button 
+              onPress={() => {
+                setShowSuccessDialog(false);
+                navigation.navigate('SignIn');
+              }}
+            >
+              Got it
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 };
@@ -128,7 +195,9 @@ const SignUpScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  content: {
+    flex: 1,
     padding: SPACING.lg,
   },
   header: {
@@ -136,39 +205,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONT.size.xxl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.primary,
     marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
   },
   formContainer: {
     marginVertical: SPACING.lg,
   },
-  errorText: {
-    color: COLORS.error,
-    fontSize: FONT.size.sm,
-    marginVertical: SPACING.sm,
+  input: {
+    marginBottom: SPACING.md,
   },
   button: {
     marginTop: SPACING.md,
+    paddingVertical: SPACING.xs,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     marginVertical: SPACING.lg,
-  },
-  footerText: {
-    color: COLORS.textLight,
-    fontSize: FONT.size.md,
-  },
-  footerLink: {
-    color: COLORS.primary,
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.medium,
   },
 });
 
