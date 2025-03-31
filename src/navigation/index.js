@@ -62,7 +62,7 @@ const screenOptions = {
       },
     },
   },
-  cardStyle: { backgroundColor: 'transparent' },
+  cardStyle: { backgroundColor: 'white' },
   gestureEnabled: true,
   gestureDirection: 'horizontal',
 };
@@ -95,9 +95,11 @@ const modalScreenOptions = {
       },
     },
   },
-  cardStyle: { backgroundColor: 'transparent' },
+  cardStyle: { backgroundColor: 'white' },
   gestureEnabled: true,
   gestureDirection: 'vertical',
+  presentation: 'modal',
+  detachPreviousScreen: true,
 };
 
 const Navigation = () => {
@@ -145,10 +147,16 @@ const Navigation = () => {
   return (
     <NavigationContainer theme={{
       colors: {
-        background: theme.colors.background,
+        background: 'white',
+        card: 'white',
+        text: theme.colors.text,
+        border: theme.colors.border,
+        primary: theme.colors.primary,
       },
     }}>
-      <Stack.Navigator>
+      <Stack.Navigator screenOptions={{
+        cardStyle: { backgroundColor: 'white' },
+      }}>
         {!userSession ? (
           // Auth Stack
           <>
