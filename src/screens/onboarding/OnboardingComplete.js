@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { COLORS, FONT, SPACING } from '../../config/theme';
 import CustomButton from '../../components/common/CustomButton';
 import OnboardingHeader from '../../components/onboarding/OnboardingHeader';
@@ -11,7 +11,30 @@ const OnboardingComplete = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  const validateAssessmentData = () => {
+    if (!assessmentData.currentHabits?.length && 
+        !assessmentData.improvementAreas?.length && 
+        !Object.keys(assessmentData.longTermGoals || {}).length) {
+      return 'Please complete at least one section of the assessment';
+    }
+    
+    if (!assessmentData.engagementPrefs?.preferredTime || 
+        !assessmentData.engagementPrefs?.sessionLength || 
+        !assessmentData.engagementPrefs?.reminderFrequency || 
+        !assessmentData.engagementPrefs?.preferredExercises?.length) {
+      return 'Please complete your engagement preferences';
+    }
+    
+    return null;
+  };
+  
   const handleSubmit = async () => {
+    const validationError = validateAssessmentData();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -26,12 +49,31 @@ const OnboardingComplete = ({ navigation, route }) => {
       // Submit the assessment data
       await submitSelfAssessment(user.id, assessmentData);
       
-      // Navigate to the home screen or wherever appropriate
-      // In a real app, we'd navigate to the main app screen
-      // For now, let's just generate a placeholder home screen
-      navigation.navigate('Home');
+      // Show success message
+      Alert.alert(
+        'Assessment Complete!',
+        'Your personalized transformation roadmap has been created. Let\'s begin your journey!',
+        [
+          {
+            text: 'Start Journey',
+            onPress: () => navigation.navigate('Home')
+          }
+        ]
+      );
     } catch (error) {
       setError(error.message || 'Failed to submit assessment data. Please try again.');
+      
+      // Show error alert
+      Alert.alert(
+        'Submission Error',
+        error.message || 'Failed to submit assessment data. Please try again.',
+        [
+          {
+            text: 'Try Again',
+            onPress: () => setError(null)
+          }
+        ]
+      );
     } finally {
       setLoading(false);
     }
