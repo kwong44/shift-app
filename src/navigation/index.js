@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-
+import { supabase } from '../config/supabase';
 import { getSession } from '../api/auth';
 
 // Auth screens
@@ -29,23 +29,57 @@ const Navigation = () => {
 
   useEffect(() => {
     // Check if user is logged in
-    const checkSession = async () => {
-      try {
-        const { session } = await getSession();
-        setUserSession(session);
-        
-        // Here we would check if user has completed onboarding
-        // This is just a placeholder and would need to be implemented
-        // setHasCompletedOnboarding(true/false);
-        
-        setIsLoading(false);
-      } catch (error) {
-        setIsLoading(false);
-      }
-    };
-    
     checkSession();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserSession(session);
+      checkOnboardingStatus(session?.user?.id);
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
+
+  const checkSession = async () => {
+    try {
+      const { session } = await getSession();
+      setUserSession(session);
+      if (session?.user) {
+        await checkOnboardingStatus(session.user.id);
+      }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error checking session:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const checkOnboardingStatus = async (userId) => {
+    if (!userId) {
+      setHasCompletedOnboarding(false);
+      return;
+    }
+
+    try {
+      // Check if user has completed onboarding by looking for self assessment
+      const { data, error } = await supabase
+        .from('self_assessments')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking onboarding status:', error);
+      }
+
+      setHasCompletedOnboarding(!!data);
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      setHasCompletedOnboarding(false);
+    }
+  };
 
   if (isLoading) {
     // Could return a loading screen here

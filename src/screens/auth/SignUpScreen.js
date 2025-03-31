@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { COLORS, FONT, SPACING } from '../../config/theme';
 import CustomButton from '../../components/common/CustomButton';
 import CustomInput from '../../components/common/CustomInput';
@@ -34,10 +34,28 @@ const SignUpScreen = ({ navigation }) => {
     setError(null);
 
     try {
-      await signUp(email, password, name);
-      // After sign up, they'll need to confirm their email 
-      // For now, let's just redirect them to sign in
-      navigation.navigate('SignIn');
+      const { session } = await signUp(email, password, name);
+      
+      if (session) {
+        // User is automatically signed in after signup
+        // Navigate to onboarding
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'OnboardingStart' }],
+        });
+      } else {
+        // If email confirmation is required
+        Alert.alert(
+          'Check your email',
+          'We sent you a confirmation email. Please confirm your email address to continue.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('SignIn')
+            }
+          ]
+        );
+      }
     } catch (error) {
       setError(error.message || 'Failed to sign up. Please try again.');
     } finally {
