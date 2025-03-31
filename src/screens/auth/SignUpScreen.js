@@ -34,7 +34,7 @@ const SignUpScreen = ({ navigation }) => {
     setError(null);
 
     try {
-      await signUp(email, password);
+      await signUp(email, password, name);
       // After sign up, they'll need to confirm their email 
       // For now, let's just redirect them to sign in
       navigation.navigate('SignIn');

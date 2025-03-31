@@ -1,9 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { COLORS, FONT, SPACING } from '../../config/theme';
 import { signOut } from '../../api/auth';
+import { testSupabaseConnection } from '../../utils/testConnection';
 
 const HomeScreen = () => {
+  useEffect(() => {
+    // Test the connection when the screen loads
+    testSupabaseConnection()
+      .then(isConnected => {
+        console.log('Supabase connection status:', isConnected);
+      })
+      .catch(error => {
+        console.error('Error testing connection:', error);
+      });
+  }, []);
+
   const handleSignOut = async () => {
     try {
       await signOut();

@@ -4,13 +4,19 @@ import { supabase } from '../config/supabase';
  * Sign up a new user with email and password
  * @param {string} email - User's email address
  * @param {string} password - User's password
+ * @param {string} fullName - User's full name
  * @returns {Promise} - The user object and session
  */
-export const signUp = async (email, password) => {
+export const signUp = async (email, password, fullName) => {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName
+        }
+      }
     });
     
     if (error) throw error;
