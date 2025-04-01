@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView, Animated } from 'react-native';
+import { View, StyleSheet, SafeAreaView, ScrollView, Animated, ImageBackground, Dimensions } from 'react-native';
 import { 
   Text, 
   Button, 
@@ -18,7 +18,8 @@ import {
   Avatar,
   TouchableRipple,
   Portal,
-  Modal
+  Modal,
+  Divider
 } from 'react-native-paper';
 import { SPACING, COLORS } from '../../config/theme';
 import { signOut } from '../../api/auth';
@@ -26,6 +27,8 @@ import { fetchRoadmap } from '../../api/roadmap';
 import { supabase } from '../../config/supabase';
 import { getVisualizations, getTasks, getJournalEntries } from '../../api/exercises';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const triggerHaptic = async (type = 'selection') => {
   try {
@@ -112,6 +115,9 @@ const HomeScreen = ({ navigation }) => {
   const [recommendedExercises, setRecommendedExercises] = useState([]);
   const [error, setError] = useState(null);
   const theme = useTheme();
+  const [scrollY] = useState(new Animated.Value(0));
+  const windowWidth = Dimensions.get('window').width;
+  const windowHeight = Dimensions.get('window').height;
 
   useEffect(() => {
     loadUserData();
@@ -333,76 +339,130 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const renderHeader = () => (
-    <Card style={styles.welcomeCard} mode="outlined">
-      <Card.Content>
-        <View style={styles.welcomeHeader}>
-          <View>
-            <Text variant="titleLarge">{getGreeting()}, {userName}</Text>
-            <View style={styles.streakContainer}>
-              <IconButton icon="fire" size={20} iconColor={theme.colors.primary} />
-              <Text variant="bodyMedium">{streak} Day Streak!</Text>
+  const renderHeader = () => {
+    const headerOpacity = scrollY.interpolate({
+      inputRange: [0, 100],
+      outputRange: [1, 0.9],
+      extrapolate: 'clamp',
+    });
+
+    const headerScale = scrollY.interpolate({
+      inputRange: [0, 100],
+      outputRange: [1, 0.95],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <Animated.View 
+        style={[
+          styles.headerContainer,
+          {
+            opacity: headerOpacity,
+            transform: [{ scale: headerScale }]
+          }
+        ]}
+      >
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.secondary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.welcomeHeader}>
+            <View>
+              <Text variant="titleLarge" style={styles.greetingText}>{getGreeting()},</Text>
+              <Text variant="headlineMedium" style={styles.nameText}>{userName}</Text>
+              <View style={styles.streakContainer}>
+                <MaterialCommunityIcons name="fire" size={22} color={COLORS.accent} />
+                <Text variant="bodyMedium" style={styles.streakText}>{streak} Day Streak!</Text>
+              </View>
+            </View>
+            
+            <View style={styles.moodContainer}>
+              {currentMood ? (
+                <TouchableRipple onPress={() => setShowMoodModal(true)} style={styles.moodButton}>
+                  <View style={styles.moodContent}>
+                    <Text style={styles.moodEmoji}>{MOODS.find(m => m.id === currentMood)?.icon || '😊'}</Text>
+                    <Text style={styles.moodLabel}>{MOODS.find(m => m.id === currentMood)?.label}</Text>
+                  </View>
+                </TouchableRipple>
+              ) : (
+                <TouchableRipple onPress={() => setShowMoodModal(true)} style={styles.moodButton}>
+                  <View style={styles.moodContent}>
+                    <Text style={styles.moodEmoji}>😶</Text>
+                    <Text style={styles.moodLabel}>Add Mood</Text>
+                  </View>
+                </TouchableRipple>
+              )}
             </View>
           </View>
-          {currentMood && (
-            <TouchableRipple onPress={() => setShowMoodModal(true)}>
-              <Avatar.Text 
-                size={40} 
-                label={MOODS.find(m => m.id === currentMood)?.icon || '😊'} 
-                style={styles.moodAvatar}
+
+          <View style={styles.dailyProgressCard}>
+            <View style={styles.progressHeader}>
+              <View>
+                <Text style={styles.progressTitle}>Daily Progress</Text>
+                <Text style={styles.progressPercentage}>{Math.round((dailyProgress || 0) * 100)}% Complete</Text>
+              </View>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressCircleText}>{Math.round((dailyProgress || 0) * 100)}%</Text>
+              </View>
+            </View>
+            
+            <View style={styles.progressBarContainer}>
+              <Animated.View 
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: animatedProgress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%']
+                    })
+                  }
+                ]}
               />
-            </TouchableRipple>
-          )}
-        </View>
-      </Card.Content>
-    </Card>
-  );
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
 
   const renderDailyFocus = () => (
-    <Card style={styles.focusCard} mode="outlined">
+    <Card style={styles.focusCard} elevation={3}>
       <Card.Content>
         <View style={styles.cardHeader}>
-          <Title>Today's Focus</Title>
-          <Chip 
-            mode="outlined" 
-            style={[styles.progressChip, { backgroundColor: COLORS.backgroundLight }]}
-          >
-            {Math.round((dailyProgress || 0) * 100)}% Complete
-          </Chip>
-        </View>
-        
-        <View style={styles.progressBarContainer}>
-          <Animated.View 
-            style={[
-              styles.progressBarFill,
-              {
-                width: animatedProgress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%']
-                }),
-                backgroundColor: COLORS.primary
-              }
-            ]}
+          <Title style={styles.cardTitle}>Today's Focus</Title>
+          <IconButton 
+            icon="star-four-points" 
+            size={24} 
+            iconColor={COLORS.accent}
+            style={styles.focusIcon}
           />
         </View>
-
+        
         <View style={styles.exerciseList}>
-          {recommendedExercises.map((exercise) => (
-            <TouchableRipple
-              key={exercise.id}
-              onPress={async () => {
-                await triggerHaptic();
-                navigation.navigate(exercise.route);
-              }}
-            >
-              <List.Item
-                title={exercise.title}
-                description={`${exercise.duration} • ${exercise.benefit}`}
-                left={props => <List.Icon {...props} icon={exercise.icon} color={COLORS.primary} />}
-                right={props => <List.Icon {...props} icon="arrow-right" color={COLORS.secondary} />}
-                style={styles.exerciseItem}
-              />
-            </TouchableRipple>
+          {recommendedExercises.map((exercise, index) => (
+            <React.Fragment key={exercise.id}>
+              <TouchableRipple
+                onPress={async () => {
+                  await triggerHaptic();
+                  navigation.navigate(exercise.route);
+                }}
+                style={styles.exerciseButton}
+              >
+                <View style={styles.exerciseItemContainer}>
+                  <View style={styles.exerciseIconContainer}>
+                    <MaterialCommunityIcons name={exercise.icon} size={28} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.exerciseContent}>
+                    <Text variant="titleMedium" style={styles.exerciseTitle}>{exercise.title}</Text>
+                    <Text variant="bodyMedium" style={styles.exerciseDescription}>{exercise.duration} • {exercise.benefit}</Text>
+                  </View>
+                  <IconButton icon="chevron-right" iconColor={COLORS.secondary} size={24} />
+                </View>
+              </TouchableRipple>
+              {index < recommendedExercises.length - 1 && <Divider style={styles.divider} />}
+            </React.Fragment>
           ))}
         </View>
       </Card.Content>
@@ -411,66 +471,86 @@ const HomeScreen = ({ navigation }) => {
 
   const renderInsights = () => (
     insights && (
-      <Card style={styles.insightCard} mode="outlined">
-        <Card.Content>
-          <View style={styles.cardHeader}>
-            <Title>AI Insights</Title>
-            <IconButton 
-              icon="lightbulb-outline" 
-              size={24}
-              iconColor={theme.colors.primary}
-            />
-          </View>
-          <Paragraph style={styles.insightText}>{insights.text}</Paragraph>
-          
-          {insights.recommendations?.length > 0 && (
-            <View style={styles.recommendationsList}>
-              <Text variant="titleSmall" style={styles.recommendationsTitle}>
-                Recommended Actions:
-              </Text>
-              {insights.recommendations.map((rec, index) => (
-                <View key={index} style={styles.recommendationItem}>
-                  <IconButton icon="star" size={16} />
-                  <Text variant="bodyMedium">{rec}</Text>
-                </View>
-              ))}
+      <Card style={styles.insightCard} elevation={3}>
+        <LinearGradient
+          colors={[COLORS.primary + '20', COLORS.secondary + '10']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.insightGradient}
+        >
+          <Card.Content>
+            <View style={styles.cardHeader}>
+              <Title style={styles.cardTitle}>AI Insights</Title>
+              <IconButton 
+                icon="lightbulb-outline" 
+                size={24}
+                iconColor={COLORS.accent}
+                style={styles.insightIcon}
+              />
             </View>
-          )}
-        </Card.Content>
+            <Paragraph style={styles.insightText}>"{insights.text}"</Paragraph>
+            
+            {insights.recommendations?.length > 0 && (
+              <View style={styles.recommendationsList}>
+                <Text variant="titleSmall" style={styles.recommendationsTitle}>
+                  Recommended Actions:
+                </Text>
+                {insights.recommendations.map((rec, index) => (
+                  <View key={index} style={styles.recommendationItem}>
+                    <MaterialCommunityIcons name="star" size={16} color={COLORS.accent} />
+                    <Text variant="bodyMedium" style={styles.recommendationText}>{rec}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card.Content>
+        </LinearGradient>
       </Card>
     )
   );
 
   const renderGoals = () => (
-    <Card style={styles.goalsCard} mode="outlined">
+    <Card style={styles.goalsCard} elevation={3}>
       <Card.Content>
         <View style={styles.cardHeader}>
-          <Title>Current Goals</Title>
+          <Title style={styles.cardTitle}>Current Goals</Title>
           <Button 
-            mode="text" 
+            mode="contained" 
             onPress={() => navigation.navigate('TaskPlanner')}
+            style={styles.viewAllButton}
+            labelStyle={styles.viewAllButtonLabel}
           >
             View All
           </Button>
         </View>
         
-        {roadmap?.goals?.slice(0, 3).map((goal) => (
-          <TouchableRipple key={goal.id}>
+        {roadmap?.goals?.slice(0, 3).map((goal, index) => (
+          <TouchableRipple key={goal.id} style={styles.goalItemTouchable}>
             <View style={styles.goalItem}>
-              <Chip 
-                mode="outlined"
-                style={[
-                  styles.statusChip,
-                  { 
-                    backgroundColor: goal.status === 'completed' 
-                      ? theme.colors.success + '20'
-                      : theme.colors.primary + '20'
-                  }
-                ]}
-              >
-                {goal.status}
-              </Chip>
+              <View style={styles.goalHeader}>
+                <Chip 
+                  mode="outlined"
+                  style={[
+                    styles.statusChip,
+                    { 
+                      backgroundColor: goal.status === 'completed' 
+                        ? COLORS.success + '30'
+                        : COLORS.primary + '20'
+                    }
+                  ]}
+                  textStyle={{
+                    color: goal.status === 'completed' ? COLORS.success : COLORS.primary,
+                    fontWeight: '600'
+                  }}
+                >
+                  {goal.status}
+                </Chip>
+                {goal.status === 'completed' && 
+                  <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
+                }
+              </View>
               <Paragraph style={styles.goalText}>{goal.description}</Paragraph>
+              {index < roadmap?.goals?.slice(0, 3).length - 1 && <Divider style={styles.goalDivider} />}
             </View>
           </TouchableRipple>
         ))}
@@ -485,20 +565,20 @@ const HomeScreen = ({ navigation }) => {
         onDismiss={() => setShowMoodModal(false)}
         contentContainerStyle={[
           styles.moodModal,
-          { backgroundColor: theme.colors.surface }
+          { backgroundColor: COLORS.background }
         ]}
       >
-        <Title style={styles.moodTitle}>How are you feeling?</Title>
+        <Title style={styles.moodTitle}>How are you feeling today?</Title>
         <View style={styles.moodGrid}>
           {MOODS.map((mood) => (
             <TouchableRipple
               key={mood.id}
               onPress={() => handleMoodSelect(mood)}
-              style={styles.moodItem}
+              style={styles.moodSelectItem}
             >
-              <View style={styles.moodContent}>
-                <Text style={styles.moodEmoji}>{mood.icon}</Text>
-                <Text>{mood.label}</Text>
+              <View style={styles.moodSelectContent}>
+                <Text style={styles.moodSelectEmoji}>{mood.icon}</Text>
+                <Text style={styles.moodSelectLabel}>{mood.label}</Text>
               </View>
             </TouchableRipple>
           ))}
@@ -510,24 +590,33 @@ const HomeScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Loading your roadmap...</Text>
-        </View>
+        <LinearGradient
+          colors={[COLORS.primary + '40', COLORS.background]}
+          style={styles.loadingContainer}
+        >
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading your personalized journey...</Text>
+        </LinearGradient>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Appbar.Header>
-        <Appbar.Content title="RealityShift" />
+      <Appbar.Header style={styles.appbar} elevated>
+        <Appbar.Content title="RealityShift" titleStyle={styles.appbarTitle} />
+        <Appbar.Action icon="cog" onPress={() => {}} />
         <Appbar.Action icon="logout" onPress={handleSignOut} />
       </Appbar.Header>
       
-      <ScrollView 
+      <Animated.ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
         {error ? (
           <Card 
@@ -543,24 +632,27 @@ const HomeScreen = ({ navigation }) => {
         ) : (
           <>
             {renderHeader()}
-            {renderDailyFocus()}
-            {renderInsights()}
-            {renderGoals()}
+            <View style={styles.cardsContainer}>
+              {renderDailyFocus()}
+              {renderInsights()}
+              {renderGoals()}
+            </View>
           </>
         )}
-      </ScrollView>
+        
+        {/* Bottom padding to ensure content is visible above FAB */}
+        <View style={{ height: 80 }} />
+      </Animated.ScrollView>
 
       <FAB
-        icon="plus"
+        icon="play"
         label="Start Exercise"
         onPress={async () => {
           await triggerHaptic();
           navigation.navigate('Exercises');
         }}
-        style={[
-          styles.fab,
-          { backgroundColor: COLORS.primary }
-        ]}
+        style={styles.fab}
+        color={COLORS.background}
       />
 
       {renderMoodModal()}
@@ -573,9 +665,121 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  appbar: {
+    backgroundColor: COLORS.background,
+  },
+  appbarTitle: {
+    fontWeight: '700',
+    fontSize: 22,
+    color: COLORS.primary,
+  },
   content: {
     flex: 1,
+  },
+  cardsContainer: {
     padding: SPACING.lg,
+  },
+  headerContainer: {
+    marginBottom: SPACING.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+  },
+  headerGradient: {
+    padding: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+  welcomeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.lg,
+  },
+  greetingText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  nameText: {
+    color: COLORS.background,
+    fontWeight: '700',
+    marginTop: -5,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  streakText: {
+    color: COLORS.background,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  moodContainer: {
+    alignItems: 'center',
+  },
+  moodButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  moodContent: {
+    alignItems: 'center',
+  },
+  moodEmoji: {
+    fontSize: 26,
+    marginBottom: 4,
+  },
+  moodLabel: {
+    color: COLORS.background,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  dailyProgressCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    padding: SPACING.md,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  progressTitle: {
+    color: COLORS.background,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  progressPercentage: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+  },
+  progressCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressCircleText: {
+    color: COLORS.background,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    marginTop: SPACING.xs,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
   },
   loadingContainer: {
     flex: 1,
@@ -584,126 +788,190 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    color: COLORS.textLight,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   errorCard: {
+    margin: SPACING.lg,
     marginBottom: SPACING.lg,
   },
-  welcomeCard: {
+  focusCard: {
     marginBottom: SPACING.lg,
+    borderRadius: 16,
+    backgroundColor: COLORS.background,
   },
-  welcomeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  insightCard: {
+    marginBottom: SPACING.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
+  insightGradient: {
+    borderRadius: 16,
   },
-  moodAvatar: {
-    backgroundColor: 'transparent',
+  goalsCard: {
+    marginBottom: SPACING.xl,
+    borderRadius: 16,
+    backgroundColor: COLORS.background,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  focusCard: {
-    marginBottom: SPACING.lg,
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
   },
-  progressChip: {
-    height: 28,
+  focusIcon: {
+    backgroundColor: COLORS.accent + '20',
+    borderRadius: 12,
   },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: COLORS.backgroundLight,
-    borderRadius: 4,
-    marginVertical: SPACING.md,
-    overflow: 'hidden',
+  insightIcon: {
+    backgroundColor: COLORS.accent + '20',
+    borderRadius: 12,
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
+  exerciseButton: {
+    borderRadius: 12,
   },
-  exerciseList: {
-    marginTop: SPACING.md,
+  exerciseItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
   },
-  exerciseItem: {
-    paddingVertical: SPACING.xs,
+  exerciseIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
   },
-  insightCard: {
-    marginBottom: SPACING.lg,
+  exerciseContent: {
+    flex: 1,
+  },
+  exerciseTitle: {
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  exerciseDescription: {
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  divider: {
+    marginVertical: SPACING.sm,
   },
   insightText: {
     fontStyle: 'italic',
     marginTop: SPACING.xs,
     color: COLORS.text,
+    lineHeight: 22,
+    fontSize: 15,
   },
   recommendationsList: {
     marginTop: SPACING.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 12,
+    padding: SPACING.md,
   },
   recommendationsTitle: {
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
     color: COLORS.text,
+    fontWeight: '600',
   },
   recommendationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: SPACING.xxs,
   },
-  goalsCard: {
-    marginBottom: SPACING.xl,
+  recommendationText: {
+    marginLeft: 8,
+    flex: 1,
+    color: COLORS.text,
+  },
+  goalItemTouchable: {
+    borderRadius: 12,
   },
   goalItem: {
-    marginBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   statusChip: {
-    marginBottom: SPACING.xs,
+    height: 28,
     alignSelf: 'flex-start',
   },
   goalText: {
-    marginLeft: SPACING.xs,
+    marginTop: SPACING.xs,
     color: COLORS.text,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  goalDivider: {
+    marginTop: SPACING.md,
+  },
+  viewAllButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    height: 36,
+  },
+  viewAllButtonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginVertical: 0,
+    marginHorizontal: SPACING.xs,
   },
   fab: {
     position: 'absolute',
     margin: SPACING.lg,
     right: 0,
     bottom: 0,
+    backgroundColor: COLORS.primary,
+    borderRadius: 28,
   },
   moodModal: {
     margin: SPACING.lg,
     padding: SPACING.lg,
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: COLORS.background,
   },
   moodTitle: {
     textAlign: 'center',
     marginBottom: SPACING.lg,
     color: COLORS.text,
+    fontWeight: '700',
   },
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: SPACING.md,
+    justifyContent: 'space-between',
   },
-  moodItem: {
+  moodSelectItem: {
     width: '18%',
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: COLORS.backgroundLight,
+    marginBottom: SPACING.md,
   },
-  moodContent: {
+  moodSelectContent: {
     alignItems: 'center',
+    padding: SPACING.xs,
   },
-  moodEmoji: {
-    fontSize: 24,
+  moodSelectEmoji: {
+    fontSize: 28,
     marginBottom: SPACING.xs,
+  },
+  moodSelectLabel: {
+    fontSize: 12,
+    color: COLORS.text,
+    fontWeight: '500',
   },
 });
 
