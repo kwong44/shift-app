@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
@@ -12,66 +12,84 @@ import {
   Dialog,
   Snackbar,
   TextInput,
-  SegmentedButtons,
-  ProgressBar,
-  List,
-  Chip
+  IconButton,
+  Chip,
+  TouchableRipple
 } from 'react-native-paper';
-import { SPACING } from '../../config/theme';
+import { SPACING, COLORS } from '../../config/theme';
 import EmotionPicker from '../../components/exercises/EmotionPicker';
 import { supabase } from '../../config/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const REFLECTION_AREAS = [
-  { value: 'progress', label: 'Goal Progress', icon: 'target' },
-  { value: 'challenges', label: 'Challenges', icon: 'mountain' },
-  { value: 'insights', label: 'Key Insights', icon: 'lightbulb-on' },
+const REFLECTION_TOPICS = [
+  { 
+    value: 'accomplishments', 
+    label: 'Accomplishments', 
+    description: 'Reflect on your achievements and progress',
+    icon: 'trophy',
+    color: '#4C63B6' 
+  },
+  { 
+    value: 'challenges', 
+    label: 'Challenges', 
+    description: 'Examine difficulties and how you\'ve overcome them',
+    icon: 'mountain',
+    color: '#7D8CC4' 
+  },
+  { 
+    value: 'growth', 
+    label: 'Personal Growth', 
+    description: 'Explore how you\'ve evolved over time',
+    icon: 'sprout',
+    color: '#5C96AE' 
+  },
 ];
 
-const REFLECTION_PROMPTS = {
-  progress: [
-    "Rate your progress on your goals (1-5):",
-    "What specific steps have you taken toward your goals?",
-    "What resources or support have helped you progress?",
-    "How have your goals evolved or changed?",
+const REFLECTION_QUESTIONS = {
+  accomplishments: [
+    "What achievement are you most proud of lately and why?",
+    "What obstacles did you overcome to reach a recent goal?",
+    "How has achieving something recently changed your perspective?",
   ],
   challenges: [
-    "What obstacles are you currently facing?",
-    "How are you working to overcome these challenges?",
-    "What have you learned from recent setbacks?",
-    "What support do you need to move forward?",
+    "What's been your biggest challenge recently and how did you approach it?",
+    "What lessons have you learned from a recent difficulty?",
+    "How has a recent challenge changed how you view yourself?",
   ],
-  insights: [
-    "What patterns have you noticed in your behavior?",
-    "What new strengths have you discovered?",
-    "How have your perspectives changed?",
-    "What habits would you like to develop or change?",
+  growth: [
+    "In what ways have you grown in the last few months?",
+    "What new strength or quality have you discovered in yourself recently?",
+    "How have your priorities or values shifted over time?",
   ],
 };
 
 const SelfReflectionScreen = ({ navigation }) => {
-  const [reflectionArea, setReflectionArea] = useState('progress');
-  const [responses, setResponses] = useState({});
+  const [topic, setTopic] = useState('accomplishments');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [response, setResponse] = useState('');
   const [selectedEmotions, setSelectedEmotions] = useState([]);
-  const [progressRating, setProgressRating] = useState(3);
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [error, setError] = useState(null);
+  const [textInputHeight, setTextInputHeight] = useState(150);
   const theme = useTheme();
 
   useEffect(() => {
-    // Initialize responses object with empty strings
-    const initialResponses = {};
-    Object.keys(REFLECTION_PROMPTS).forEach(area => {
-      initialResponses[area] = REFLECTION_PROMPTS[area].map(() => '');
-    });
-    setResponses(initialResponses);
-  }, []);
+    // Reset response when changing questions
+    setResponse('');
+  }, [topic, currentQuestionIndex]);
 
   const handleSaveReflection = async () => {
-    const currentResponses = responses[reflectionArea];
-    if (currentResponses.some(response => !response.trim())) {
-      setError('Please answer all prompts before saving');
+    if (!response.trim()) {
+      setError('Please write a response to the reflection question');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    if (selectedEmotions.length === 0) {
+      setError('Please select at least one emotion');
       setSnackbarVisible(true);
       return;
     }
@@ -86,10 +104,10 @@ const SelfReflectionScreen = ({ navigation }) => {
         .from('reflections')
         .insert({
           user_id: user.id,
-          area: reflectionArea,
-          responses: responses[reflectionArea],
+          topic: topic,
+          question: REFLECTION_QUESTIONS[topic][currentQuestionIndex],
+          response: response.trim(),
           emotions: selectedEmotions,
-          progress_rating: reflectionArea === 'progress' ? progressRating : null,
         });
 
       if (reflectionError) throw reflectionError;
@@ -99,11 +117,10 @@ const SelfReflectionScreen = ({ navigation }) => {
         .from('progress_logs')
         .insert({
           user_id: user.id,
-          exercise_type: 'self-reflection',
+          exercise_type: 'reflection',
           details: {
-            area: reflectionArea,
+            topic: topic,
             emotions: selectedEmotions,
-            progress_rating: reflectionArea === 'progress' ? progressRating : null,
           },
         });
 
@@ -119,13 +136,16 @@ const SelfReflectionScreen = ({ navigation }) => {
     }
   };
 
-  const handleResponseChange = (index, value) => {
-    setResponses(prev => ({
-      ...prev,
-      [reflectionArea]: prev[reflectionArea].map((response, i) => 
-        i === index ? value : response
-      ),
-    }));
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < REFLECTION_QUESTIONS[topic].length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
   };
 
   const handleFinish = () => {
@@ -133,54 +153,72 @@ const SelfReflectionScreen = ({ navigation }) => {
     navigation.goBack();
   };
 
-  const renderPrompts = () => {
-    const prompts = REFLECTION_PROMPTS[reflectionArea];
-    return prompts.map((prompt, index) => (
-      <Card key={index} style={styles.promptCard} mode="outlined">
-        <Card.Content>
-          <Text variant="bodyLarge" style={styles.prompt}>
-            {prompt}
-          </Text>
-          {prompt.includes('Rate your progress') ? (
-            <View style={styles.ratingContainer}>
-              <ProgressBar
-                progress={progressRating / 5}
-                style={styles.progressBar}
-              />
-              <View style={styles.ratingButtons}>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <Button
-                    key={rating}
-                    mode={progressRating === rating ? 'contained' : 'outlined'}
-                    onPress={() => setProgressRating(rating)}
-                    style={styles.ratingButton}
-                  >
-                    {rating}
-                  </Button>
-                ))}
-              </View>
+  const selectedTopic = REFLECTION_TOPICS.find(t => t.value === topic);
+
+  const renderHeader = () => (
+    <LinearGradient
+      colors={[COLORS.primary, COLORS.secondary]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.headerGradient}
+    >
+      <Text style={styles.headerTitle}>Self-Reflection Exercise</Text>
+      <Text style={styles.headerSubtitle}>
+        Deepen your self-awareness and personal insights
+      </Text>
+    </LinearGradient>
+  );
+
+  const renderTopicOption = (topicOption) => {
+    const isSelected = topic === topicOption.value;
+    
+    return (
+      <TouchableRipple
+        key={topicOption.value}
+        onPress={() => {
+          setTopic(topicOption.value);
+          setCurrentQuestionIndex(0);
+        }}
+      >
+        <Card 
+          style={[
+            styles.topicOption,
+            isSelected && { 
+              borderColor: topicOption.color,
+              borderWidth: 2
+            }
+          ]} 
+          elevation={isSelected ? 4 : 2}
+        >
+          <LinearGradient
+            colors={[`${topicOption.color}15`, `${topicOption.color}05`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.optionGradient}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: `${topicOption.color}25` }]}>
+              <MaterialCommunityIcons name={topicOption.icon} size={28} color={topicOption.color} />
             </View>
-          ) : (
-            <TextInput
-              mode="outlined"
-              value={responses[reflectionArea][index]}
-              onChangeText={(value) => handleResponseChange(index, value)}
-              multiline
-              numberOfLines={3}
-              style={styles.input}
-              placeholder="Type your response here..."
-            />
-          )}
-        </Card.Content>
-      </Card>
-    ));
+            
+            <View style={styles.optionContent}>
+              <Text style={styles.optionTitle}>{topicOption.label}</Text>
+              <Text style={styles.optionDescription}>{topicOption.description}</Text>
+            </View>
+            
+            {isSelected && (
+              <MaterialCommunityIcons name="check-circle" size={22} color={topicOption.color} />
+            )}
+          </LinearGradient>
+        </Card>
+      </TouchableRipple>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Self-Reflection" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Appbar.Header style={styles.appbar} elevated>
+        <Appbar.BackAction onPress={() => navigation.goBack()} color={COLORS.primary} />
+        <Appbar.Content title="Self-Reflection" titleStyle={styles.appbarTitle} />
       </Appbar.Header>
 
       <Surface style={styles.content} elevation={0}>
@@ -188,46 +226,117 @@ const SelfReflectionScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Card style={styles.instructionCard} mode="outlined">
+          {renderHeader()}
+          
+          <Card style={styles.instructionCard} elevation={3}>
             <Card.Content>
-              <Text variant="titleMedium">Weekly Self-Reflection</Text>
-              <Text 
-                variant="bodyMedium" 
-                style={[styles.instruction, { color: theme.colors.onSurfaceVariant }]}
-              >
-                Take time to reflect deeply on your journey. Choose an area of focus and answer the prompts thoughtfully.
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Reflective Practice</Text>
+                <IconButton 
+                  icon="lightbulb-on" 
+                  size={24} 
+                  iconColor={COLORS.accent}
+                  style={styles.headerIcon}
+                />
+              </View>
+              <Text style={styles.instruction}>
+                Choose a topic, respond to thought-provoking questions, and track your emotions. Regular self-reflection promotes personal growth and self-awareness.
               </Text>
             </Card.Content>
           </Card>
 
-          <SegmentedButtons
-            value={reflectionArea}
-            onValueChange={setReflectionArea}
-            buttons={REFLECTION_AREAS.map(area => ({
-              value: area.value,
-              label: area.label,
-              icon: area.icon,
-            }))}
-            style={styles.areaButtons}
-          />
+          <Text style={styles.sectionTitle}>Choose a Topic</Text>
+          
+          <View style={styles.topicsContainer}>
+            {REFLECTION_TOPICS.map(renderTopicOption)}
+          </View>
 
-          {renderPrompts()}
+          <Card style={styles.questionCard} elevation={3}>
+            <LinearGradient
+              colors={[`${selectedTopic.color}15`, `${selectedTopic.color}05`]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.questionGradient}
+            >
+              <Card.Content>
+                <View style={styles.questionHeader}>
+                  <IconButton
+                    icon="chevron-left"
+                    iconColor={COLORS.text}
+                    size={24}
+                    onPress={handlePreviousQuestion}
+                    disabled={currentQuestionIndex === 0}
+                    style={[
+                      styles.questionNavButton,
+                      currentQuestionIndex === 0 && styles.questionNavButtonDisabled
+                    ]}
+                  />
+                  <Text style={styles.questionCount}>
+                    Question {currentQuestionIndex + 1} of {REFLECTION_QUESTIONS[topic].length}
+                  </Text>
+                  <IconButton
+                    icon="chevron-right"
+                    iconColor={COLORS.text}
+                    size={24}
+                    onPress={handleNextQuestion}
+                    disabled={currentQuestionIndex === REFLECTION_QUESTIONS[topic].length - 1}
+                    style={[
+                      styles.questionNavButton,
+                      currentQuestionIndex === REFLECTION_QUESTIONS[topic].length - 1 && styles.questionNavButtonDisabled
+                    ]}
+                  />
+                </View>
+                
+                <View style={styles.questionTextContainer}>
+                  <MaterialCommunityIcons
+                    name="format-quote-open"
+                    size={20}
+                    color={selectedTopic.color}
+                    style={styles.quoteIcon}
+                  />
+                  <Text style={styles.questionText}>
+                    {REFLECTION_QUESTIONS[topic][currentQuestionIndex]}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="format-quote-close"
+                    size={20}
+                    color={selectedTopic.color}
+                    style={[styles.quoteIcon, styles.quoteIconRight]}
+                  />
+                </View>
 
-          <Text variant="titleMedium" style={styles.emotionsTitle}>
-            Current Emotional State
-          </Text>
+                <TextInput
+                  mode="outlined"
+                  placeholder="Write your thoughts here..."
+                  value={response}
+                  onChangeText={setResponse}
+                  multiline
+                  style={[styles.responseInput, {height: Math.max(150, textInputHeight)}]}
+                  onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
+                />
+              </Card.Content>
+            </LinearGradient>
+          </Card>
 
-          <EmotionPicker
-            selectedEmotions={selectedEmotions}
-            onSelectEmotion={setSelectedEmotions}
-            maxSelections={3}
-            helperText="Select up to 3 emotions that describe how you feel about your progress"
-          />
+          <Text style={styles.sectionTitle}>How do you feel about this reflection?</Text>
+          
+          <Card style={styles.emotionsCard} elevation={3}>
+            <Card.Content>
+              <EmotionPicker
+                selectedEmotions={selectedEmotions}
+                onSelectEmotion={setSelectedEmotions}
+                maxSelections={3}
+                helperText="Select up to 3 emotions that reflect how you feel"
+              />
+            </Card.Content>
+          </Card>
 
           <Button
             mode="contained"
             onPress={handleSaveReflection}
             style={styles.saveButton}
+            labelStyle={styles.saveButtonLabel}
+            icon="content-save"
             loading={loading}
           >
             Save Reflection
@@ -237,15 +346,23 @@ const SelfReflectionScreen = ({ navigation }) => {
 
       <Portal>
         <Dialog visible={showDialog} onDismiss={handleFinish}>
-          <Dialog.Title>Reflection Saved</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              Excellent work on your self-reflection! Regular reflection helps you stay aligned with your goals, learn from experiences, and maintain personal growth momentum.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={handleFinish}>Done</Button>
-          </Dialog.Actions>
+          <LinearGradient
+            colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
+            style={styles.dialogGradient}
+          >
+            <Dialog.Title>Reflection Saved</Dialog.Title>
+            <Dialog.Content>
+              <View style={styles.dialogContent}>
+                <MaterialCommunityIcons name="check-circle-outline" size={48} color={COLORS.primary} style={styles.dialogIcon} />
+                <Text style={styles.dialogText}>
+                  Excellent reflection! Regular self-reflection helps you develop deeper self-awareness, recognize patterns in your life, and make conscious choices aligned with your values and goals.
+                </Text>
+              </View>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={handleFinish} mode="contained" style={styles.dialogButton}>Done</Button>
+            </Dialog.Actions>
+          </LinearGradient>
         </Dialog>
       </Portal>
 
@@ -256,6 +373,7 @@ const SelfReflectionScreen = ({ navigation }) => {
           label: 'OK',
           onPress: () => setSnackbarVisible(false),
         }}
+        style={styles.snackbar}
       >
         {error || 'An error occurred. Please try again.'}
       </Snackbar>
@@ -266,54 +384,202 @@ const SelfReflectionScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  appbar: {
+    backgroundColor: COLORS.background,
+  },
+  appbarTitle: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   content: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
+    paddingBottom: SPACING.xl,
+  },
+  headerGradient: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: SPACING.lg,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.background,
+    marginBottom: SPACING.xs,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: SPACING.sm,
   },
   instructionCard: {
+    marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
+    borderRadius: 16,
   },
-  instruction: {
-    marginTop: SPACING.sm,
-  },
-  areaButtons: {
-    marginBottom: SPACING.lg,
-  },
-  promptCard: {
-    marginBottom: SPACING.md,
-  },
-  prompt: {
-    marginBottom: SPACING.md,
-    fontStyle: 'italic',
-  },
-  input: {
-    marginTop: SPACING.xs,
-  },
-  ratingContainer: {
-    marginTop: SPACING.md,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    marginBottom: SPACING.md,
-  },
-  ratingButtons: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: SPACING.xs,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
   },
-  ratingButton: {
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerIcon: {
+    backgroundColor: COLORS.accent + '20',
+    borderRadius: 12,
+  },
+  instruction: {
+    color: COLORS.textLight,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    marginTop: SPACING.lg,
+  },
+  topicsContainer: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+  },
+  topicOption: {
+    marginBottom: SPACING.sm,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  optionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  optionContent: {
     flex: 1,
   },
-  emotionsTitle: {
-    marginTop: SPACING.xl,
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  optionDescription: {
+    color: COLORS.textLight,
+    fontSize: 14,
+  },
+  questionCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  questionGradient: {
+    borderRadius: 16,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+  },
+  questionNavButton: {
+    margin: -SPACING.xs,
+  },
+  questionNavButtonDisabled: {
+    opacity: 0.3,
+  },
+  questionCount: {
+    fontWeight: '500',
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  questionTextContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    position: 'relative',
+  },
+  questionText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    lineHeight: 22,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
+    color: COLORS.text,
+  },
+  quoteIcon: {
+    position: 'absolute',
+    top: SPACING.sm,
+    left: SPACING.sm,
+    opacity: 0.6,
+  },
+  quoteIconRight: {
+    left: 'auto',
+    right: SPACING.sm,
+    top: 'auto',
+    bottom: SPACING.sm,
+  },
+  responseInput: {
+    backgroundColor: COLORS.background,
+    minHeight: 150,
+  },
+  emotionsCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.xl,
+    borderRadius: 16,
   },
   saveButton: {
-    marginTop: SPACING.xl,
+    marginHorizontal: SPACING.lg,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 4,
+    marginBottom: SPACING.xl,
+  },
+  saveButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dialogGradient: {
+    borderRadius: 16,
+    padding: SPACING.sm,
+  },
+  dialogContent: {
+    alignItems: 'center',
+  },
+  dialogIcon: {
+    marginBottom: SPACING.md,
+  },
+  dialogText: {
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  dialogButton: {
+    borderRadius: 8,
+    marginLeft: SPACING.md,
+  },
+  snackbar: {
+    bottom: SPACING.md,
   },
 });
 

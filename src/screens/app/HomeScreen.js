@@ -132,6 +132,20 @@ const HomeScreen = ({ navigation }) => {
     }).start();
   }, [dailyProgress]);
 
+  useEffect(() => {
+    // Temporary test data for development purposes
+    if (!insights) {
+      setInsights({
+        text: "You've been making good progress with your daily mindfulness practice. Continue focusing on being present in each moment.",
+        recommendations: [
+          "Schedule 10 minutes of meditation each morning",
+          "Practice deep breathing during stressful moments",
+          "Take a mindful walk today"
+        ]
+      });
+    }
+  }, []);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -271,6 +285,9 @@ const HomeScreen = ({ navigation }) => {
 
       // Set recommended exercises based on goals and time of day
       setRecommendedExercises(getRecommendedExercises(roadmapData?.goals || []));
+
+      console.debug("Journal entries:", journalEntries);
+      console.debug("Insights check:", journalEntries?.length > 0 && journalEntries[0]?.insights);
 
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -473,7 +490,7 @@ const HomeScreen = ({ navigation }) => {
     insights && (
       <Card style={styles.insightCard} elevation={3}>
         <LinearGradient
-          colors={[COLORS.primary + '20', COLORS.secondary + '10']}
+          colors={[COLORS.primary + '15', COLORS.secondary + '10']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.insightGradient}
@@ -535,7 +552,7 @@ const HomeScreen = ({ navigation }) => {
                     { 
                       backgroundColor: goal.status === 'completed' 
                         ? COLORS.success + '30'
-                        : COLORS.primary + '20'
+                        : COLORS.primary + '15'
                     }
                   ]}
                   textStyle={{
@@ -543,7 +560,7 @@ const HomeScreen = ({ navigation }) => {
                     fontWeight: '600'
                   }}
                 >
-                  {goal.status}
+                  {goal.status || "pending"}
                 </Chip>
                 {goal.status === 'completed' && 
                   <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
@@ -807,6 +824,7 @@ const styles = StyleSheet.create({
   },
   insightGradient: {
     borderRadius: 16,
+    paddingVertical: SPACING.xs,
   },
   goalsCard: {
     marginBottom: SPACING.xl,
@@ -866,15 +884,19 @@ const styles = StyleSheet.create({
   insightText: {
     fontStyle: 'italic',
     marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
     color: COLORS.text,
     lineHeight: 22,
     fontSize: 15,
+    paddingHorizontal: SPACING.xs,
   },
   recommendationsList: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.xs,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
     borderRadius: 12,
     padding: SPACING.md,
+    marginHorizontal: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   recommendationsTitle: {
     marginBottom: SPACING.sm,
@@ -883,13 +905,15 @@ const styles = StyleSheet.create({
   },
   recommendationItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start', 
     marginVertical: SPACING.xxs,
+    paddingRight: SPACING.sm,
   },
   recommendationText: {
     marginLeft: 8,
     flex: 1,
     color: COLORS.text,
+    lineHeight: 20,
   },
   goalItemTouchable: {
     borderRadius: 12,
@@ -903,14 +927,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusChip: {
-    height: 28,
+    height: 30,
     alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   goalText: {
     marginTop: SPACING.xs,
     color: COLORS.text,
     fontSize: 15,
     lineHeight: 22,
+    paddingBottom: SPACING.xs,
   },
   goalDivider: {
     marginTop: SPACING.md,
@@ -919,12 +946,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: 8,
     height: 36,
+    marginRight: -SPACING.xs,
   },
   viewAllButtonLabel: {
     fontSize: 12,
     fontWeight: '600',
     marginVertical: 0,
-    marginHorizontal: SPACING.xs,
+    marginHorizontal: SPACING.md,
   },
   fab: {
     position: 'absolute',
