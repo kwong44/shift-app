@@ -12,6 +12,7 @@ import {
   Dialog,
   List
 } from 'react-native-paper';
+import { CommonActions } from '@react-navigation/native';
 import { SPACING } from '../../config/theme';
 import { supabase } from '../../config/supabase';
 import { submitSelfAssessment } from '../../api/selfAssessment';
@@ -41,29 +42,31 @@ const OnboardingComplete = ({ navigation, route }) => {
     return null;
   };
   
-  const handleSubmit = async () => {
-    const validationError = validateAssessmentData();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
+  const handleComplete = async () => {
     setLoading(true);
     setError(null);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('User not found. Please sign in again.');
-      }
-      
+      if (!user) throw new Error('User not found');
+
+      // Submit assessment
       await submitSelfAssessment(user.id, assessmentData);
+
+      // Create initial roadmap
       await createRoadmap(user.id, assessmentData);
-      
-      setShowDialog(true);
+
+      // Navigate to HomeScreen
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'HomeScreen' }],
+        })
+      );
     } catch (error) {
-      setError(error.message || 'Failed to submit assessment data. Please try again.');
+      console.error('Error completing onboarding:', error);
+      setError(error.message);
+      setShowDialog(true);
     } finally {
       setLoading(false);
     }
@@ -174,7 +177,7 @@ const OnboardingComplete = ({ navigation, route }) => {
         ) : (
           <Button
             mode="contained"
-            onPress={handleSubmit}
+            onPress={handleComplete}
             style={styles.button}
             contentStyle={styles.buttonContent}
           >

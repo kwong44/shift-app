@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { useTheme } from 'react-native-paper';
@@ -108,55 +108,91 @@ const Navigation = () => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const theme = useTheme();
 
+  const checkOnboardingStatus = useCallback(async (userId) => {
+    try {
+      const completed = await hasCompletedAssessment(userId);
+      console.debug('Onboarding status check:', { userId, completed });
+      setHasCompletedOnboarding(completed);
+      return completed;
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     checkSession();
 
     // Subscribe to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.debug('Auth state changed:', { event: _event, hasUser: !!session?.user });
       setUserSession(session);
+      
       if (session?.user) {
-        const completed = await hasCompletedAssessment(session.user.id);
-        setHasCompletedOnboarding(completed);
+        await checkOnboardingStatus(session.user.id);
+      } else {
+        setHasCompletedOnboarding(false);
       }
     });
 
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [checkOnboardingStatus]);
 
   const checkSession = async () => {
     try {
       const { session } = await getSession();
+      console.debug('Session check:', { hasSession: !!session, hasUser: !!session?.user });
       setUserSession(session);
+      
       if (session?.user) {
-        const completed = await hasCompletedAssessment(session.user.id);
-        setHasCompletedOnboarding(completed);
+        await checkOnboardingStatus(session.user.id);
       }
-      setIsLoading(false);
     } catch (error) {
       console.error('Error checking session:', error);
+      // Reset states on error
+      setUserSession(null);
+      setHasCompletedOnboarding(false);
+    } finally {
       setIsLoading(false);
     }
   };
+
+  // Add debug logging for state changes
+  useEffect(() => {
+    console.debug('Navigation state updated:', {
+      isLoading,
+      hasSession: !!userSession,
+      hasCompletedOnboarding
+    });
+  }, [isLoading, userSession, hasCompletedOnboarding]);
 
   if (isLoading) {
     return null; // Or return a loading screen
   }
 
   return (
-    <NavigationContainer theme={{
-      colors: {
-        background: 'white',
-        card: 'white',
-        text: theme.colors.text,
-        border: theme.colors.border,
-        primary: theme.colors.primary,
-      },
-    }}>
-      <Stack.Navigator screenOptions={{
-        cardStyle: { backgroundColor: 'white' },
-      }}>
+    <NavigationContainer
+      theme={{
+        colors: {
+          background: 'white',
+          card: 'white',
+          text: theme.colors.text,
+          border: theme.colors.border,
+          primary: theme.colors.primary,
+        },
+      }}
+      onStateChange={(state) => {
+        // Log navigation state changes for debugging
+        console.debug('Navigation State:', state);
+      }}
+    >
+      <Stack.Navigator
+        screenOptions={{
+          cardStyle: { backgroundColor: 'white' },
+        }}
+      >
         {!userSession ? (
           // Auth Stack
           <>

@@ -80,16 +80,36 @@ export const getLatestSelfAssessment = async (userId) => {
  */
 export const hasCompletedAssessment = async (userId) => {
   try {
-    const { data, error } = await supabase
-      .from('self_assessments')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
+    if (!userId) return false;
 
-    if (error) throw error;
-    return !!data;
+    // Check both self_assessments and roadmaps to ensure complete onboarding
+    const [assessmentResult, roadmapResult] = await Promise.all([
+      supabase
+        .from('self_assessments')
+        .select('id, created_at')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase
+        .from('roadmaps')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle()
+    ]);
+
+    // Log for debugging
+    console.debug('Assessment check results:', {
+      userId,
+      hasAssessment: !!assessmentResult.data,
+      hasRoadmap: !!roadmapResult.data,
+      assessmentError: assessmentResult.error,
+      roadmapError: roadmapResult.error
+    });
+
+    // Return true only if both assessment and roadmap exist
+    return !!(assessmentResult.data && roadmapResult.data);
   } catch (error) {
-    console.error('Error checking assessment completion:', error.message);
+    console.error('Error in hasCompletedAssessment:', error);
+    // Return false on error to ensure user can complete assessment
     return false;
   }
 };

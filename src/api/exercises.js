@@ -211,13 +211,244 @@ export const createReflection = async (userId, emotions, stressLevel, progressNo
   }
 };
 
+/**
+ * Update a task
+ * @param {string} taskId - The task ID
+ * @param {object} updates - The updates to apply
+ * @returns {Promise} - The updated task
+ */
+export const updateTask = async (taskId, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating task:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Delete a task
+ * @param {string} taskId - The task ID
+ * @returns {Promise} - The deletion result
+ */
+export const deleteTask = async (taskId) => {
+  try {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting task:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get user's tasks
+ * @param {string} userId - The user's ID
+ * @param {boolean} includeCompleted - Whether to include completed tasks
+ * @returns {Promise} - Array of tasks
+ */
+export const getTasks = async (userId, includeCompleted = false) => {
+  try {
+    let query = supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('due_date', { ascending: true });
+
+    if (!includeCompleted) {
+      query = query.eq('completed', false);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching tasks:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * End a deep work session
+ * @param {string} sessionId - The session ID
+ * @returns {Promise} - The updated session
+ */
+export const endDeepWorkSession = async (sessionId) => {
+  try {
+    const { data, error } = await supabase
+      .from('deep_work_sessions')
+      .update({ end_time: new Date().toISOString() })
+      .eq('id', sessionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error ending deep work session:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get deep work sessions
+ * @param {string} userId - The user's ID
+ * @param {Date} startDate - Optional start date filter
+ * @param {Date} endDate - Optional end date filter
+ * @returns {Promise} - Array of sessions
+ */
+export const getDeepWorkSessions = async (userId, startDate = null, endDate = null) => {
+  try {
+    let query = supabase
+      .from('deep_work_sessions')
+      .select('*, tasks(description)')
+      .eq('user_id', userId)
+      .order('start_time', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('start_time', startDate.toISOString());
+    }
+    if (endDate) {
+      query = query.lte('start_time', endDate.toISOString());
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching deep work sessions:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Update a journal entry with insights
+ * @param {string} entryId - The entry ID
+ * @param {string} insights - The insights to add
+ * @returns {Promise} - The updated entry
+ */
+export const updateJournalEntry = async (entryId, insights) => {
+  try {
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .update({ insights })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating journal entry:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get journal entries
+ * @param {string} userId - The user's ID
+ * @param {number} limit - Number of entries to fetch
+ * @param {number} offset - Offset for pagination
+ * @returns {Promise} - Array of entries
+ */
+export const getJournalEntries = async (userId, limit = 10, offset = 0) => {
+  try {
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching journal entries:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Complete a visualization exercise
+ * @param {string} visualizationId - The visualization ID
+ * @returns {Promise} - The updated visualization
+ */
+export const completeVisualization = async (visualizationId) => {
+  try {
+    const { data, error } = await supabase
+      .from('visualizations')
+      .update({ completed: true })
+      .eq('id', visualizationId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error completing visualization:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get visualizations
+ * @param {string} userId - The user's ID
+ * @param {boolean} includeCompleted - Whether to include completed visualizations
+ * @returns {Promise} - Array of visualizations
+ */
+export const getVisualizations = async (userId, includeCompleted = true) => {
+  try {
+    let query = supabase
+      .from('visualizations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (!includeCompleted) {
+      query = query.eq('completed', false);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching visualizations:', error.message);
+    throw error;
+  }
+};
+
 export default {
   startBinauralSession,
   completeBinauralSession,
   createVisualization,
+  completeVisualization,
+  getVisualizations,
   createTask,
+  updateTask,
+  deleteTask,
+  getTasks,
   startDeepWorkSession,
+  endDeepWorkSession,
+  getDeepWorkSessions,
   logMindfulnessCheckIn,
   createJournalEntry,
+  updateJournalEntry,
+  getJournalEntries,
   createReflection,
 }; 
