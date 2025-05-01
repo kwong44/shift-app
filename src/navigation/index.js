@@ -13,9 +13,8 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 
 // Onboarding screens
 import OnboardingStart from '../screens/onboarding/OnboardingStart';
+import LifeSatisfactionScreen from '../screens/onboarding/LifeSatisfactionScreen';
 import HabitsScreen from '../screens/onboarding/HabitsScreen';
-import ImprovementAreasScreen from '../screens/onboarding/ImprovementAreasScreen';
-import GoalsScreen from '../screens/onboarding/GoalsScreen';
 import PreferencesScreen from '../screens/onboarding/PreferencesScreen';
 import OnboardingComplete from '../screens/onboarding/OnboardingComplete';
 
@@ -221,18 +220,13 @@ const Navigation = () => {
               options={screenOptions}
             />
             <Stack.Screen 
+              name="LifeSatisfaction" 
+              component={LifeSatisfactionScreen}
+              options={screenOptions}
+            />
+            <Stack.Screen 
               name="Habits" 
               component={HabitsScreen}
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="ImprovementAreas" 
-              component={ImprovementAreasScreen}
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Goals" 
-              component={GoalsScreen}
               options={screenOptions}
             />
             <Stack.Screen 

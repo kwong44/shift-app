@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { 
   Text, 
-  Button, 
   useTheme,
-  Surface,
-  Card,
-  Divider,
   ActivityIndicator,
   Portal,
   Dialog,
-  List
+  List,
+  Button
 } from 'react-native-paper';
 import { CommonActions } from '@react-navigation/native';
 import { SPACING } from '../../config/theme';
 import { supabase } from '../../config/supabase';
 import { submitSelfAssessment } from '../../api/selfAssessment';
 import { createRoadmap } from '../../api/roadmap';
+import { OnboardingLayout, OnboardingCard } from '../../components/onboarding';
+
+// Debug logger
+const debug = {
+  log: (message) => {
+    console.log(`[OnboardingComplete] ${message}`);
+  }
+};
 
 const OnboardingComplete = ({ navigation, route }) => {
   const { assessmentData } = route.params || { assessmentData: {} };
@@ -26,10 +31,9 @@ const OnboardingComplete = ({ navigation, route }) => {
   const theme = useTheme();
   
   const validateAssessmentData = () => {
-    if (!assessmentData.currentHabits?.length && 
-        !assessmentData.improvementAreas?.length && 
-        !Object.keys(assessmentData.longTermGoals || {}).length) {
-      return 'Please complete at least one section of the assessment';
+    debug.log('Validating assessment data');
+    if (!assessmentData.currentHabits?.length) {
+      return 'Please complete the habits section of the assessment';
     }
     
     if (!assessmentData.engagementPrefs?.preferredTime || 
@@ -43,6 +47,7 @@ const OnboardingComplete = ({ navigation, route }) => {
   };
   
   const handleComplete = async () => {
+    debug.log('Starting completion process');
     setLoading(true);
     setError(null);
     
@@ -50,13 +55,13 @@ const OnboardingComplete = ({ navigation, route }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
 
-      // Submit assessment
+      debug.log('Submitting assessment data');
       await submitSelfAssessment(user.id, assessmentData);
 
-      // Create initial roadmap
+      debug.log('Creating initial roadmap');
       await createRoadmap(user.id, assessmentData);
 
-      // Navigate to HomeScreen
+      debug.log('Navigating to HomeScreen');
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
@@ -73,6 +78,7 @@ const OnboardingComplete = ({ navigation, route }) => {
   };
 
   const handleDialogConfirm = () => {
+    debug.log('Confirming dialog');
     setShowDialog(false);
     navigation.reset({
       index: 0,
@@ -81,110 +87,69 @@ const OnboardingComplete = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Surface style={styles.content} elevation={0}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              Assessment Complete!
-            </Text>
-            <Text 
-              variant="titleMedium" 
-              style={{ color: theme.colors.onSurfaceVariant }}
-            >
-              Thank you for sharing your journey with us. We're ready to craft your personalized transformation roadmap.
-            </Text>
-          </View>
-          
-          <Card style={styles.summaryCard} mode="outlined">
-            <Card.Content>
-              <Text variant="titleLarge" style={styles.summaryTitle}>
-                Here's what we've learned about you:
-              </Text>
-              
-              <List.Section>
-                <List.Subheader>Current Habits</List.Subheader>
-                <Text variant="bodyLarge" style={styles.sectionValue}>
-                  {assessmentData.currentHabits?.length > 0 
-                    ? assessmentData.currentHabits.join(', ')
-                    : 'None specified'}
-                </Text>
+    <OnboardingLayout
+      title="Assessment Complete!"
+      subtitle="Thank you for sharing your journey with us. We're ready to craft your personalized transformation roadmap."
+      currentStep={5}
+      totalSteps={5}
+      onNext={handleComplete}
+      nextLabel={loading ? "Creating..." : "Generate My Roadmap"}
+      nextDisabled={loading}
+      hideBackButton
+    >
+      <OnboardingCard>
+        <Text variant="titleLarge" style={styles.summaryTitle}>
+          Here's what we've learned about you:
+        </Text>
+        
+        <List.Section>
+          <List.Subheader>Current Habits</List.Subheader>
+          <Text variant="bodyLarge" style={styles.sectionValue}>
+            {assessmentData.currentHabits?.length > 0 
+              ? assessmentData.currentHabits.join(', ')
+              : 'None specified'}
+          </Text>
 
-                <List.Subheader>Areas to Improve</List.Subheader>
-                <Text variant="bodyLarge" style={styles.sectionValue}>
-                  {assessmentData.improvementAreas?.length > 0
-                    ? assessmentData.improvementAreas.join(', ')
-                    : 'None specified'}
-                </Text>
+          <List.Subheader>Areas to Improve</List.Subheader>
+          <Text variant="bodyLarge" style={styles.sectionValue}>
+            {assessmentData.improvementAreas?.length > 0
+              ? assessmentData.improvementAreas.join(', ')
+              : 'None specified'}
+          </Text>
 
-                <List.Subheader>Long-Term Goals</List.Subheader>
-                {assessmentData.longTermGoals && Object.keys(assessmentData.longTermGoals).length > 0 ? (
-                  Object.entries(assessmentData.longTermGoals).map(([key, value]) => (
-                    <Text key={key} variant="bodyLarge" style={styles.goalItem}>
-                      • {value}
-                    </Text>
-                  ))
-                ) : (
-                  <Text variant="bodyLarge" style={styles.sectionValue}>
-                    None specified
-                  </Text>
-                )}
-
-                <List.Subheader>Preferred Engagement</List.Subheader>
-                <Text variant="bodyLarge" style={styles.sectionValue}>
-                  {assessmentData.engagementPrefs?.preferredTime || 'Not specified'} for {' '}
-                  {assessmentData.engagementPrefs?.sessionLength || 'any duration'}
-                </Text>
-              </List.Section>
-            </Card.Content>
-          </Card>
-          
-          {error && (
-            <Card style={[styles.errorCard, { backgroundColor: theme.colors.errorContainer }]}>
-              <Card.Content>
-                <Text variant="bodyMedium" style={{ color: theme.colors.error }}>
-                  {error}
-                </Text>
-              </Card.Content>
-            </Card>
-          )}
-          
-          <Card style={styles.infoCard} mode="outlined">
-            <Card.Content>
-              <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-                Next, we'll use AI to generate your personalized roadmap. This may take a moment as we analyze your responses and create a plan tailored just for you.
-              </Text>
-            </Card.Content>
-          </Card>
-        </ScrollView>
-      </Surface>
+          <List.Subheader>Preferred Engagement</List.Subheader>
+          <Text variant="bodyLarge" style={styles.sectionValue}>
+            {assessmentData.engagementPrefs?.preferredTime || 'Not specified'} for {' '}
+            {assessmentData.engagementPrefs?.sessionLength || 'any duration'}
+          </Text>
+        </List.Section>
+      </OnboardingCard>
       
-      <Surface style={styles.footer} elevation={1}>
-        <Divider />
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
-            <Text 
-              variant="bodyLarge"
-              style={[styles.loadingText, { color: theme.colors.primary }]}
-            >
-              Creating your roadmap...
-            </Text>
-          </View>
-        ) : (
-          <Button
-            mode="contained"
-            onPress={handleComplete}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
+      {error && (
+        <OnboardingCard style={{ backgroundColor: theme.colors.errorContainer }}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.error }}>
+            {error}
+          </Text>
+        </OnboardingCard>
+      )}
+      
+      <OnboardingCard>
+        <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+          Next, we'll use AI to generate your personalized roadmap. This may take a moment as we analyze your responses and create a plan tailored just for you.
+        </Text>
+      </OnboardingCard>
+
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text 
+            variant="bodyLarge"
+            style={[styles.loadingText, { color: theme.colors.primary }]}
           >
-            Generate My Roadmap
-          </Button>
-        )}
-      </Surface>
+            Creating your roadmap...
+          </Text>
+        </View>
+      )}
 
       <Portal>
         <Dialog visible={showDialog} onDismiss={handleDialogConfirm}>
@@ -199,48 +164,16 @@ const OnboardingComplete = ({ navigation, route }) => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </SafeAreaView>
+    </OnboardingLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  header: {
-    marginBottom: SPACING.xl,
-  },
-  title: {
-    marginBottom: SPACING.sm,
-  },
-  summaryCard: {
-    marginBottom: SPACING.lg,
-  },
   summaryTitle: {
     marginBottom: SPACING.md,
   },
   sectionValue: {
     marginBottom: SPACING.md,
-  },
-  goalItem: {
-    marginTop: SPACING.xs,
-  },
-  errorCard: {
-    marginBottom: SPACING.lg,
-  },
-  infoCard: {
-    marginBottom: SPACING.lg,
-  },
-  footer: {
-    width: '100%',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -249,12 +182,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.sm,
-  },
-  button: {
-    marginTop: SPACING.md,
-  },
-  buttonContent: {
-    paddingVertical: SPACING.xs,
   },
 });
 

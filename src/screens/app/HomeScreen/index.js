@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { 
   MoodModal, 
   TopBar, 
-  ProgressSection, 
+  GrowthRoadmap, 
   DailyFocus,
   Insights,
   Goals,
@@ -264,12 +264,17 @@ const HomeScreen = ({ navigation }) => {
           </View>
         ) : (
           <>
-            <ProgressSection 
+            <GrowthRoadmap 
               dailyProgress={dailyProgress}
               streak={streak}
               currentMood={currentMood}
               onMoodPress={() => setShowMoodModal(true)}
               MOODS={MOODS}
+              currentPhase={roadmap?.currentPhase}
+              focusAreas={roadmap?.focusAreas}
+              weeklyGoals={roadmap?.weeklyGoals}
+              nextMilestone={roadmap?.nextMilestone}
+              overallProgress={roadmap?.overallProgress}
             />
             
             <DailyFocus 

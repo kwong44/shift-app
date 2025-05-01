@@ -1,6 +1,6 @@
 export { default as MoodModal } from './MoodModal';
 export { default as TopBar } from './TopBar';
-export { default as ProgressSection } from './ProgressSection';
+export { default as GrowthRoadmap } from './GrowthRoadmap';
 export { default as DailyFocus } from './DailyFocus';
 export { default as Insights } from './Insights';
 export { default as Goals } from './Goals';

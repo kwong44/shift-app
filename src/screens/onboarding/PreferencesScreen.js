@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { 
   Text, 
-  Button, 
-  useTheme,
-  Surface,
-  Card,
-  Divider,
   Chip,
-  ProgressBar,
   HelperText,
   RadioButton,
-  List
+  List,
+  useTheme
 } from 'react-native-paper';
+import { OnboardingLayout, OnboardingCard } from '../../components/onboarding';
 import { SPACING } from '../../config/theme';
 
 const engagementTimeOptions = [
@@ -48,44 +44,11 @@ const exerciseTypeOptions = [
 ];
 
 const PreferencesScreen = ({ navigation, route }) => {
-  const { currentHabits, improvementAreas, longTermGoals } = route.params || {
-    currentHabits: [],
-    improvementAreas: [],
-    longTermGoals: {}
-  };
-  
   const [preferredTime, setPreferredTime] = useState('');
   const [sessionLength, setSessionLength] = useState('');
   const [reminderFrequency, setReminderFrequency] = useState('');
   const [preferredExercises, setPreferredExercises] = useState([]);
   const theme = useTheme();
-  
-  const handleContinue = () => {
-    const engagementPrefs = {
-      preferredTime,
-      sessionLength,
-      reminderFrequency,
-      preferredExercises
-    };
-    
-    const assessmentData = {
-      currentHabits,
-      improvementAreas,
-      longTermGoals,
-      engagementPrefs
-    };
-    
-    navigation.navigate('OnboardingComplete', { assessmentData });
-  };
-  
-  const isFormValid = () => {
-    return (
-      preferredTime && 
-      sessionLength && 
-      reminderFrequency && 
-      preferredExercises.length >= 3
-    );
-  };
 
   const toggleExercise = (exercise) => {
     setPreferredExercises(prev => 
@@ -95,169 +58,129 @@ const PreferencesScreen = ({ navigation, route }) => {
     );
   };
 
-  const progress = 1; // 4/4 steps
+  const isFormValid = () => {
+    return (
+      preferredTime &&
+      sessionLength &&
+      reminderFrequency &&
+      preferredExercises.length >= 3
+    );
+  };
+
+  const handleContinue = () => {
+    // Debug log
+    console.log('User preferences:', {
+      preferredTime,
+      sessionLength,
+      reminderFrequency,
+      preferredExercises
+    });
+
+    navigation.navigate('OnboardingComplete');
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Surface style={styles.content} elevation={0}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <ProgressBar progress={progress} style={styles.progressBar} />
-          
-          <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              Your Preferences
-            </Text>
-            <Text 
-              variant="titleMedium" 
-              style={{ color: theme.colors.onSurfaceVariant }}
-            >
-              Let us know how you'd like to engage with your transformation journey.
-            </Text>
-          </View>
-          
-          <Card style={styles.preferencesCard} mode="outlined">
-            <Card.Content>
-              <List.Section>
-                <List.Subheader>Best Time for Engagement</List.Subheader>
-                <RadioButton.Group 
-                  onValueChange={value => setPreferredTime(value)} 
-                  value={preferredTime}
-                >
-                  {engagementTimeOptions.map((time) => (
-                    <RadioButton.Item
-                      key={time}
-                      label={time}
-                      value={time}
-                      labelStyle={{ color: theme.colors.onSurface }}
-                    />
-                  ))}
-                </RadioButton.Group>
+    <OnboardingLayout
+      title="Your Preferences"
+      subtitle="Help us personalize your experience"
+      currentStep={5}
+      totalSteps={6}
+      onBack={() => navigation.goBack()}
+      onNext={handleContinue}
+      nextDisabled={!isFormValid()}
+    >
+      <ScrollView style={styles.scrollContent}>
+        <OnboardingCard>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Best Time for Engagement
+          </Text>
+          <RadioButton.Group onValueChange={setPreferredTime} value={preferredTime}>
+            {engagementTimeOptions.map((time) => (
+              <List.Item
+                key={time}
+                title={time}
+                onPress={() => setPreferredTime(time)}
+                left={() => (
+                  <RadioButton.Android value={time} />
+                )}
+              />
+            ))}
+          </RadioButton.Group>
+        </OnboardingCard>
 
-                <List.Subheader>Preferred Session Length</List.Subheader>
-                <RadioButton.Group 
-                  onValueChange={value => setSessionLength(value)} 
-                  value={sessionLength}
-                >
-                  {sessionLengthOptions.map((length) => (
-                    <RadioButton.Item
-                      key={length}
-                      label={length}
-                      value={length}
-                      labelStyle={{ color: theme.colors.onSurface }}
-                    />
-                  ))}
-                </RadioButton.Group>
+        <OnboardingCard>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Preferred Session Length
+          </Text>
+          <RadioButton.Group onValueChange={setSessionLength} value={sessionLength}>
+            {sessionLengthOptions.map((length) => (
+              <List.Item
+                key={length}
+                title={length}
+                onPress={() => setSessionLength(length)}
+                left={() => (
+                  <RadioButton.Android value={length} />
+                )}
+              />
+            ))}
+          </RadioButton.Group>
+        </OnboardingCard>
 
-                <List.Subheader>Reminder Frequency</List.Subheader>
-                <RadioButton.Group 
-                  onValueChange={value => setReminderFrequency(value)} 
-                  value={reminderFrequency}
-                >
-                  {reminderFrequencyOptions.map((frequency) => (
-                    <RadioButton.Item
-                      key={frequency}
-                      label={frequency}
-                      value={frequency}
-                      labelStyle={{ color: theme.colors.onSurface }}
-                    />
-                  ))}
-                </RadioButton.Group>
-              </List.Section>
-            </Card.Content>
-          </Card>
+        <OnboardingCard>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Reminder Frequency
+          </Text>
+          <RadioButton.Group onValueChange={setReminderFrequency} value={reminderFrequency}>
+            {reminderFrequencyOptions.map((frequency) => (
+              <List.Item
+                key={frequency}
+                title={frequency}
+                onPress={() => setReminderFrequency(frequency)}
+                left={() => (
+                  <RadioButton.Android value={frequency} />
+                )}
+              />
+            ))}
+          </RadioButton.Group>
+        </OnboardingCard>
+
+        <OnboardingCard>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Preferred Exercise Types
+          </Text>
+          <Text 
+            variant="bodyMedium" 
+            style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Select at least 3 types of exercises you'd enjoy
+          </Text>
           
-          <Card style={styles.exercisesCard} mode="outlined">
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Preferred Exercise Types
-              </Text>
-              <Text 
-                variant="bodyMedium" 
-                style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}
+          <View style={styles.chipContainer}>
+            {exerciseTypeOptions.map((exercise) => (
+              <Chip
+                key={exercise}
+                selected={preferredExercises.includes(exercise)}
+                onPress={() => toggleExercise(exercise)}
+                style={styles.chip}
+                showSelectedOverlay
               >
-                Select at least 3 types of exercises you'd enjoy
-              </Text>
-              
-              <View style={styles.chipContainer}>
-                {exerciseTypeOptions.map((exercise) => (
-                  <Chip
-                    key={exercise}
-                    selected={preferredExercises.includes(exercise)}
-                    onPress={() => toggleExercise(exercise)}
-                    style={styles.chip}
-                    showSelectedOverlay
-                  >
-                    {exercise}
-                  </Chip>
-                ))}
-              </View>
+                {exercise}
+              </Chip>
+            ))}
+          </View>
 
-              {preferredExercises.length > 0 && preferredExercises.length < 3 && (
-                <HelperText type="warning" style={styles.warningText}>
-                  Please select at least 3 exercise types
-                </HelperText>
-              )}
-            </Card.Content>
-          </Card>
-        </ScrollView>
-      </Surface>
-      
-      <Surface style={styles.footer} elevation={1}>
-        <Divider />
-        <View style={styles.buttonContainer}>
-          <Button
-            mode="outlined"
-            onPress={() => navigation.goBack()}
-            style={[styles.button, styles.backButton]}
-            contentStyle={styles.buttonContent}
-          >
-            Back
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleContinue}
-            disabled={!isFormValid()}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-          >
-            Continue
-          </Button>
-        </View>
-      </Surface>
-    </SafeAreaView>
+          {preferredExercises.length > 0 && preferredExercises.length < 3 && (
+            <HelperText type="warning" style={styles.warningText}>
+              Please select at least 3 exercise types
+            </HelperText>
+          )}
+        </OnboardingCard>
+      </ScrollView>
+    </OnboardingLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  progressBar: {
-    marginBottom: SPACING.lg,
-    height: 8,
-    borderRadius: 4,
-  },
-  header: {
-    marginBottom: SPACING.xl,
-  },
-  title: {
-    marginBottom: SPACING.sm,
-  },
-  preferencesCard: {
-    marginBottom: SPACING.lg,
-  },
-  exercisesCard: {
-    marginBottom: SPACING.lg,
-  },
   sectionTitle: {
     marginBottom: SPACING.sm,
   },
@@ -274,25 +197,6 @@ const styles = StyleSheet.create({
   },
   warningText: {
     marginTop: SPACING.sm,
-  },
-  footer: {
-    width: '100%',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.md,
-  },
-  button: {
-    flex: 1,
-  },
-  backButton: {
-    marginRight: SPACING.md,
-  },
-  buttonContent: {
-    paddingVertical: SPACING.xs,
   },
 });
 
