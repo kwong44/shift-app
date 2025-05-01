@@ -8,9 +8,65 @@
 # Current Project Structure
 .
 ├── App.js
+├── README.md
 ├── app.json
 ├── assets
+│   ├── adaptive-icon.png
+│   ├── favicon.png
+│   ├── icon.png
+│   └── splash-icon.png
+├── babel.config.js
 ├── index.js
-├── node_modules
+├── instructions
+│   └── instruction.md
 ├── package-lock.json
-└── package.json
+├── package.json
+└── src
+    ├── api
+    │   ├── auth.js
+    │   ├── exercises.js
+    │   ├── profile.js
+    │   ├── roadmap.js
+    │   └── selfAssessment.js
+    ├── components
+    │   ├── common
+    │   │   ├── CustomButton.js
+    │   │   ├── CustomInput.js
+    │   │   └── OptionSelector.js
+    │   ├── exercises
+    │   │   ├── EmotionPicker.js
+    │   │   ├── ExerciseCard.js
+    │   │   └── Timer.js
+    │   └── onboarding
+    │       ├── OnboardingHeader.js
+    │       └── ProgressBar.js
+    ├── config
+    │   ├── supabase.js
+    │   └── theme.js
+    ├── navigation
+    │   └── index.js
+    ├── screens
+    │   ├── app
+    │   │   └── HomeScreen.js
+    │   ├── auth
+    │   │   ├── SignInScreen.js
+    │   │   ├── SignUpScreen.js
+    │   │   └── WelcomeScreen.js
+    │   ├── exercises
+    │   │   ├── BinauralScreen.js
+    │   │   ├── DeepWorkScreen.js
+    │   │   ├── ExercisesDashboard.js
+    │   │   ├── JournalingScreen.js
+    │   │   ├── MindfulnessScreen.js
+    │   │   ├── SelfReflectionScreen.js
+    │   │   ├── TaskPlannerScreen.js
+    │   │   └── VisualizationScreen.js
+    │   └── onboarding
+    │       ├── GoalsScreen.js
+    │       ├── HabitsScreen.js
+    │       ├── ImprovementAreasScreen.js
+    │       ├── OnboardingComplete.js
+    │       ├── OnboardingStart.js
+    │       └── PreferencesScreen.js
+    └── utils
+        └── testConnection.js

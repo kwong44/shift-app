@@ -92,4 +92,45 @@ src/
 
 ## License
 
-[MIT License](LICENSE) 
+[MIT License](LICENSE)
+
+## UI Overhaul (2025)
+
+The app underwent a UI overhaul to create a more modern, visually appealing experience for users on their transformation journey. The design draws inspiration from contemporary lifestyle and wellness apps with a focus on:
+
+### Key Design Features
+
+1. **Vibrant Gradient Cards** - Each category uses smooth color gradients for visual distinction
+2. **Card-Based Layout** - Organized content in modular, rounded-corner cards 
+3. **Modern Typography** - Clean, readable type hierarchy with proper visual weight
+4. **Visual Progress Indicators** - Intuitive progress bars and counts
+5. **Tab-Based Navigation** - Simple, icon-based bottom navigation
+
+### Color Palette
+
+- **Primary**: Purple (#5F52EE) - Main brand color used for interactive elements
+- **Accent**: Coral (#FF5757) - For highlights and accent elements
+- **Gradients**: Blue, Pink, Teal, Coral - For category cards and visual interest
+
+### Implementation Details
+
+The UI design system is implemented in a modular way:
+- Base design tokens in `src/config/theme.js`
+- Reusable components like `CustomButton`, `CustomInput`, and `OptionSelector`
+- Consistent styling patterns across screens
+
+### Usage Guidelines
+
+When building new features:
+1. Use the gradient system for main category cards
+2. Maintain consistent padding with the SPACING system
+3. Use provided component variants rather than custom styles
+4. Follow the established color system for different states and actions
+
+### Accessibility Considerations
+
+- High contrast text on colored backgrounds
+- Appropriate touch target sizes
+- Consistent visual feedback on interaction
+
+*Note: This design system will continue to evolve as we gather user feedback.* 
