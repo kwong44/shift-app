@@ -48,29 +48,34 @@ const OnboardingComplete = ({ navigation, route }) => {
   
   const handleComplete = async () => {
     debug.log('Starting completion process');
+    debug.log('Assessment data:', assessmentData);
     setLoading(true);
     setError(null);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
+      if (!user) {
+        debug.log('No user found');
+        throw new Error('Please sign in to continue');
+      }
 
       debug.log('Submitting assessment data');
       await submitSelfAssessment(user.id, assessmentData);
 
       debug.log('Creating initial roadmap');
-      await createRoadmap(user.id, assessmentData);
+      const roadmap = await createRoadmap(user.id, assessmentData);
+      debug.log('Roadmap created:', roadmap);
 
-      debug.log('Navigating to HomeScreen');
+      debug.log('Navigating to App screen');
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
-          routes: [{ name: 'HomeScreen' }],
+          routes: [{ name: 'App' }],
         })
       );
     } catch (error) {
-      console.error('Error completing onboarding:', error);
-      setError(error.message);
+      debug.log('Error during completion:', error.message);
+      setError(error.message || 'Failed to complete onboarding. Please try again.');
       setShowDialog(true);
     } finally {
       setLoading(false);
@@ -80,10 +85,12 @@ const OnboardingComplete = ({ navigation, route }) => {
   const handleDialogConfirm = () => {
     debug.log('Confirming dialog');
     setShowDialog(false);
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'HomeScreen' }],
-    });
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'App' }],
+      })
+    );
   };
 
   return (
@@ -103,20 +110,23 @@ const OnboardingComplete = ({ navigation, route }) => {
         </Text>
         
         <List.Section>
-          <List.Subheader>Current Habits</List.Subheader>
+          {/* Display Overall Life Satisfaction */}
+          <List.Subheader>Overall Life Satisfaction</List.Subheader>
           <Text variant="bodyLarge" style={styles.sectionValue}>
-            {assessmentData.currentHabits?.length > 0 
+            {assessmentData.satisfactionBaseline?.overallScore 
+              ? `${assessmentData.satisfactionBaseline.overallScore} / 10`
+              : 'Not specified'}
+          </Text>
+
+          {/* Display selected focus areas */}
+          <List.Subheader>Focus Areas</List.Subheader>
+          <Text variant="bodyLarge" style={styles.sectionValue}>
+            {assessmentData.currentHabits?.length > 0
               ? assessmentData.currentHabits.join(', ')
               : 'None specified'}
           </Text>
 
-          <List.Subheader>Areas to Improve</List.Subheader>
-          <Text variant="bodyLarge" style={styles.sectionValue}>
-            {assessmentData.improvementAreas?.length > 0
-              ? assessmentData.improvementAreas.join(', ')
-              : 'None specified'}
-          </Text>
-
+          {/* Display preferred engagement */}
           <List.Subheader>Preferred Engagement</List.Subheader>
           <Text variant="bodyLarge" style={styles.sectionValue}>
             {assessmentData.engagementPrefs?.preferredTime || 'Not specified'} for {' '}

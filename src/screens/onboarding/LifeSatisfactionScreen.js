@@ -86,8 +86,11 @@ const LifeSatisfactionScreen = ({ navigation }) => {
 
   const handleContinue = () => {
     debug.log('Proceeding to habits screen');
+    const overallScore = getOverallSatisfaction();
+    debug.log(`Calculated overall satisfaction: ${overallScore}`);
     navigation.navigate('Habits', {
       satisfactionBaseline: {
+        overallScore: overallScore.toFixed(1),
         areas: satisfactionLevels,
         motivation: motivationLevel,
         timestamp: new Date().toISOString()

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "shift-app",
-    "slug": "shift-app",
+    "slug": "reality-shift",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,6 +23,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "eed38d7c-d1d6-4964-9348-4cdac15e928a"
+      }
+    },
+    "owner": "kwong916999"
   }
 }

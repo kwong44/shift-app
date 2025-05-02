@@ -62,10 +62,16 @@ const HabitsScreen = ({ navigation, route }) => {
   };
 
   const handleContinue = () => {
-    debug.log('Proceeding to preferences with categories:', selectedCategories);
+    // Map category IDs to their full labels
+    const selectedHabits = selectedCategories.map(categoryId => {
+      const category = habitCategories.find(cat => cat.id === categoryId);
+      return category.label;
+    });
+
+    debug.log('Proceeding to preferences with categories:', selectedHabits);
     navigation.navigate('Preferences', { 
       satisfactionBaseline,
-      currentHabits: selectedCategories,
+      currentHabits: selectedHabits,
       improvementAreas: [] // Providing empty array since we're skipping improvement areas
     });
   };

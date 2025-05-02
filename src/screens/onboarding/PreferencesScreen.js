@@ -76,7 +76,21 @@ const PreferencesScreen = ({ navigation, route }) => {
       preferredExercises
     });
 
-    navigation.navigate('OnboardingComplete');
+    const { satisfactionBaseline, currentHabits, improvementAreas } = route.params || {};
+    
+    const assessmentData = {
+      satisfactionBaseline,
+      currentHabits,
+      improvementAreas,
+      engagementPrefs: {
+        preferredTime,
+        sessionLength,
+        reminderFrequency,
+        preferredExercises
+      }
+    };
+
+    navigation.navigate('OnboardingComplete', { assessmentData });
   };
 
   return (

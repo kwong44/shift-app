@@ -45,6 +45,8 @@ export const fetchRoadmap = async (userId) => {
  */
 export const createRoadmap = async (userId, assessmentData) => {
   try {
+    console.log('[Roadmap] Creating roadmap for user:', userId);
+    
     // Transform assessment data into roadmap goals and milestones
     const roadmapData = generateRoadmapFromAssessment(assessmentData);
 
@@ -57,19 +59,32 @@ export const createRoadmap = async (userId, assessmentData) => {
         progress: {
           completed_goals: 0,
           total_goals: roadmapData.goals.length
-        }
+        },
+        metadata: roadmapData.metadata,
+        current_phase: 1,
+        phases: [{
+          number: 1,
+          name: 'Getting Started',
+          description: 'Building foundational habits and routines',
+          status: 'active'
+        }]
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[Roadmap] Error creating roadmap:', error);
+      throw error;
+    }
+
+    console.log('[Roadmap] Successfully created roadmap:', data);
 
     // Store in local storage
     await AsyncStorage.setItem(ROADMAP_STORAGE_KEY, JSON.stringify(data));
 
     return data;
   } catch (error) {
-    console.error('Error creating roadmap:', error.message);
+    console.error('[Roadmap] Error creating roadmap:', error.message);
     throw error;
   }
 };
@@ -119,56 +134,71 @@ export const clearLocalRoadmap = async () => {
  * @returns {object} - Formatted roadmap data with goals and milestones
  */
 const generateRoadmapFromAssessment = (assessmentData) => {
+  console.log('[Roadmap] Generating roadmap from assessment data:', assessmentData);
+  
   const goals = [];
   const milestones = [];
 
-  // Transform improvement areas into goals
-  if (assessmentData.improvementAreas) {
-    assessmentData.improvementAreas.forEach((area, index) => {
-      const goalId = `goal_${index}`;
-      goals.push({
-        id: goalId,
-        description: area,
-        timeline: '3 months', // Default timeline
-        status: 'pending',
-        priority: index + 1
-      });
+  // Transform focus areas (currentHabits) into goals
+  const focusAreas = assessmentData.currentHabits || [];
+  console.log('[Roadmap] Processing focus areas:', focusAreas);
+  
+  focusAreas.forEach((area, index) => {
+    const goalId = `goal_${index}`;
+    goals.push({
+      id: goalId,
+      description: area,
+      timeline: '3 months',
+      status: 'pending',
+      priority: index + 1,
+      type: 'focus_area'
+    });
 
-      // Create milestones for each goal
-      milestones.push({
-        goal_id: goalId,
-        description: `Start working on ${area}`,
-        target_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
-        status: 'pending'
-      });
+    milestones.push({
+      goal_id: goalId,
+      description: `Start working on ${area}`,
+      target_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'pending'
+    });
+  });
+
+  // Add satisfaction baseline goal if score is below 7
+  if (assessmentData.satisfactionBaseline?.overallScore < 7) {
+    console.log('[Roadmap] Adding satisfaction improvement goal');
+    const goalId = 'satisfaction_improvement';
+    goals.push({
+      id: goalId,
+      description: 'Improve overall life satisfaction',
+      timeline: '6 months',
+      status: 'pending',
+      priority: goals.length + 1,
+      type: 'satisfaction'
+    });
+
+    milestones.push({
+      goal_id: goalId,
+      description: 'Set small daily actions for improvement',
+      target_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'pending'
     });
   }
 
-  // Transform long-term goals into additional goals
-  if (assessmentData.longTermGoals) {
-    Object.entries(assessmentData.longTermGoals).forEach(([key, value], index) => {
-      const goalId = `ltg_${index}`;
-      goals.push({
-        id: goalId,
-        description: value,
-        timeline: '12 months', // Long-term timeline
-        status: 'pending',
-        priority: goals.length + 1
-      });
+  // Add engagement preferences as metadata
+  const metadata = {
+    preferredTime: assessmentData.engagementPrefs?.preferredTime,
+    sessionLength: assessmentData.engagementPrefs?.sessionLength,
+    reminderFrequency: assessmentData.engagementPrefs?.reminderFrequency,
+    preferredExercises: assessmentData.engagementPrefs?.preferredExercises
+  };
 
-      // Create milestones for each long-term goal
-      milestones.push({
-        goal_id: goalId,
-        description: `Begin ${value.toLowerCase()}`,
-        target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 1 month from now
-        status: 'pending'
-      });
-    });
-  }
+  console.log('[Roadmap] Generated goals:', goals);
+  console.log('[Roadmap] Generated milestones:', milestones);
+  console.log('[Roadmap] Metadata:', metadata);
 
   return {
     goals,
-    milestones
+    milestones,
+    metadata
   };
 };
 

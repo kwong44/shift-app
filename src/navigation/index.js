@@ -6,6 +6,9 @@ import { supabase } from '../config/supabase';
 import { getSession } from '../api/auth';
 import { hasCompletedAssessment } from '../api/selfAssessment';
 
+// Import BottomTabNavigator
+import BottomTabNavigator from './BottomTabNavigator';
+
 // Auth screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
@@ -183,7 +186,6 @@ const Navigation = () => {
         },
       }}
       onStateChange={(state) => {
-        // Log navigation state changes for debugging
         console.debug('Navigation State:', state);
       }}
     >
@@ -197,17 +199,17 @@ const Navigation = () => {
           <>
             <Stack.Screen 
               name="Welcome" 
-              component={WelcomeScreen}
+              component={WelcomeScreen} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="SignIn" 
-              component={SignInScreen}
+              component={SignInScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
               name="SignUp" 
-              component={SignUpScreen}
+              component={SignUpScreen} 
               options={modalScreenOptions}
             />
           </>
@@ -216,78 +218,81 @@ const Navigation = () => {
           <>
             <Stack.Screen 
               name="OnboardingStart" 
-              component={OnboardingStart}
+              component={OnboardingStart} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="LifeSatisfaction" 
-              component={LifeSatisfactionScreen}
+              component={LifeSatisfactionScreen} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="Habits" 
-              component={HabitsScreen}
+              component={HabitsScreen} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="Preferences" 
-              component={PreferencesScreen}
+              component={PreferencesScreen} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="OnboardingComplete" 
-              component={OnboardingComplete}
-              options={modalScreenOptions}
+              component={OnboardingComplete} 
+              options={screenOptions}
             />
           </>
         ) : (
           // Main App Stack
           <>
             <Stack.Screen 
-              name="HomeScreen" 
-              component={HomeScreen}
+              name="App" 
+              component={BottomTabNavigator}
               options={screenOptions}
             />
-            
-            {/* Exercise Stack */}
             <Stack.Screen 
-              name="Exercises" 
-              component={ExercisesDashboard}
+              name="HomeScreen" 
+              component={HomeScreen} 
+              options={screenOptions}
+            />
+            <Stack.Screen 
+              name="ExercisesDashboard" 
+              component={ExercisesDashboard} 
               options={screenOptions}
             />
             <Stack.Screen 
               name="Mindfulness" 
-              component={MindfulnessScreen}
+              component={MindfulnessScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
-              name="BinauralBeats" 
-              component={BinauralScreen}
+              name="Binaural" 
+              component={BinauralScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
               name="Visualization" 
-              component={VisualizationScreen}
+              component={VisualizationScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
               name="TaskPlanner" 
-              component={TaskPlannerScreen}
-              options={screenOptions}
+              component={TaskPlannerScreen} 
+              options={modalScreenOptions}
             />
             <Stack.Screen 
               name="DeepWork" 
-              component={DeepWorkScreen}
+              component={DeepWorkScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
               name="Journaling" 
-              component={JournalingScreen}
+              component={JournalingScreen} 
               options={modalScreenOptions}
             />
             <Stack.Screen 
               name="SelfReflection" 
-              component={SelfReflectionScreen}
+              component={SelfReflectionScreen} 
               options={modalScreenOptions}
             />
           </>

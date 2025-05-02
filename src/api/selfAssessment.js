@@ -8,8 +8,16 @@ import { supabase } from '../config/supabase';
  */
 export const submitSelfAssessment = async (userId, responses) => {
   try {
+    console.log('[SelfAssessment] Submitting assessment for user:', userId);
+    console.log('[SelfAssessment] Assessment data:', responses);
+
     // Validate the responses object
-    if (!responses.currentHabits || !responses.improvementAreas || !responses.longTermGoals || !responses.engagementPrefs) {
+    if (!responses.currentHabits || !responses.engagementPrefs || !responses.satisfactionBaseline) {
+      console.error('[SelfAssessment] Missing required data:', {
+        hasCurrentHabits: !!responses.currentHabits,
+        hasEngagementPrefs: !!responses.engagementPrefs,
+        hasSatisfactionBaseline: !!responses.satisfactionBaseline
+      });
       throw new Error('Missing required assessment data');
     }
 
@@ -19,12 +27,8 @@ export const submitSelfAssessment = async (userId, responses) => {
         current: responses.currentHabits,
         timestamp: new Date().toISOString()
       },
-      improvement_areas: {
-        areas: responses.improvementAreas,
-        timestamp: new Date().toISOString()
-      },
-      goals: {
-        long_term: responses.longTermGoals,
+      satisfaction_baseline: {
+        ...responses.satisfactionBaseline,
         timestamp: new Date().toISOString()
       },
       engagement_preferences: {
@@ -33,19 +37,27 @@ export const submitSelfAssessment = async (userId, responses) => {
       }
     };
 
+    console.log('[SelfAssessment] Formatted responses:', formattedResponses);
+
     const { data, error } = await supabase
       .from('self_assessments')
       .insert({
         user_id: userId,
-        responses: formattedResponses
+        responses: formattedResponses,
+        assessment_version: 2
       })
       .select()
       .single();
       
-    if (error) throw error;
+    if (error) {
+      console.error('[SelfAssessment] Database error:', error);
+      throw error;
+    }
+
+    console.log('[SelfAssessment] Successfully submitted:', data);
     return data;
   } catch (error) {
-    console.error('Error submitting self-assessment:', error.message);
+    console.error('[SelfAssessment] Error:', error.message);
     throw error;
   }
 };
@@ -121,6 +133,8 @@ export const hasCompletedAssessment = async (userId) => {
  */
 export const getAssessmentStats = async (userId) => {
   try {
+    console.log('[SelfAssessment] Getting stats for user:', userId);
+
     const { data, error } = await supabase
       .from('self_assessments')
       .select('responses')
@@ -132,15 +146,17 @@ export const getAssessmentStats = async (userId) => {
     if (error) throw error;
 
     const responses = data.responses;
-    return {
-      totalHabits: responses.habits.current.length,
-      totalImprovementAreas: responses.improvement_areas.areas.length,
-      totalGoals: Object.keys(responses.goals.long_term).length,
-      preferredExercises: responses.engagement_preferences.preferredExercises.length,
-      lastUpdated: responses.engagement_preferences.timestamp
+    const stats = {
+      totalHabits: responses.habits?.current?.length || 0,
+      satisfactionScore: responses.satisfaction_baseline?.overallScore || 0,
+      preferredExercises: responses.engagement_preferences?.preferredExercises?.length || 0,
+      lastUpdated: responses.engagement_preferences?.timestamp || new Date().toISOString()
     };
+
+    console.log('[SelfAssessment] Stats calculated:', stats);
+    return stats;
   } catch (error) {
-    console.error('Error getting assessment stats:', error.message);
+    console.error('[SelfAssessment] Error getting stats:', error.message);
     throw error;
   }
 }; 
