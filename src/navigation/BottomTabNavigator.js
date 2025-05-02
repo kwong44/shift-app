@@ -3,9 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 
-// Import screens (we'll create these later)
-import RoadmapScreen from '../screens/app/RoadmapScreen';
-import ExploreScreen from '../screens/app/ExploreScreen';
+// Import screens
+import HomeScreen from '../screens/app/HomeScreen';
+import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
 import ProgressScreen from '../screens/app/ProgressScreen';
 
 const Tab = createBottomTabNavigator();
@@ -36,7 +36,7 @@ const BottomTabNavigator = () => {
     >
       <Tab.Screen
         name="Roadmap"
-        component={RoadmapScreen}
+        component={HomeScreen}
         listeners={{
           tabPress: () => logTabPress('Roadmap'),
         }}
@@ -47,14 +47,14 @@ const BottomTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Explore"
-        component={ExploreScreen}
+        name="Exercises"
+        component={ExercisesDashboard}
         listeners={{
-          tabPress: () => logTabPress('Explore'),
+          tabPress: () => logTabPress('Exercises'),
         }}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <Ionicons name="fitness-outline" size={size} color={color} />
           ),
         }}
       />

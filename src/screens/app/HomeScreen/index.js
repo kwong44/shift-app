@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, Animated } from 'react-native';
-import { ActivityIndicator, Text, FAB } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS } from '../../../config/theme';
 import { signOut } from '../../../api/auth';
 import { fetchRoadmap } from '../../../api/roadmap';
@@ -14,7 +14,6 @@ import {
   GrowthRoadmap, 
   DailyFocus,
   Insights,
-  Goals,
   MOODS 
 } from './components';
 
@@ -264,46 +263,31 @@ const HomeScreen = ({ navigation }) => {
           </View>
         ) : (
           <>
-            <GrowthRoadmap 
-              dailyProgress={dailyProgress}
-              streak={streak}
-              currentMood={currentMood}
-              onMoodPress={() => setShowMoodModal(true)}
-              MOODS={MOODS}
-              currentPhase={roadmap?.currentPhase}
-              focusAreas={roadmap?.focusAreas}
-              weeklyGoals={roadmap?.weeklyGoals}
-              nextMilestone={roadmap?.nextMilestone}
-              overallProgress={roadmap?.overallProgress}
-            />
+            <View style={styles.componentWrapper}>
+              <GrowthRoadmap 
+                dailyProgress={dailyProgress}
+                streak={streak}
+                currentMood={currentMood}
+                onMoodPress={() => setShowMoodModal(true)}
+                MOODS={MOODS}
+                currentPhase={roadmap?.currentPhase}
+                focusAreas={roadmap?.focusAreas}
+                weeklyGoals={roadmap?.weeklyGoals}
+                nextMilestone={roadmap?.nextMilestone}
+                overallProgress={roadmap?.overallProgress}
+              />
+            </View>
             
-            <DailyFocus 
-              onExercisePress={(route) => navigation.navigate(route)} 
-            />
+            <View style={styles.componentWrapper}>
+              <DailyFocus 
+                onExercisePress={(route) => navigation.navigate(route)} 
+              />
+            </View>
             
             <Insights insights={insights} />
-            
-            <Goals 
-              goals={roadmap?.goals || []} 
-              onViewAll={() => navigation.navigate('Goals')}
-              onUpdateGoal={handleGoalUpdate}
-            />
           </>
         )}
-        
-        <View style={{ height: 80 }} />
       </Animated.ScrollView>
-
-      <FAB
-        icon="play"
-        label="Start Exercise"
-        onPress={async () => {
-          await Haptics.selectionAsync();
-          navigation.navigate('Exercises');
-        }}
-        style={styles.fab}
-        color={COLORS.background}
-      />
 
       <MoodModal
         visible={showMoodModal}
@@ -325,6 +309,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: SPACING.xl,
   },
+  componentWrapper: {
+    marginBottom: SPACING.lg,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -343,15 +330,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
-  },
-  fab: {
-    position: 'absolute',
-    margin: SPACING.lg,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.primary,
-    borderRadius: 28,
-  },
+  }
 });
 
 export default HomeScreen; 
