@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import screens
 import HomeScreen from '../screens/app/HomeScreen';
@@ -17,6 +18,10 @@ const logTabPress = (tabName) => {
 
 const BottomTabNavigator = () => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Debug logging for safe area insets
+  console.debug('Safe area insets:', insets);
 
   return (
     <Tab.Navigator
@@ -24,11 +29,11 @@ const BottomTabNavigator = () => {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.disabled,
         tabBarStyle: {
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom, // Add bottom inset to height
+          paddingBottom: 4 + insets.bottom, // Add bottom inset to padding
           paddingTop: 8,
           backgroundColor: 'white',
-          borderTopWidth: 1,
+          borderTopWidth: .5,
           borderTopColor: theme.colors.disabled,
         },
         headerShown: false,

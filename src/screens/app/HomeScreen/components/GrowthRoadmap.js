@@ -3,7 +3,6 @@ import { View, StyleSheet, Animated, ScrollView } from 'react-native';
 import { Text, TouchableRipple, ProgressBar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
-import { LinearGradient } from 'expo-linear-gradient';
 
 // Debug logger for tracking component lifecycle and user interactions
 const debug = {
@@ -49,14 +48,14 @@ const GrowthRoadmap = ({
     >
       <View>
         <View style={styles.phaseHeader}>
-          <MaterialCommunityIcons name="map-marker-path" size={24} color={COLORS.textOnColor} />
+          <MaterialCommunityIcons name="map-marker-path" size={24} color={COLORS.text} />
           <Text style={styles.phaseTitle}>Current Phase: {currentPhase?.name || 'Getting Started'}</Text>
         </View>
         {expandedSection === 'phase' && (
           <View style={styles.phaseDetails}>
             <Text style={styles.phaseDescription}>{currentPhase?.description}</Text>
             <View style={styles.nextMilestone}>
-              <MaterialCommunityIcons name="flag" size={16} color={COLORS.textOnColor} />
+              <MaterialCommunityIcons name="flag" size={16} color={COLORS.text} />
               <Text style={styles.milestoneText}>Next: {nextMilestone}</Text>
             </View>
           </View>
@@ -72,7 +71,7 @@ const GrowthRoadmap = ({
     >
       <View>
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="target" size={20} color={COLORS.textOnColor} />
+          <MaterialCommunityIcons name="target" size={20} color={COLORS.text} />
           <Text style={styles.sectionTitle}>Focus Areas</Text>
         </View>
         {expandedSection === 'focus' && (
@@ -82,7 +81,7 @@ const GrowthRoadmap = ({
                 <Text style={styles.focusLabel}>{area.name}</Text>
                 <ProgressBar 
                   progress={area.progress} 
-                  color={COLORS.textOnColor}
+                  color={COLORS.primary}
                   style={styles.focusProgress} 
                 />
               </View>
@@ -100,7 +99,7 @@ const GrowthRoadmap = ({
     >
       <View>
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={COLORS.textOnColor} />
+          <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={COLORS.text} />
           <Text style={styles.sectionTitle}>Weekly Goals</Text>
         </View>
         {expandedSection === 'goals' && (
@@ -110,7 +109,7 @@ const GrowthRoadmap = ({
                 <MaterialCommunityIcons 
                   name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
                   size={16} 
-                  color={COLORS.textOnColor} 
+                  color={COLORS.text} 
                 />
                 <Text style={styles.goalText}>{goal.text}</Text>
               </View>
@@ -122,17 +121,12 @@ const GrowthRoadmap = ({
   );
 
   return (
-    <LinearGradient
-      colors={[COLORS.purpleGradient.start, COLORS.purpleGradient.end]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={styles.headerGradient}
-    >
+    <View style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
         <View style={styles.headerContent}>
           <TouchableRipple style={styles.streakContainer}>
             <View style={styles.streakBadge}>
-              <MaterialCommunityIcons name="fire" size={20} color={COLORS.textOnColor} />
+              <MaterialCommunityIcons name="fire" size={20} color={COLORS.accent} />
               <Text style={styles.streakText}>{streak} day streak</Text>
             </View>
           </TouchableRipple>
@@ -179,12 +173,13 @@ const GrowthRoadmap = ({
         {renderFocusAreas()}
         {renderWeeklyGoals()}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  headerGradient: {
+  container: {
+    backgroundColor: '#F5F5F5', // Light gray background matching DashboardHeader
     borderBottomLeftRadius: RADIUS.xl,
     borderBottomRightRadius: RADIUS.xl,
   },
@@ -199,7 +194,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   streakContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: RADIUS.md,
     padding: SPACING.xs,
     paddingHorizontal: SPACING.sm,
@@ -209,13 +204,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   streakText: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontWeight: FONT.weight.medium,
     fontSize: FONT.size.sm,
     marginLeft: 4,
   },
   moodButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: RADIUS.md,
     padding: SPACING.xs,
     paddingHorizontal: SPACING.sm,
@@ -229,7 +224,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.xs,
   },
   moodLabel: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
   },
@@ -238,14 +233,14 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   progressTitle: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.semiBold,
     marginBottom: SPACING.xs,
   },
   progressBarContainer: {
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 3,
     marginRight: 46,
     marginTop: SPACING.md,
@@ -253,7 +248,7 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: COLORS.primary,
   },
   progressCircle: {
     position: 'absolute',
@@ -262,17 +257,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressCircleText: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontWeight: FONT.weight.bold,
     fontSize: FONT.size.xs,
   },
   phaseContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginVertical: SPACING.sm,
@@ -282,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phaseTitle: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
@@ -291,24 +286,24 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   phaseDescription: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.sm,
     marginBottom: SPACING.sm,
   },
   nextMilestone: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     padding: SPACING.xs,
     borderRadius: RADIUS.sm,
   },
   milestoneText: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.sm,
     marginLeft: SPACING.xs,
   },
   focusContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginVertical: SPACING.sm,
@@ -318,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
@@ -330,7 +325,7 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.xs,
   },
   focusLabel: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.sm,
     marginBottom: SPACING.xxs,
   },
@@ -339,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   goalsContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginVertical: SPACING.sm,
@@ -353,7 +348,7 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.xs,
   },
   goalText: {
-    color: COLORS.textOnColor,
+    color: COLORS.text,
     fontSize: FONT.size.sm,
     marginLeft: SPACING.xs,
   },

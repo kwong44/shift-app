@@ -27,7 +27,7 @@ import HomeScreen from '../screens/app/HomeScreen';
 // Exercise screens
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
 import MindfulnessScreen from '../screens/exercises/MindfulnessScreen';
-import BinauralScreen from '../screens/exercises/BinauralScreen';
+import BinauralScreen from '../screens/exercises/BinauralScreen/index';
 import VisualizationScreen from '../screens/exercises/VisualizationScreen';
 import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen';
 import DeepWorkScreen from '../screens/exercises/DeepWorkScreen';
@@ -102,6 +102,35 @@ const modalScreenOptions = {
   gestureDirection: 'vertical',
   presentation: 'modal',
   detachPreviousScreen: true,
+};
+
+// Define custom modal option for BinauralScreen
+const binauralScreenOptions = {
+  ...modalScreenOptions,
+  cardStyle: { backgroundColor: 'transparent' },
+  cardOverlayEnabled: false,
+  cardStyleInterpolator: ({ current: { progress } }) => ({
+    cardStyle: {
+      opacity: progress.interpolate({
+        inputRange: [0, 0.5, 0.9, 1],
+        outputRange: [0, 0.25, 0.7, 1],
+      }),
+      transform: [
+        {
+          translateY: progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1000, 0],
+          }),
+        },
+      ],
+    },
+    overlayStyle: {
+      opacity: progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.5],
+      }),
+    },
+  }),
 };
 
 const Navigation = () => {
@@ -268,7 +297,7 @@ const Navigation = () => {
             <Stack.Screen 
               name="Binaural" 
               component={BinauralScreen} 
-              options={modalScreenOptions}
+              options={binauralScreenOptions}
             />
             <Stack.Screen 
               name="Visualization" 

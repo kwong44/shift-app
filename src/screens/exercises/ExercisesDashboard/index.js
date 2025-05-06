@@ -3,7 +3,7 @@ import { StyleSheet, Animated, View, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Snackbar } from 'react-native-paper';
 import { COLORS, SPACING } from '../../../config/theme';
-import { DashboardHeader, ExerciseCard, TopBar } from './components';
+import { DashboardHeader, ExerciseCard } from './components';
 import useExercises from './hooks/useExercises';
 
 // Constants
@@ -14,7 +14,7 @@ const EXERCISES = [
     description: 'Enhance focus and relaxation through audio entrainment',
     icon: 'headphones',
     duration: '10-15 min',
-    route: 'BinauralBeats',
+    route: 'Binaural',
     color: '#7D8CC4'
   },
   {
@@ -78,7 +78,6 @@ console.debug('ExercisesDashboard mounted');
 
 const ExercisesDashboard = ({ navigation }) => {
   const [scrollY] = useState(new Animated.Value(0));
-  const [progressAnimation] = useState(new Animated.Value(0));
   const { completedExercises, loading, error, refreshExercises } = useExercises();
 
   // Debug logging for state changes
@@ -115,8 +114,6 @@ const ExercisesDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <TopBar onBack={() => navigation.goBack()} />
-
       <Animated.ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -127,12 +124,7 @@ const ExercisesDashboard = ({ navigation }) => {
         )}
         scrollEventThrottle={16}
       >
-        <DashboardHeader 
-          completedCount={Object.keys(completedExercises).length}
-          totalExercises={EXERCISES.length}
-          progressAnimation={progressAnimation}
-          scrollY={scrollY}
-        />
+        <DashboardHeader scrollY={scrollY} />
         
         <View style={styles.exercisesContainer}>
           {exerciseRows.map((row, index) => (
