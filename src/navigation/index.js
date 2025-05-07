@@ -26,13 +26,13 @@ import HomeScreen from '../screens/app/HomeScreen';
 
 // Exercise screens
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
-import MindfulnessScreen from '../screens/exercises/MindfulnessScreen';
+import MindfulnessScreen from '../screens/exercises/MindfulnessScreen/index';
 import BinauralScreen from '../screens/exercises/BinauralScreen/index';
-import VisualizationScreen from '../screens/exercises/VisualizationScreen';
-import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen';
-import DeepWorkScreen from '../screens/exercises/DeepWorkScreen';
-import JournalingScreen from '../screens/exercises/JournalingScreen';
-import SelfReflectionScreen from '../screens/exercises/SelfReflectionScreen';
+import VisualizationScreen from '../screens/exercises/VisualizationScreen/index';
+import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen/index';
+import DeepWorkScreen from '../screens/exercises/DeepWorkScreen/index';
+import JournalingScreen from '../screens/exercises/JournalingScreen/index';
+import SelfReflectionScreen from '../screens/exercises/SelfReflectionScreen/index';
 
 const Stack = createStackNavigator();
 
