@@ -70,8 +70,8 @@ const screenOptions = {
   gestureDirection: 'horizontal',
 };
 
-// Define modal transition for specific screens
-const modalScreenOptions = {
+// Define modal transition for auth screens only
+const authModalOptions = {
   headerShown: false,
   cardStyleInterpolator: CardStyleInterpolators.forModalPresentationIOS,
   transitionSpec: {
@@ -103,64 +103,6 @@ const modalScreenOptions = {
   gestureDirection: 'vertical',
   presentation: 'modal',
   detachPreviousScreen: true,
-};
-
-// Define custom modal option for BinauralScreen
-const binauralScreenOptions = {
-  ...modalScreenOptions,
-  cardStyle: { backgroundColor: 'transparent' },
-  cardOverlayEnabled: false,
-  cardStyleInterpolator: ({ current: { progress } }) => ({
-    cardStyle: {
-      opacity: progress.interpolate({
-        inputRange: [0, 0.5, 0.9, 1],
-        outputRange: [0, 0.25, 0.7, 1],
-      }),
-      transform: [
-        {
-          translateY: progress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1000, 0],
-          }),
-        },
-      ],
-    },
-    overlayStyle: {
-      opacity: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 0.5],
-      }),
-    },
-  }),
-};
-
-// Define custom modal option for Journaling screens
-const journalingScreenOptions = {
-  ...modalScreenOptions,
-  cardStyle: { backgroundColor: 'transparent' },
-  cardOverlayEnabled: false,
-  cardStyleInterpolator: ({ current: { progress } }) => ({
-    cardStyle: {
-      opacity: progress.interpolate({
-        inputRange: [0, 0.5, 0.9, 1],
-        outputRange: [0, 0.25, 0.7, 1],
-      }),
-      transform: [
-        {
-          translateY: progress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1000, 0],
-          }),
-        },
-      ],
-    },
-    overlayStyle: {
-      opacity: progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 0.5],
-      }),
-    },
-  }),
 };
 
 const Navigation = () => {
@@ -264,12 +206,12 @@ const Navigation = () => {
             <Stack.Screen 
               name="SignIn" 
               component={SignInScreen} 
-              options={modalScreenOptions}
+              options={authModalOptions}
             />
             <Stack.Screen 
               name="SignUp" 
               component={SignUpScreen} 
-              options={modalScreenOptions}
+              options={authModalOptions}
             />
           </>
         ) : !hasCompletedOnboarding ? (
@@ -322,42 +264,42 @@ const Navigation = () => {
             <Stack.Screen 
               name="Mindfulness" 
               component={MindfulnessScreen} 
-              options={modalScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="Binaural" 
               component={BinauralScreen} 
-              options={binauralScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="Visualization" 
               component={VisualizationScreen} 
-              options={modalScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="TaskPlanner" 
               component={TaskPlannerScreen} 
-              options={modalScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="DeepWork" 
               component={DeepWorkScreen} 
-              options={modalScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="Journaling" 
               component={JournalingSetupScreen} 
-              options={journalingScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="JournalingEntry" 
               component={JournalingEntry} 
-              options={journalingScreenOptions}
+              options={screenOptions}
             />
             <Stack.Screen 
               name="SelfReflection" 
               component={SelfReflectionScreen} 
-              options={modalScreenOptions}
+              options={screenOptions}
             />
           </>
         )}
