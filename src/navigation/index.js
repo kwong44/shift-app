@@ -31,7 +31,8 @@ import BinauralScreen from '../screens/exercises/BinauralScreen/index';
 import VisualizationScreen from '../screens/exercises/VisualizationScreen/index';
 import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen/index';
 import DeepWorkScreen from '../screens/exercises/DeepWorkScreen/index';
-import JournalingScreen from '../screens/exercises/JournalingScreen/index';
+import JournalingSetupScreen from '../screens/exercises/JournalingScreen/JournalingSetupScreen';
+import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEntry';
 import SelfReflectionScreen from '../screens/exercises/SelfReflectionScreen/index';
 
 const Stack = createStackNavigator();
@@ -106,6 +107,35 @@ const modalScreenOptions = {
 
 // Define custom modal option for BinauralScreen
 const binauralScreenOptions = {
+  ...modalScreenOptions,
+  cardStyle: { backgroundColor: 'transparent' },
+  cardOverlayEnabled: false,
+  cardStyleInterpolator: ({ current: { progress } }) => ({
+    cardStyle: {
+      opacity: progress.interpolate({
+        inputRange: [0, 0.5, 0.9, 1],
+        outputRange: [0, 0.25, 0.7, 1],
+      }),
+      transform: [
+        {
+          translateY: progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1000, 0],
+          }),
+        },
+      ],
+    },
+    overlayStyle: {
+      opacity: progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.5],
+      }),
+    },
+  }),
+};
+
+// Define custom modal option for Journaling screens
+const journalingScreenOptions = {
   ...modalScreenOptions,
   cardStyle: { backgroundColor: 'transparent' },
   cardOverlayEnabled: false,
@@ -316,8 +346,13 @@ const Navigation = () => {
             />
             <Stack.Screen 
               name="Journaling" 
-              component={JournalingScreen} 
-              options={modalScreenOptions}
+              component={JournalingSetupScreen} 
+              options={journalingScreenOptions}
+            />
+            <Stack.Screen 
+              name="JournalingEntry" 
+              component={JournalingEntry} 
+              options={journalingScreenOptions}
             />
             <Stack.Screen 
               name="SelfReflection" 

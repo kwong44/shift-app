@@ -1,11 +1,10 @@
 import React from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
-import { Text, Card, TextInput, IconButton } from 'react-native-paper';
+import { Text, TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SPACING, COLORS, FONT } from '../../../../config/theme';
 
-const { width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export const JournalEntryCard = ({ 
   promptData,
@@ -17,152 +16,157 @@ export const JournalEntryCard = ({
   setTextInputHeight,
   onNextPrompt,
   onPreviousPrompt,
-  promptsLength
+  promptsLength,
+  isFullScreen = false
 }) => {
   // Debug log
-  console.debug('JournalEntryCard rendered', { currentPrompt, entry });
+  console.debug('JournalEntryCard rendered', { currentPrompt, entry, isFullScreen, promptText });
 
   return (
-    <Card style={styles.card} elevation={4}>
-      <LinearGradient
-        colors={[`${promptData.color}15`, `${promptData.color}05`]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
-      >
-        <Card.Content>
-          <View style={styles.promptHeader}>
-            <IconButton
-              icon="chevron-left"
-              iconColor={COLORS.text}
-              size={24}
-              onPress={onPreviousPrompt}
-              disabled={currentPrompt === 0}
-              style={[
-                styles.promptNavButton,
-                currentPrompt === 0 && styles.promptNavButtonDisabled
-              ]}
-            />
-            <Text style={styles.promptCount}>
-              Prompt {currentPrompt + 1} of {promptsLength}
-            </Text>
-            <IconButton
-              icon="chevron-right"
-              iconColor={COLORS.text}
-              size={24}
-              onPress={onNextPrompt}
-              disabled={currentPrompt === promptsLength - 1}
-              style={[
-                styles.promptNavButton,
-                currentPrompt === promptsLength - 1 && styles.promptNavButtonDisabled
-              ]}
-            />
-          </View>
-          
-          <View style={styles.promptTextContainer}>
-            <MaterialCommunityIcons
-              name="format-quote-open"
-              size={20}
-              color={promptData.color}
-              style={styles.quoteIcon}
-            />
-            <Text style={[styles.promptText, { color: COLORS.text }]}>
-              {promptText}
-            </Text>
-            <MaterialCommunityIcons
-              name="format-quote-close"
-              size={20}
-              color={promptData.color}
-              style={[styles.quoteIcon, styles.quoteIconRight]}
-            />
-          </View>
+    <View style={styles.container}>
+      <View style={styles.promptSection}>
+        <View style={styles.promptHeader}>
+          <IconButton
+            icon="chevron-left"
+            iconColor={COLORS.background}
+            size={24}
+            onPress={onPreviousPrompt}
+            disabled={currentPrompt === 0}
+            style={[
+              styles.promptNavButton,
+              currentPrompt === 0 && styles.promptNavButtonDisabled
+            ]}
+          />
+          <Text style={styles.promptCount}>
+            Prompt {currentPrompt + 1} of {promptsLength}
+          </Text>
+          <IconButton
+            icon="chevron-right"
+            iconColor={COLORS.background}
+            size={24}
+            onPress={onNextPrompt}
+            disabled={currentPrompt === promptsLength - 1}
+            style={[
+              styles.promptNavButton,
+              currentPrompt === promptsLength - 1 && styles.promptNavButtonDisabled
+            ]}
+          />
+        </View>
+        
+        <View style={styles.promptTextContainer}>
+          <MaterialCommunityIcons
+            name="format-quote-open"
+            size={20}
+            color={COLORS.background}
+            style={styles.quoteIcon}
+          />
+          <Text style={styles.promptText}>
+            {promptText}
+          </Text>
+          <MaterialCommunityIcons
+            name="format-quote-close"
+            size={20}
+            color={COLORS.background}
+            style={[styles.quoteIcon, styles.quoteIconRight]}
+          />
+        </View>
+      </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              mode="outlined"
-              placeholder="Write your thoughts here..."
-              value={entry}
-              onChangeText={setEntry}
-              multiline
-              style={[styles.journalInput, {height: Math.max(200, textInputHeight)}]}
-              onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
-              selectionColor={promptData.color}
-              outlineColor={`${promptData.color}50`}
-              activeOutlineColor={promptData.color}
-              placeholderTextColor={`${COLORS.textLight}90`}
-            />
-          </View>
-        </Card.Content>
-      </LinearGradient>
-    </Card>
+      <View style={styles.inputContainer}>
+        <TextInput
+          mode="flat"
+          placeholder="Write your thoughts here..."
+          value={entry}
+          onChangeText={setEntry}
+          multiline
+          autoFocus={true}
+          showSoftInputOnFocus={true}
+          cursorColor={promptData.color}
+          textAlignVertical="top"
+          style={[
+            styles.journalInput,
+            { minHeight: isFullScreen ? height * 0.5 : Math.max(200, textInputHeight) }
+          ]}
+          contentStyle={styles.journalInputContent}
+          onContentSizeChange={(e) => !isFullScreen && setTextInputHeight(e.nativeEvent.contentSize.height)}
+          theme={{
+            colors: {
+              primary: promptData.color,
+              text: COLORS.text,
+              placeholder: COLORS.textLight,
+              background: 'white',
+            },
+          }}
+        />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
+    flex: 1,
     width: '100%',
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.lg,
-    overflow: 'hidden',
-    ...SHADOWS.medium,
   },
-  gradient: {
-    borderRadius: RADIUS.lg,
-    paddingVertical: SPACING.md,
+  promptSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   promptHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   promptNavButton: {
-    margin: -SPACING.xs,
+    margin: 0,
+    padding: 0,
   },
   promptNavButtonDisabled: {
     opacity: 0.3,
   },
   promptCount: {
     fontWeight: FONT.weight.medium,
-    color: COLORS.text,
+    color: COLORS.background,
     fontSize: FONT.size.sm,
   },
   promptTextContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     position: 'relative',
-    ...SHADOWS.small,
   },
   promptText: {
     fontSize: FONT.size.md,
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: 20,
     textAlign: 'center',
-    paddingHorizontal: SPACING.md,
+    color: COLORS.background,
   },
   quoteIcon: {
     position: 'absolute',
-    top: SPACING.sm,
+    top: SPACING.xs,
     left: SPACING.sm,
     opacity: 0.6,
+    color: COLORS.background,
   },
   quoteIconRight: {
     left: 'auto',
     right: SPACING.sm,
     top: 'auto',
-    bottom: SPACING.sm,
+    bottom: SPACING.xs,
   },
   inputContainer: {
-    marginTop: SPACING.sm,
+    flex: 1,
+    backgroundColor: 'white',
   },
   journalInput: {
-    backgroundColor: COLORS.background,
-    minHeight: 200,
+    backgroundColor: 'white',
     fontSize: FONT.size.md,
     lineHeight: 24,
-    ...SHADOWS.small,
+  },
+  journalInputContent: {
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+    color: COLORS.text,
   },
 }); 
