@@ -27,7 +27,8 @@ import HomeScreen from '../screens/app/HomeScreen';
 // Exercise screens
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
 import MindfulnessScreen from '../screens/exercises/MindfulnessScreen/index';
-import BinauralScreen from '../screens/exercises/BinauralScreen/index';
+import BinauralSetupScreen from '../screens/exercises/BinauralScreen/SetupScreen';
+import BinauralPlayerScreen from '../screens/exercises/BinauralScreen/PlayerScreen';
 import VisualizationScreen from '../screens/exercises/VisualizationScreen/index';
 import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen/index';
 import DeepWorkScreen from '../screens/exercises/DeepWorkScreen/index';
@@ -197,111 +198,36 @@ const Navigation = () => {
       >
         {!userSession ? (
           // Auth Stack
-          <>
-            <Stack.Screen 
-              name="Welcome" 
-              component={WelcomeScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="SignIn" 
-              component={SignInScreen} 
-              options={authModalOptions}
-            />
-            <Stack.Screen 
-              name="SignUp" 
-              component={SignUpScreen} 
-              options={authModalOptions}
-            />
-          </>
+          <Stack.Group screenOptions={authModalOptions}>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </Stack.Group>
         ) : !hasCompletedOnboarding ? (
           // Onboarding Stack
-          <>
-            <Stack.Screen 
-              name="OnboardingStart" 
-              component={OnboardingStart} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="LifeSatisfaction" 
-              component={LifeSatisfactionScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Habits" 
-              component={HabitsScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Preferences" 
-              component={PreferencesScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="OnboardingComplete" 
-              component={OnboardingComplete} 
-              options={screenOptions}
-            />
-          </>
+          <Stack.Group screenOptions={screenOptions}>
+            <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
+            <Stack.Screen name="LifeSatisfaction" component={LifeSatisfactionScreen} />
+            <Stack.Screen name="Habits" component={HabitsScreen} />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
+          </Stack.Group>
         ) : (
           // Main App Stack
-          <>
-            <Stack.Screen 
-              name="App" 
-              component={BottomTabNavigator}
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="HomeScreen" 
-              component={HomeScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="ExercisesDashboard" 
-              component={ExercisesDashboard} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Mindfulness" 
-              component={MindfulnessScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Binaural" 
-              component={BinauralScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Visualization" 
-              component={VisualizationScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="TaskPlanner" 
-              component={TaskPlannerScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="DeepWork" 
-              component={DeepWorkScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="Journaling" 
-              component={JournalingSetupScreen} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="JournalingEntry" 
-              component={JournalingEntry} 
-              options={screenOptions}
-            />
-            <Stack.Screen 
-              name="SelfReflection" 
-              component={SelfReflectionScreen} 
-              options={screenOptions}
-            />
-          </>
+          <Stack.Group screenOptions={screenOptions}>
+            <Stack.Screen name="App" component={BottomTabNavigator} />
+            <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="ExercisesDashboard" component={ExercisesDashboard} />
+            <Stack.Screen name="Mindfulness" component={MindfulnessScreen} />
+            <Stack.Screen name="BinauralSetup" component={BinauralSetupScreen} />
+            <Stack.Screen name="BinauralPlayer" component={BinauralPlayerScreen} />
+            <Stack.Screen name="Visualization" component={VisualizationScreen} />
+            <Stack.Screen name="TaskPlanner" component={TaskPlannerScreen} />
+            <Stack.Screen name="DeepWork" component={DeepWorkScreen} />
+            <Stack.Screen name="Journaling" component={JournalingSetupScreen} />
+            <Stack.Screen name="JournalingEntry" component={JournalingEntry} />
+            <Stack.Screen name="SelfReflection" component={SelfReflectionScreen} />
+          </Stack.Group>
         )}
       </Stack.Navigator>
     </NavigationContainer>
