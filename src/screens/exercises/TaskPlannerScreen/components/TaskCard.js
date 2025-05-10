@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Card, Checkbox, Text, IconButton, Menu } from 'react-native-paper';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Card, Text, IconButton, Menu } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -23,21 +23,29 @@ export const TaskCard = ({
       key={task.id} 
       style={[
         styles.card,
+        { borderLeftColor: priority.color },
         task.completed && styles.completedCard
       ]} 
       mode="outlined"
-      elevation={task.completed ? 1 : 3}
+      elevation={task.completed ? 1 : 2}
     >
-      <Card.Content style={styles.content}>
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggleComplete(task.id, !task.completed);
+        }}
+        style={styles.content}
+      >
         <View style={styles.leftContent}>
-          <Checkbox
-            status={task.completed ? 'checked' : 'unchecked'}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onToggleComplete(task.id, !task.completed);
-            }}
-            color={priority.color}
-          />
+          <View style={[styles.checkbox, task.completed && styles.checkboxChecked]}>
+            {task.completed && (
+              <MaterialCommunityIcons 
+                name="check" 
+                size={16} 
+                color={COLORS.background}
+              />
+            )}
+          </View>
           <View style={styles.taskTextContainer}>
             <Text 
               style={[
@@ -50,7 +58,7 @@ export const TaskCard = ({
             
             <View style={styles.priorityIndicator}>
               <MaterialCommunityIcons 
-                name={priority.icon} 
+                name="flag" 
                 size={16} 
                 color={priority.color} 
                 style={styles.priorityIcon}
@@ -91,7 +99,7 @@ export const TaskCard = ({
             />
           </Menu>
         </View>
-      </Card.Content>
+      </TouchableOpacity>
     </Card>
   );
 };
@@ -101,23 +109,38 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     borderRadius: RADIUS.md,
     borderLeftWidth: 4,
+    backgroundColor: COLORS.background,
     ...SHADOWS.small,
   },
   completedCard: {
-    opacity: 0.8,
-    backgroundColor: `${COLORS.surfaceVariant}90`,
+    opacity: 0.7,
+    backgroundColor: COLORS.surfaceVariant,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
   },
   leftContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.sm,
+    borderWidth: 2,
+    borderColor: COLORS.textLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
   },
   taskTextContainer: {
     flex: 1,
