@@ -41,7 +41,7 @@ const JournalingSetupScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={selectedPromptType.gradient[0]} />
       <LinearGradient
         colors={selectedPromptType.gradient}
         style={styles.screenGradient}
@@ -127,7 +127,7 @@ const JournalingSetupScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
   },
   safeArea: {
     flex: 1,
