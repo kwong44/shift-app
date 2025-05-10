@@ -1,106 +1,86 @@
 import React from 'react';
-import { StyleSheet, View, Dimensions, Animated } from 'react-native';
-import { Text, Card, IconButton, ProgressBar } from 'react-native-paper';
+import { StyleSheet, View, Animated } from 'react-native';
+import { Text, IconButton } from 'react-native-paper';
+import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
+import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+// Debug logging
+console.debug('PlayerCard mounted');
 
-export const PlayerCard = ({ 
-  frequencyData,
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const PlayerCard = ({
+  frequency,
+  duration,
   isPlaying,
   progress,
   timeElapsed,
-  pulseAnim,
   onPlayPause,
   onStop,
-  onComplete
 }) => {
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const handlePlayPause = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPlayPause();
   };
+
+  const handleStop = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onStop();
+  };
+
+  const remainingTime = duration - timeElapsed;
 
   return (
     <View style={styles.container}>
       <View style={styles.waveformContainer}>
-        <Animated.View 
+        <MaterialCommunityIcons 
+          name="waveform" 
+          size={120} 
+          color={COLORS.background}
           style={[
-            styles.waveCircle,
-            {
-              backgroundColor: `${frequencyData.color}30`,
-              transform: [{ scale: pulseAnim }]
-            }
+            styles.waveform,
+            { opacity: isPlaying ? 1 : 0.5 }
           ]}
-        >
-          <View style={styles.innerCircle}>
-            <MaterialCommunityIcons 
-              name={isPlaying ? "pause" : "play"} 
-              size={48} 
-              color={frequencyData.color}
-              onPress={onPlayPause}
-            />
-          </View>
-        </Animated.View>
-        
-        <Text style={styles.title}>
-          {frequencyData.label}
+        />
+      </View>
+
+      <View style={styles.infoContainer}>
+        <Text style={styles.frequencyText}>
+          {frequency} Hz
         </Text>
-        
-        <Text style={styles.description}>
-          {frequencyData.details}
-        </Text>
-        
-        <View style={styles.progressContainer}>
-          <ProgressBar 
-            progress={progress} 
-            color={frequencyData.color} 
-            style={styles.progressBar}
+        <View style={styles.progressBar}>
+          <View 
+            style={[
+              styles.progressFill,
+              { width: `${progress * 100}%` }
+            ]} 
           />
-          
-          <View style={styles.timeLabels}>
-            <Text style={styles.timeLabel}>
-              {formatTime(timeElapsed)}
-            </Text>
-            <Text style={styles.timeLabel}>
-              {formatTime(frequencyData.duration)}
-            </Text>
-          </View>
+        </View>
+        <View style={styles.timeContainer}>
+          <Text style={styles.timeText}>{formatTime(timeElapsed)}</Text>
+          <Text style={styles.timeText}>{formatTime(remainingTime)}</Text>
         </View>
       </View>
-      
-      <View style={styles.controlsContainer}>
+
+      <View style={styles.controls}>
         <IconButton
           icon="stop"
           size={32}
-          mode="contained"
-          disabled={!isPlaying && progress === 0}
-          containerColor={`${frequencyData.color}20`}
-          iconColor={frequencyData.color}
-          onPress={onStop}
-          style={styles.controlButton}
-        />
-        
-        <IconButton
-          icon={isPlaying ? "pause" : "play"}
-          size={56}
-          mode="contained"
-          containerColor={frequencyData.color}
           iconColor={COLORS.background}
-          onPress={onPlayPause}
-          style={styles.playButton}
-        />
-        
-        <IconButton
-          icon="skip-next"
-          size={32}
-          mode="contained"
-          disabled={progress >= 1}
-          containerColor={`${frequencyData.color}20`}
-          iconColor={frequencyData.color}
-          onPress={onComplete}
           style={styles.controlButton}
+          onPress={handleStop}
+        />
+        <IconButton
+          icon={isPlaying ? 'pause' : 'play'}
+          size={48}
+          iconColor={COLORS.background}
+          style={[styles.controlButton, styles.playButton]}
+          onPress={handlePlayPause}
         />
       </View>
     </View>
@@ -109,76 +89,60 @@ export const PlayerCard = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    ...SHADOWS.large,
+    alignItems: 'center',
+    gap: SPACING.lg,
   },
   waveformContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  waveCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
+    height: 120,
   },
-  innerCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    ...SHADOWS.medium,
+  waveform: {
+    opacity: 0.8,
   },
-  title: {
+  infoContainer: {
+    width: '100%',
+    gap: SPACING.sm,
+  },
+  frequencyText: {
+    color: COLORS.background,
     fontSize: FONT.size.xl,
     fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  description: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
     textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  progressContainer: {
-    width: '100%',
-    marginTop: SPACING.sm,
   },
   progressBar: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
   },
-  timeLabels: {
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.background,
+  },
+  timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SPACING.xs,
   },
-  timeLabel: {
+  timeText: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: FONT.size.sm,
-    color: COLORS.textLight,
+    fontWeight: FONT.weight.medium,
   },
-  controlsContainer: {
+  controls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.sm,
-    marginTop: SPACING.md,
+    gap: SPACING.md,
   },
   controlButton: {
-    margin: 0,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   playButton: {
-    margin: 0,
-    ...SHADOWS.medium,
+    transform: [{ scale: 1.2 }],
   },
-}); 
+});
+
+export default PlayerCard; 

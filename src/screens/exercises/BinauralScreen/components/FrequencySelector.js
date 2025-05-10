@@ -1,41 +1,51 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
-import { Text } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { StyleSheet, View } from 'react-native';
+import { TouchableRipple, Text } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import { FREQUENCIES } from '../constants';
+import * as Haptics from 'expo-haptics';
 
-export const FrequencySelector = ({ selectedFrequency, onFrequencyChange, loading }) => {
-  const handleFrequencySelect = async (frequencyValue) => {
-    await Haptics.selectionAsync();
-    onFrequencyChange(frequencyValue);
+// Debug logging
+console.debug('FrequencySelector mounted');
+
+const FrequencySelector = ({ selectedFrequency, onSelectFrequency }) => {
+  const handleSelect = async (value) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelectFrequency(value);
   };
 
   return (
     <View style={styles.container}>
-      {FREQUENCIES.map(freq => (
-        <TouchableOpacity
-          key={freq.value}
+      {Object.entries(FREQUENCIES).map(([key, data]) => (
+        <TouchableRipple
+          key={key}
+          onPress={() => handleSelect(key)}
           style={[
             styles.option,
-            selectedFrequency === freq.value && styles.optionSelected
+            selectedFrequency === key && styles.selectedOption
           ]}
-          onPress={() => handleFrequencySelect(freq.value)}
-          disabled={loading}
         >
-          <MaterialCommunityIcons 
-            name={freq.icon} 
-            size={28} 
-            color={selectedFrequency === freq.value ? COLORS.background : COLORS.textLight} 
-          />
-          <Text style={[
-            styles.label,
-            selectedFrequency === freq.value && styles.labelSelected
-          ]}>
-            {freq.label}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.optionContent}>
+            <Text style={[
+              styles.optionTitle,
+              selectedFrequency === key && styles.selectedText
+            ]}>
+              {data.name}
+            </Text>
+            <Text style={[
+              styles.optionDescription,
+              selectedFrequency === key && styles.selectedText
+            ]}>
+              {data.description}
+            </Text>
+            <Text style={[
+              styles.optionFrequency,
+              selectedFrequency === key && styles.selectedText
+            ]}>
+              {data.frequency} Hz
+            </Text>
+          </View>
+        </TouchableRipple>
       ))}
     </View>
   );
@@ -43,30 +53,38 @@ export const FrequencySelector = ({ selectedFrequency, onFrequencyChange, loadin
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.xl,
+    gap: SPACING.sm,
   },
   option: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: RADIUS.md,
-    marginHorizontal: SPACING.xs,
+    overflow: 'hidden',
   },
-  optionSelected: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  selectedOption: {
+    backgroundColor: COLORS.background,
   },
-  label: {
-    fontSize: FONT.size.sm,
+  optionContent: {
+    padding: SPACING.md,
+  },
+  optionTitle: {
+    color: COLORS.background,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.bold,
+    marginBottom: SPACING.xs,
+  },
+  optionDescription: {
     color: 'rgba(255,255,255,0.8)',
-    marginTop: SPACING.xs,
+    fontSize: FONT.size.sm,
+    marginBottom: SPACING.xs,
+  },
+  optionFrequency: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
   },
-  labelSelected: {
-    color: COLORS.background,
-    fontWeight: FONT.weight.semiBold,
+  selectedText: {
+    color: COLORS.primary,
   },
-}); 
+});
+
+export default FrequencySelector; 
