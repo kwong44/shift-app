@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Appbar,
@@ -8,7 +8,8 @@ import {
   Portal,
   Dialog,
   Button,
-  Text
+  Text,
+  IconButton
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import { supabase } from '../../../config/supabase';
@@ -35,6 +36,7 @@ const TaskPlannerScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [fadeAnim] = useState(new Animated.Value(0));
 
   // Get the selected priority level data
   const selectedPriorityData = PRIORITY_LEVELS.find(p => p.value === selectedPriority);
@@ -45,6 +47,15 @@ const TaskPlannerScreen = ({ navigation }) => {
     selectedPriority,
     loading
   });
+
+  // Fade in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   // Load tasks when component mounts
   useEffect(() => {
@@ -210,106 +221,114 @@ const TaskPlannerScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#5C6BC0', '#3949AB']}
-        style={styles.screenGradient}
-      >
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction 
-              onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation.goBack();
-              }} 
-              color={COLORS.background} 
-            />
-            <Appbar.Content 
-              title="Task Planner" 
-              titleStyle={styles.appbarTitle}
-              subtitle="Organize your priorities"
-              subtitleStyle={styles.appbarSubtitle}
-            />
-          </Appbar.Header>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+          <Appbar.BackAction 
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }} 
+            color={COLORS.text} 
+          />
+          <Appbar.Content 
+            title="Task Planner" 
+            titleStyle={styles.appbarTitle}
+            subtitle="Organize your priorities"
+            subtitleStyle={styles.appbarSubtitle}
+          />
+          <IconButton
+            icon="information"
+            iconColor={COLORS.text}
+            size={24}
+            onPress={() => {
+              // TODO: Show info modal about task planning
+            }}
+          />
+        </Appbar.Header>
 
-          <Surface style={styles.surface} elevation={0}>
-            <View style={styles.contentContainer}>
-              <TaskInput 
-                newTask={newTask}
-                setNewTask={setNewTask}
-                selectedPriority={selectedPriority}
-                setSelectedPriority={setSelectedPriority}
-                priorityLevels={PRIORITY_LEVELS}
-                onAddTask={handleAddTask}
-                loading={loading}
-              />
-              
-              <TaskList 
-                tasks={tasks}
-                priorityLevels={PRIORITY_LEVELS}
-                onToggleComplete={handleToggleTask}
-                onDeleteTask={handleDeleteTask}
-                menuVisible={menuVisible}
-                selectedTaskId={selectedTaskId}
-                setMenuVisible={setMenuVisible}
-                setSelectedTaskId={setSelectedTaskId}
-              />
-            </View>
-          </Surface>
-        </SafeAreaView>
-
-        <Portal>
-          <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
-            <LinearGradient
-              colors={[`${completedTask.priority?.color || COLORS.primary}15`, `${completedTask.priority?.color || COLORS.primary}05`]}
-              style={styles.dialogGradient}
-            >
-              <Dialog.Title style={styles.dialogTitle}>Task Completed! 🎉</Dialog.Title>
-              <Dialog.Content>
-                <View style={styles.dialogContent}>
-                  <MaterialCommunityIcons 
-                    name="check-circle-outline" 
-                    size={48} 
-                    color={completedTask.priority?.color || COLORS.primary} 
-                    style={styles.dialogIcon} 
-                  />
-                  <Text style={styles.dialogText}>
-                    Great job completing:
-                  </Text>
-                  <Text style={[styles.completedTaskText, { color: completedTask.priority?.color }]}>
-                    "{completedTask.description}"
-                  </Text>
-                  <Text style={styles.dialogText}>
-                    Keep up the momentum and continue building productive habits!
-                  </Text>
-                </View>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button 
-                  onPress={handleDismissDialog} 
-                  mode="contained" 
-                  buttonColor={completedTask.priority?.color || COLORS.primary}
-                  style={styles.dialogButton}
-                >
-                  Continue
-                </Button>
-              </Dialog.Actions>
-            </LinearGradient>
-          </Dialog>
-        </Portal>
-        
-        <Snackbar
-          visible={snackbarVisible}
-          onDismiss={() => setSnackbarVisible(false)}
-          action={{
-            label: 'OK',
-            onPress: () => setSnackbarVisible(false),
-          }}
-          style={styles.snackbar}
+        <Animated.View 
+          style={[
+            styles.content,
+            { opacity: fadeAnim }
+          ]}
         >
-          {error || 'An error occurred. Please try again.'}
-        </Snackbar>
-      </LinearGradient>
+          <View style={styles.mainContent}>
+            <TaskInput 
+              newTask={newTask}
+              setNewTask={setNewTask}
+              selectedPriority={selectedPriority}
+              setSelectedPriority={setSelectedPriority}
+              priorityLevels={PRIORITY_LEVELS}
+              onAddTask={handleAddTask}
+              loading={loading}
+            />
+            
+            <TaskList 
+              tasks={tasks}
+              priorityLevels={PRIORITY_LEVELS}
+              onToggleComplete={handleToggleTask}
+              onDeleteTask={handleDeleteTask}
+              menuVisible={menuVisible}
+              selectedTaskId={selectedTaskId}
+              setMenuVisible={setMenuVisible}
+              setSelectedTaskId={setSelectedTaskId}
+            />
+          </View>
+        </Animated.View>
+      </SafeAreaView>
+
+      <Portal>
+        <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
+          <LinearGradient
+            colors={[`${completedTask.priority?.color}15`, `${completedTask.priority?.color}05`]}
+            style={styles.dialogGradient}
+          >
+            <Dialog.Title style={styles.dialogTitle}>Task Completed! 🎉</Dialog.Title>
+            <Dialog.Content>
+              <View style={styles.dialogContent}>
+                <MaterialCommunityIcons 
+                  name="check-circle-outline" 
+                  size={48} 
+                  color={completedTask.priority?.color} 
+                  style={styles.dialogIcon} 
+                />
+                <Text style={styles.dialogText}>
+                  Great job completing:
+                </Text>
+                <Text style={[styles.completedTaskText, { color: completedTask.priority?.color }]}>
+                  "{completedTask.description}"
+                </Text>
+                <Text style={styles.dialogText}>
+                  Keep up the momentum and continue building productive habits!
+                </Text>
+              </View>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button 
+                onPress={handleDismissDialog} 
+                mode="contained" 
+                buttonColor={completedTask.priority?.color}
+                style={styles.dialogButton}
+              >
+                Continue
+              </Button>
+            </Dialog.Actions>
+          </LinearGradient>
+        </Dialog>
+      </Portal>
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}
+        style={styles.snackbar}
+      >
+        {error || 'An error occurred. Please try again.'}
+      </Snackbar>
     </View>
   );
 };
@@ -317,36 +336,30 @@ const TaskPlannerScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
   },
   safeArea: {
     flex: 1,
   },
-  screenGradient: {
-    flex: 1,
-  },
   appbar: {
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
     elevation: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   appbarTitle: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: COLORS.textLight,
     fontSize: FONT.size.sm,
   },
-  surface: {
+  content: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    marginTop: SPACING.lg,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    ...SHADOWS.large,
   },
-  contentContainer: {
+  mainContent: {
     flex: 1,
     padding: SPACING.lg,
     paddingTop: SPACING.xl,
