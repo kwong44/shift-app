@@ -29,6 +29,9 @@
         "projectId": "eed38d7c-d1d6-4964-9348-4cdac15e928a"
       }
     },
-    "owner": "kwong916999"
+    "owner": "kwong916999",
+    "plugins": [
+      "expo-av"
+    ]
   }
 }
