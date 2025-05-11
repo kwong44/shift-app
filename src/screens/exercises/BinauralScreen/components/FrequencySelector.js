@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { TouchableRipple, Text } from 'react-native-paper';
-import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
+import { Card, Text } from 'react-native-paper';
+import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import { FREQUENCIES } from '../constants';
 import * as Haptics from 'expo-haptics';
 
@@ -17,35 +17,28 @@ const FrequencySelector = ({ selectedFrequency, onSelectFrequency }) => {
   return (
     <View style={styles.container}>
       {Object.entries(FREQUENCIES).map(([key, data]) => (
-        <TouchableRipple
+        <Card
           key={key}
-          onPress={() => handleSelect(key)}
           style={[
-            styles.option,
-            selectedFrequency === key && styles.selectedOption
+            styles.card,
+            selectedFrequency === key && styles.selectedCard
           ]}
+          onPress={() => handleSelect(key)}
         >
-          <View style={styles.optionContent}>
-            <Text style={[
-              styles.optionTitle,
-              selectedFrequency === key && styles.selectedText
-            ]}>
-              {data.name}
-            </Text>
-            <Text style={[
-              styles.optionDescription,
-              selectedFrequency === key && styles.selectedText
-            ]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.headerRow}>
+              <Text style={styles.optionTitle}>
+                {data.name}
+              </Text>
+              <Text style={styles.optionFrequency}>
+                {data.frequency} Hz
+              </Text>
+            </View>
+            <Text style={styles.optionDescription}>
               {data.description}
             </Text>
-            <Text style={[
-              styles.optionFrequency,
-              selectedFrequency === key && styles.selectedText
-            ]}>
-              {data.frequency} Hz
-            </Text>
-          </View>
-        </TouchableRipple>
+          </Card.Content>
+        </Card>
       ))}
     </View>
   );
@@ -53,37 +46,41 @@ const FrequencySelector = ({ selectedFrequency, onSelectFrequency }) => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: SPACING.sm,
+    gap: SPACING.md,
   },
-  option: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: RADIUS.md,
-    overflow: 'hidden',
-  },
-  selectedOption: {
+  card: {
     backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.small,
   },
-  optionContent: {
-    padding: SPACING.md,
+  selectedCard: {
+    backgroundColor: COLORS.primary + '08',
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  cardContent: {
+    padding: SPACING.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
   },
   optionTitle: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.bold,
-    marginBottom: SPACING.xs,
   },
   optionDescription: {
-    color: 'rgba(255,255,255,0.8)',
+    color: COLORS.textLight,
     fontSize: FONT.size.sm,
-    marginBottom: SPACING.xs,
+    lineHeight: 20,
   },
   optionFrequency: {
-    color: 'rgba(255,255,255,0.7)',
+    color: COLORS.primary,
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
-  },
-  selectedText: {
-    color: COLORS.primary,
   },
 });
 

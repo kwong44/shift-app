@@ -55,12 +55,12 @@ const PlayerScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <LinearGradient
           colors={[COLORS.primary, COLORS.secondary]}
           style={styles.screenGradient}
         >
-          <Appbar.Header style={styles.appbar}>
+          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
             <Appbar.BackAction onPress={handleBack} color={COLORS.background} />
             <View>
               <Text style={styles.appbarTitle}>Binaural Beats</Text>

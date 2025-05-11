@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text, TouchableRipple } from 'react-native-paper';
-import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
+import { Button } from 'react-native-paper';
+import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
 
 const DURATION_OPTIONS = [
@@ -23,23 +23,27 @@ const DurationPicker = ({ defaultDuration, value, onDurationChange }) => {
 
   return (
     <View style={styles.container}>
-      {DURATION_OPTIONS.map((option) => (
-        <TouchableRipple
-          key={option.value}
-          style={[
-            styles.option,
-            (value === option.value || (!value && defaultDuration === option.value)) && styles.optionSelected
-          ]}
-          onPress={() => handleSelect(option.value)}
-        >
-          <Text style={[
-            styles.optionText,
-            (value === option.value || (!value && defaultDuration === option.value)) && styles.optionTextSelected
-          ]}>
+      {DURATION_OPTIONS.map((option) => {
+        const isSelected = value === option.value || (!value && defaultDuration === option.value);
+        return (
+          <Button
+            key={option.value}
+            mode={isSelected ? "contained" : "outlined"}
+            onPress={() => handleSelect(option.value)}
+            style={[
+              styles.option,
+              isSelected && styles.optionSelected
+            ]}
+            labelStyle={[
+              styles.optionText,
+              isSelected && styles.optionTextSelected
+            ]}
+            contentStyle={styles.buttonContent}
+          >
             {option.label}
-          </Text>
-        </TouchableRipple>
-      ))}
+          </Button>
+        );
+      })}
     </View>
   );
 };
@@ -51,23 +55,25 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   option: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    minWidth: 80,
-    alignItems: 'center',
+    borderColor: COLORS.primary + '30',
+    backgroundColor: COLORS.background,
+    ...SHADOWS.small,
   },
   optionSelected: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.primary,
+  },
+  buttonContent: {
+    height: 40,
+    minWidth: 80,
   },
   optionText: {
-    color: 'rgba(255,255,255,0.9)',
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
+    color: COLORS.primary,
   },
   optionTextSelected: {
-    color: COLORS.primary,
+    color: COLORS.background,
     fontWeight: FONT.weight.semiBold,
   },
 });
