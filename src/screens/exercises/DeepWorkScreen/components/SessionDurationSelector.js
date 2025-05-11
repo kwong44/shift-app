@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, Text, TouchableRipple } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
@@ -13,87 +13,97 @@ export const SessionDurationSelector = ({
   // Debug log
   console.debug('SessionDurationSelector rendered', { selectedDuration });
 
-  const renderDurationOption = (duration) => {
-    const isSelected = selectedDuration === duration.value;
-    
-    return (
-      <TouchableRipple
-        key={duration.value}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onSelectDuration(duration.value);
-        }}
-      >
-        <Card 
-          style={[
-            styles.durationOption,
-            isSelected && { 
-              borderColor: duration.color,
-              borderWidth: 2
-            }
-          ]} 
-          elevation={isSelected ? 4 : 2}
-        >
-          <View style={styles.durationContent}>
-            <View style={[styles.durationIconContainer, { backgroundColor: `${duration.color}20` }]}>
-              <MaterialCommunityIcons name={duration.icon} size={24} color={duration.color} />
-            </View>
-            <View style={styles.durationTextContainer}>
-              <Text style={styles.durationLabel}>{duration.label}</Text>
-              <Text style={styles.durationDescription}>{duration.description}</Text>
-            </View>
-            {isSelected && (
-              <MaterialCommunityIcons name="check-circle" size={22} color={duration.color} />
-            )}
-          </View>
-        </Card>
-      </TouchableRipple>
-    );
+  const handleSelect = async (duration) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelectDuration(duration);
   };
 
   return (
     <View style={styles.container}>
-      {durations.map(renderDurationOption)}
+      <View style={styles.optionsContainer}>
+        {durations.map((duration) => {
+          const isSelected = selectedDuration === duration.value;
+          return (
+            <Card
+              key={duration.value}
+              style={[
+                styles.card,
+                isSelected && styles.selectedCard
+              ]}
+              onPress={() => handleSelect(duration.value)}
+            >
+              <Card.Content style={styles.cardContent}>
+                <View style={[styles.iconContainer, { backgroundColor: `${duration.color}15` }]}>
+                  <MaterialCommunityIcons name={duration.icon} size={28} color={duration.color} />
+                </View>
+                
+                <View style={styles.optionContent}>
+                  <Text style={styles.optionTitle}>{duration.label}</Text>
+                  <Text style={styles.optionDescription}>{duration.description}</Text>
+                </View>
+                
+                {isSelected && (
+                  <MaterialCommunityIcons 
+                    name="check-circle" 
+                    size={22} 
+                    color={duration.color} 
+                    style={styles.checkIcon}
+                  />
+                )}
+              </Card.Content>
+            </Card>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    marginBottom: SPACING.xl,
+    gap: SPACING.sm,
   },
-  durationOption: {
-    marginBottom: SPACING.sm,
+  optionsContainer: {
+    gap: SPACING.md,
+  },
+  card: {
+    backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
-    overflow: 'hidden',
     ...SHADOWS.small,
   },
-  durationContent: {
+  selectedCard: {
+    backgroundColor: COLORS.primary + '08',
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.sm,
   },
-  durationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.sm,
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
-    ...SHADOWS.small,
   },
-  durationTextContainer: {
+  optionContent: {
     flex: 1,
   },
-  durationLabel: {
+  optionTitle: {
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.bold,
-    color: COLORS.text,
     marginBottom: 2,
   },
-  durationDescription: {
-    fontSize: FONT.size.sm,
+  optionDescription: {
     color: COLORS.textLight,
+    fontSize: FONT.size.sm,
+    lineHeight: 20,
+  },
+  checkIcon: {
+    marginLeft: SPACING.sm,
   },
 }); 
