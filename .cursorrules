@@ -18,53 +18,68 @@
 ├── babel.config.js
 ├── index.js
 ├── instructions
-│   └── instruction.md
+│   ├── app-overview.md
+│   ├── design_patterns.md
+│   ├── instruction.md
+│   └── onboarding-improvement.md
+├── metro.config.js
 ├── package-lock.json
 ├── package.json
 └── src
     ├── api
     │   ├── auth.js
     │   ├── exercises.js
+    │   ├── mood.js
     │   ├── profile.js
     │   ├── roadmap.js
     │   └── selfAssessment.js
     ├── components
     │   ├── common
+    │   │   ├── CircularProgress.js
     │   │   ├── CustomButton.js
     │   │   ├── CustomInput.js
-    │   │   └── OptionSelector.js
+    │   │   ├── OptionSelector.js
+    │   │   ├── SetupScreenButton.js
+    │   │   └── SetupScreenButtonContainer.js
     │   ├── exercises
     │   │   ├── EmotionPicker.js
     │   │   ├── ExerciseCard.js
     │   │   └── Timer.js
     │   └── onboarding
+    │       ├── HabitCategoryCard.js
+    │       ├── OnboardingCard.js
+    │       ├── OnboardingFooter.js
     │       ├── OnboardingHeader.js
-    │       └── ProgressBar.js
+    │       ├── OnboardingLayout.js
+    │       ├── ProgressBar.js
+    │       └── index.js
     ├── config
     │   ├── supabase.js
     │   └── theme.js
+    ├── hooks
+    │   └── useUser.js
     ├── navigation
+    │   ├── BottomTabNavigator.js
     │   └── index.js
     ├── screens
     │   ├── app
-    │   │   └── HomeScreen.js
+    │   │   ├── HomeScreen
+    │   │   └── ProgressScreen
     │   ├── auth
     │   │   ├── SignInScreen.js
     │   │   ├── SignUpScreen.js
     │   │   └── WelcomeScreen.js
     │   ├── exercises
-    │   │   ├── BinauralScreen.js
-    │   │   ├── DeepWorkScreen.js
-    │   │   ├── ExercisesDashboard.js
-    │   │   ├── JournalingScreen.js
-    │   │   ├── MindfulnessScreen.js
-    │   │   ├── SelfReflectionScreen.js
-    │   │   ├── TaskPlannerScreen.js
-    │   │   └── VisualizationScreen.js
+    │   │   ├── BinauralScreen
+    │   │   ├── DeepWorkScreen
+    │   │   ├── ExercisesDashboard
+    │   │   ├── JournalingScreen
+    │   │   ├── MindfulnessScreen
+    │   │   ├── TaskPlannerScreen
+    │   │   └── VisualizationScreen
     │   └── onboarding
-    │       ├── GoalsScreen.js
     │       ├── HabitsScreen.js
-    │       ├── ImprovementAreasScreen.js
+    │       ├── LifeSatisfactionScreen.js
     │       ├── OnboardingComplete.js
     │       ├── OnboardingStart.js
     │       └── PreferencesScreen.js
