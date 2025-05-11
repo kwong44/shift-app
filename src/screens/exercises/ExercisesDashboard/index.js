@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Animated, View, Dimensions } from 'react-native';
+import { StyleSheet, Animated, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Snackbar } from 'react-native-paper';
 import { COLORS, SPACING } from '../../../config/theme';
@@ -23,7 +23,7 @@ const EXERCISES = [
     description: 'Strengthen your mindset through guided visualization',
     icon: 'eye',
     duration: '5 min',
-    route: 'Visualization',
+    route: 'VisualizationSetup',
     color: '#6A8EAE'
   },
   {
@@ -41,7 +41,7 @@ const EXERCISES = [
     description: 'Focus intensely on important tasks without distractions',
     icon: 'timer-outline',
     duration: '25-50 min',
-    route: 'DeepWork',
+    route: 'DeepWorkSetup',
     color: '#9067C6'
   },
   {
@@ -50,7 +50,7 @@ const EXERCISES = [
     description: 'Practice presence and emotional awareness',
     icon: 'meditation',
     duration: '5-10 min',
-    route: 'Mindfulness',
+    route: 'MindfulnessSetup',
     color: '#4C63B6'
   },
   {
@@ -61,16 +61,7 @@ const EXERCISES = [
     duration: '10-15 min',
     route: 'Journaling',
     color: '#5C96AE'
-  },
-  {
-    id: 'reflection',
-    title: 'Self-Reflection',
-    description: 'Review progress and gain deeper insights',
-    icon: 'lightbulb-outline',
-    duration: '15-20 min',
-    route: 'SelfReflection',
-    color: '#7D8CC4'
-  },
+  }
 ];
 
 // Debug logging
@@ -92,26 +83,6 @@ const ExercisesDashboard = ({ navigation }) => {
     navigation.navigate(exercise.route);
   };
 
-  const renderExerciseRow = (rowExercises) => (
-    <View style={styles.row}>
-      {rowExercises.map(exercise => (
-        <ExerciseCard
-          key={exercise.id}
-          exercise={exercise}
-          isCompleted={completedExercises[exercise.id]}
-          onPress={handleExercisePress}
-        />
-      ))}
-      {/* Add empty placeholder if row is not complete */}
-      {rowExercises.length === 1 && <View style={styles.container} />}
-    </View>
-  );
-
-  const exerciseRows = [];
-  for (let i = 0; i < EXERCISES.length; i += 2) {
-    exerciseRows.push(EXERCISES.slice(i, i + 2));
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Animated.ScrollView 
@@ -127,10 +98,14 @@ const ExercisesDashboard = ({ navigation }) => {
         <DashboardHeader scrollY={scrollY} />
         
         <View style={styles.exercisesContainer}>
-          {exerciseRows.map((row, index) => (
-            <View key={index}>
-              {renderExerciseRow(row)}
-            </View>
+          {EXERCISES.map(exercise => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              isCompleted={completedExercises[exercise.id]}
+              onPress={handleExercisePress}
+              style={styles.card}
+            />
           ))}
         </View>
       </Animated.ScrollView>
@@ -164,9 +139,9 @@ const styles = StyleSheet.create({
   exercisesContainer: {
     paddingHorizontal: SPACING.md,
   },
-  row: {
-    flexDirection: 'row',
+  card: {
     marginBottom: SPACING.md,
+    width: '100%', // Make cards full width
   },
   snackbar: {
     bottom: SPACING.md,

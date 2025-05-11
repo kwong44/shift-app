@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 // Debug logging
 console.debug('ExerciseCard mounted');
 
-const ExerciseCard = ({ exercise, isCompleted, onPress }) => {
+const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
   const handlePress = async () => {
     await Haptics.selectionAsync();
     onPress(exercise);
@@ -17,7 +17,7 @@ const ExerciseCard = ({ exercise, isCompleted, onPress }) => {
   return (
     <TouchableOpacity
       onPress={handlePress}
-      style={styles.container}
+      style={[styles.container, style]}
       activeOpacity={0.7}
       accessible={true}
       accessibilityLabel={`${exercise.title} exercise`}
@@ -41,13 +41,20 @@ const ExerciseCard = ({ exercise, isCompleted, onPress }) => {
           )}
         </View>
         
-        <Text style={styles.title} numberOfLines={1}>
-          {exercise.title}
-        </Text>
-        
-        <Text style={styles.duration} numberOfLines={1}>
-          {exercise.duration}
-        </Text>
+        <View style={styles.contentContainer}>
+          <View style={styles.textContainer}>
+            <Text style={styles.title} numberOfLines={1}>
+              {exercise.title}
+            </Text>
+            <Text style={styles.description} numberOfLines={2}>
+              {exercise.description}
+            </Text>
+          </View>
+          
+          <Text style={styles.duration}>
+            {exercise.duration}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -55,14 +62,14 @@ const ExerciseCard = ({ exercise, isCompleted, onPress }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: SPACING.xs,
+    width: '100%',
   },
   card: {
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     shadowColor: COLORS.text,
     shadowOffset: {
@@ -79,7 +86,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginRight: SPACING.md,
+  },
+  contentContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  textContainer: {
+    flex: 1,
+    marginRight: SPACING.md,
   },
   completedBadge: {
     position: 'absolute',
@@ -99,12 +116,15 @@ const styles = StyleSheet.create({
     fontWeight: FONT.weight.semiBold,
     color: COLORS.text,
     marginBottom: SPACING.xxs,
-    textAlign: 'center',
+  },
+  description: {
+    fontSize: FONT.size.sm,
+    color: COLORS.textLight,
   },
   duration: {
     fontSize: FONT.size.sm,
     color: COLORS.textLight,
-    textAlign: 'center',
+    paddingLeft: SPACING.sm,
   },
 });
 
