@@ -14,7 +14,7 @@ const EXERCISES = [
     description: 'Enhance focus and relaxation through audio entrainment',
     icon: 'headphones',
     duration: '10-15 min',
-    route: 'Binaural',
+    route: 'BinauralSetup',
     color: '#7D8CC4'
   },
   {
