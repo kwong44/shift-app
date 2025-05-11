@@ -5,17 +5,19 @@ import {
   Text, 
   Appbar,
   Card,
-  Button,
   IconButton
 } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import { PromptTypeSelector } from './components/PromptTypeSelector';
 import EmotionPicker from '../../../components/exercises/EmotionPicker';
 import { PROMPT_TYPES } from './constants';
+import SetupScreenButton from '../../../components/common/SetupScreenButton';
+import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
+
+// Debug logging
+console.debug('JournalingSetupScreen mounted');
 
 const JournalingSetupScreen = ({ navigation }) => {
   const [promptType, setPromptType] = useState('gratitude');
@@ -41,85 +43,68 @@ const JournalingSetupScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={selectedPromptType.gradient[0]} />
-      <LinearGradient
-        colors={selectedPromptType.gradient}
-        style={styles.screenGradient}
-      >
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction 
-              onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation.goBack();
-              }} 
-              color={COLORS.background} 
-            />
-            <Appbar.Content 
-              title="Journaling" 
-              titleStyle={styles.appbarTitle} 
-              subtitle="Setup your session"
-              subtitleStyle={styles.appbarSubtitle}
-            />
-          </Appbar.Header>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+          <Appbar.BackAction 
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }} 
+            color={COLORS.text} 
+          />
+          <Appbar.Content 
+            title="Journaling" 
+            titleStyle={styles.appbarTitle} 
+            subtitle="Setup your session"
+            subtitleStyle={styles.appbarSubtitle}
+          />
+          <IconButton
+            icon="information"
+            iconColor={COLORS.text}
+            size={24}
+            onPress={() => {
+              // TODO: Show info modal about journaling
+            }}
+          />
+        </Appbar.Header>
 
-          <ScrollView 
-            style={styles.scrollView} 
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Card style={styles.instructionCard} elevation={3}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>Daily Journal</Text>
-                  <IconButton 
-                    icon="book-open-page-variant" 
-                    size={24} 
-                    iconColor={selectedPromptType.color}
-                    style={styles.headerIcon}
-                  />
-                </View>
-                <Text style={styles.instruction}>
-                  Take a moment to reflect on your experiences and feelings. Choose a focus area and identify your emotions.
-                </Text>
-              </Card.Content>
-            </Card>
-            
-            <Text style={styles.sectionTitle}>Choose Your Focus</Text>
-            
-            <PromptTypeSelector 
-              promptTypes={PROMPT_TYPES}
-              selectedPromptType={selectedPromptType}
-              onSelectPromptType={handlePromptTypeChange}
-            />
-            
-            <Text style={styles.sectionTitle}>How are you feeling?</Text>
-            
-            <Card style={styles.emotionsCard} elevation={3}>
-              <Card.Content>
-                <EmotionPicker
-                  selectedEmotions={selectedEmotions}
-                  onSelectEmotion={setSelectedEmotions}
-                  maxSelections={3}
-                  helperText="Select up to 3 emotions that reflect your current state"
-                />
-              </Card.Content>
-            </Card>
-          </ScrollView>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.sectionTitle}>Choose Your Focus</Text>
+          
+          <PromptTypeSelector 
+            promptTypes={PROMPT_TYPES}
+            selectedPromptType={selectedPromptType}
+            onSelectPromptType={handlePromptTypeChange}
+          />
+          
+          <Text style={styles.sectionTitle}>How are you feeling?</Text>
+          
+          <Card style={styles.emotionsCard} elevation={3}>
+            <Card.Content>
+              <EmotionPicker
+                selectedEmotions={selectedEmotions}
+                onSelectEmotion={setSelectedEmotions}
+                maxSelections={3}
+                helperText="Select up to 3 emotions that reflect your current state"
+              />
+            </Card.Content>
+          </Card>
+        </ScrollView>
 
-          <View style={styles.bottomContainer}>
-            <Button
-              mode="contained"
-              onPress={handleContinue}
-              style={[styles.continueButton, { backgroundColor: selectedPromptType.color }]}
-              labelStyle={styles.continueButtonLabel}
-              icon="arrow-right"
-            >
-              Continue to Journal
-            </Button>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+        <SetupScreenButtonContainer>
+          <SetupScreenButton
+            label="Continue to Journal"
+            onPress={handleContinue}
+            icon="arrow-right"
+            backgroundColor={selectedPromptType.color}
+          />
+        </SetupScreenButtonContainer>
+      </SafeAreaView>
     </View>
   );
 };
@@ -132,20 +117,19 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  screenGradient: {
-    flex: 1,
-  },
   appbar: {
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
     elevation: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   appbarTitle: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: COLORS.textLight,
     fontSize: FONT.size.sm,
   },
   scrollView: {
@@ -154,70 +138,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SPACING.lg,
     paddingTop: SPACING.md,
-    paddingBottom: SPACING.md,
-  },
-  instructionCard: {
-    marginBottom: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.background,
-    ...SHADOWS.medium,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  cardTitle: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-  },
-  headerIcon: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: RADIUS.sm,
-  },
-  instruction: {
-    color: COLORS.textLight,
-    lineHeight: 20,
-    fontSize: FONT.size.sm,
+    paddingBottom: SPACING.xl + 80, // Extra padding for button
   },
   sectionTitle: {
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.bold,
-    color: COLORS.background,
-    marginBottom: SPACING.md,
-    marginTop: SPACING.lg,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
   },
   emotionsCard: {
     marginBottom: SPACING.xl,
     borderRadius: RADIUS.lg,
     ...SHADOWS.medium,
-  },
-  bottomContainer: {
-    padding: SPACING.lg,
-    paddingTop: SPACING.md,
-    backgroundColor: 'transparent',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  continueButton: {
-    borderRadius: RADIUS.md,
-    paddingVertical: 4,
-    ...SHADOWS.medium,
-  },
-  continueButtonLabel: {
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.bold,
   },
 });
 
