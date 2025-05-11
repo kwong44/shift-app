@@ -19,16 +19,25 @@ const MoodTrend = ({ trend }) => {
   const formattedTrend = trend.charAt(0).toUpperCase() + trend.slice(1);
 
   return (
-    <Card style={styles.contentCard} mode="elevated">
+    <Card 
+      style={[
+        styles.contentCard,
+        {
+          borderColor: `${COLORS.secondary}30`,
+          shadowColor: COLORS.text,
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          elevation: 3,
+        }
+      ]} 
+      mode="outlined"
+    >
       <Card.Content>
-        <View style={styles.cardHeaderContainer}>
-          <MaterialCommunityIcons 
-            name="emoticon-happy-outline" 
-            size={24} 
-            color={COLORS.secondary} 
-          />
-          <Text style={styles.contentCardTitle}>Mood Trend</Text>
-        </View>
+        <Text style={styles.contentCardTitle}>Mood Trend</Text>
         <View style={styles.moodTrendContent}>
           <MaterialCommunityIcons
             name={moodIcon}
@@ -49,18 +58,14 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginBottom: SPACING.lg,
     borderRadius: RADIUS.xl,
-    elevation: 2,
-  },
-  cardHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
   },
   contentCardTitle: {
     fontFamily: FONT.family.heading,
     fontWeight: FONT.weight.semiBold,
     fontSize: FONT.size.lg,
-    marginLeft: SPACING.sm,
+    marginBottom: SPACING.md,
     color: COLORS.text,
   },
   moodTrendContent: {

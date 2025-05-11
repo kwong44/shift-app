@@ -5,8 +5,8 @@ import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 
 // Debug logger
 const debug = {
-  log: (message, data = '') => {
-    console.log(`[ProgressHeader] ${message}`, data);
+  log: (message) => {
+    console.log(`[ProgressHeader] ${message}`);
   }
 };
 
@@ -14,37 +14,39 @@ const ProgressHeader = () => {
   debug.log('Rendering progress header');
   return (
     <View style={styles.headerSection}>
-      <Text style={styles.headerTitle}>Your Progress</Text>
-      <Text style={styles.headerSubtitle}>
-        Track your transformation journey, stay consistent!
-      </Text>
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle}>Your Progress</Text>
+        <Text style={styles.headerSubtitle}>
+          Track your transformation journey, stay consistent!
+        </Text>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   headerSection: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
-    backgroundColor: COLORS.surface,
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
     marginBottom: SPACING.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+  },
+  headerContent: {
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
   },
   headerTitle: {
-    fontFamily: FONT.family.heading,
-    fontWeight: FONT.weight.bold,
-    fontSize: FONT.size.xxxl,
+    fontSize: 24,
+    fontWeight: '700',
     color: COLORS.text,
-    textAlign: 'center',
     marginBottom: SPACING.xs,
   },
   headerSubtitle: {
-    fontFamily: FONT.family.base,
-    fontWeight: FONT.weight.regular,
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
-    textAlign: 'center',
+    fontSize: 16,
+    color: 'rgba(0, 0, 0, 0.6)',
+    marginBottom: SPACING.sm,
   },
 });
 

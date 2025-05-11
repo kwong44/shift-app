@@ -14,16 +14,37 @@ const debug = {
 const StatCard = ({ title, value, icon, color, unit }) => {
   debug.log('Rendering stat card:', { title, value, icon, color, unit });
   return (
-    <Card style={styles.statCardSmall} mode="elevated">
+    <Card 
+      style={[
+        styles.statCardSmall,
+        {
+          borderColor: COLORS.border,
+          shadowColor: COLORS.text,
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          elevation: 3,
+        }
+      ]} 
+      mode="outlined"
+    >
       <Card.Content style={styles.statCardSmallContent}>
-        <View style={[styles.statIconContainer, { backgroundColor: `${color}20` }]}>
-          <MaterialCommunityIcons name={icon} size={28} color={color} />
+        <MaterialCommunityIcons 
+          name={icon} 
+          size={28} 
+          color={COLORS.text} 
+          style={styles.icon}
+        />
+        <View style={styles.valueContainer}>
+          <Text style={styles.statValueSmall}>
+            {value}
+            <Text style={styles.unit}>{unit ? ` ${unit}` : ''}</Text>
+          </Text>
         </View>
-        <View style={styles.statTextContainer}>
-          <Text style={[styles.statValueSmall, { color }]}>{value}</Text>
-          <Text style={styles.statTitleSmall}>{title}</Text>
-          {unit && <Text style={styles.statUnitSmall}>{unit}</Text>}
-        </View>
+        <Text style={styles.statTitleSmall}>{title}</Text>
       </Card.Content>
     </Card>
   );
@@ -34,36 +55,39 @@ const styles = StyleSheet.create({
     width: '46%',
     marginBottom: SPACING.md,
     borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
   },
   statCardSmallContent: {
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.lg,
+    gap: SPACING.xs,
   },
-  statIconContainer: {
-    padding: SPACING.sm,
-    borderRadius: RADIUS.lg,
+  icon: {
     marginBottom: SPACING.sm,
   },
-  statTextContainer: {
-    alignItems: 'center',
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: SPACING.xs,
   },
   statValueSmall: {
     fontFamily: FONT.family.heading,
     fontWeight: FONT.weight.bold,
-    fontSize: FONT.size.xxl,
+    fontSize: FONT.size.xl,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  unit: {
+    fontSize: FONT.size.lg,
+    color: COLORS.text,
   },
   statTitleSmall: {
     fontFamily: FONT.family.base,
-    fontWeight: FONT.weight.medium,
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
-    marginTop: SPACING.xxs,
-  },
-  statUnitSmall: {
-    fontFamily: FONT.family.base,
     fontWeight: FONT.weight.regular,
-    fontSize: FONT.size.xs,
+    fontSize: FONT.size.md,
     color: COLORS.textLight,
+    textAlign: 'center',
   },
 });
 

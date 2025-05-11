@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import CircularProgress from '../../../../components/common/CircularProgress';
 
@@ -17,12 +16,25 @@ const GoalsProgress = ({ completedGoals, totalGoals }) => {
   const goalPercentage = totalGoals > 0 ? (completedGoals / totalGoals) * 100 : 0;
 
   return (
-    <Card style={styles.contentCard} mode="elevated">
+    <Card 
+      style={[
+        styles.contentCard,
+        {
+          borderColor: `${COLORS.primary}30`,
+          shadowColor: COLORS.text,
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          elevation: 3,
+        }
+      ]} 
+      mode="outlined"
+    >
       <Card.Content>
-        <View style={styles.cardHeaderContainer}>
-          <MaterialCommunityIcons name="target-arrow" size={24} color={COLORS.primary} />
-          <Text style={styles.contentCardTitle}>Goals Progress</Text>
-        </View>
+        <Text style={styles.contentCardTitle}>Goals Progress</Text>
         <View style={styles.goalsProgressContent}>
           <CircularProgress
             percentage={goalPercentage}
@@ -46,18 +58,14 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginBottom: SPACING.lg,
     borderRadius: RADIUS.xl,
-    elevation: 2,
-  },
-  cardHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
   },
   contentCardTitle: {
     fontFamily: FONT.family.heading,
     fontWeight: FONT.weight.semiBold,
     fontSize: FONT.size.lg,
-    marginLeft: SPACING.sm,
+    marginBottom: SPACING.md,
     color: COLORS.text,
   },
   goalsProgressContent: {
