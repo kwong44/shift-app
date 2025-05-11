@@ -3,7 +3,7 @@ export const MINDFULNESS_TYPES = [
   { 
     value: 'breath', 
     label: 'Breath Focus', 
-    description: 'Focus your attention on your breathing',
+    description: 'Anchor your attention on breathing',
     details: 'Improves concentration and reduces stress by bringing awareness to your breath',
     icon: 'weather-windy',
     color: '#4C63B6',
@@ -15,7 +15,7 @@ export const MINDFULNESS_TYPES = [
   { 
     value: 'body', 
     label: 'Body Scan', 
-    description: 'Bring awareness to each part of your body',
+    description: 'Release tension through awareness',
     details: 'Releases tension and promotes physical awareness by systematically scanning the body',
     icon: 'human',
     color: '#7D8CC4',
@@ -27,7 +27,7 @@ export const MINDFULNESS_TYPES = [
   { 
     value: 'senses', 
     label: 'Five Senses', 
-    description: 'Connect with your surroundings through your senses',
+    description: 'Connect with your surroundings',
     details: 'Grounds you in the present moment by engaging all five senses',
     icon: 'eye',
     color: '#5C96AE',
