@@ -21,7 +21,7 @@ const DAILY_EXERCISES = [
     title: 'Visualization',
     icon: 'eye-outline',
     duration: '5 min',
-    route: 'Visualization',
+    route: 'VisualizationSetup',
     benefit: 'Strengthen your goal achievement mindset',
     gradientColors: [COLORS.coralGradient.start, COLORS.coralGradient.end]
   },
@@ -33,6 +33,15 @@ const DAILY_EXERCISES = [
     route: 'TaskPlanner',
     benefit: 'Stay organized and productive',
     gradientColors: [COLORS.purpleGradient.start, COLORS.purpleGradient.end]
+  },
+  {
+    id: 'deepwork',
+    title: 'Deep Work',
+    icon: 'timer-outline',
+    duration: '25-50 min',
+    route: 'DeepWorkSetup',
+    benefit: 'Focus intensely on important tasks',
+    gradientColors: [COLORS.blueGradient.start, COLORS.blueGradient.end]
   }
 ];
 
