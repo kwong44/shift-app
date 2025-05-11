@@ -1,50 +1,62 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 
-export const AffirmationInput = ({ 
+const AffirmationInput = ({ 
   affirmation, 
   setAffirmation, 
   placeholder,
   textInputHeight,
   setTextInputHeight
 }) => {
-  // Debug log
-  console.debug('AffirmationInput rendered', { affirmationLength: affirmation.length });
+  // Debug logging
+  console.debug('AffirmationInput rendered', { 
+    affirmationLength: affirmation?.length,
+    currentHeight: textInputHeight
+  });
 
   return (
-    <Card style={styles.card} elevation={3}>
-      <Card.Content>
-        <View style={styles.inputContainer}>
-          <TextInput
-            mode="outlined"
-            placeholder={placeholder}
-            value={affirmation}
-            onChangeText={setAffirmation}
-            multiline
-            style={[styles.input, {height: Math.max(120, textInputHeight)}]}
-            onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
-            autoCapitalize="sentences"
-            outlineColor={COLORS.primary + '50'}
-            activeOutlineColor={COLORS.primary}
-            placeholderTextColor={COLORS.textLight + '80'}
-          />
-        </View>
-      </Card.Content>
-    </Card>
+    <View style={styles.container}>
+      <View style={styles.inputContainer}>
+        <TextInput
+          mode="outlined"
+          placeholder={placeholder}
+          value={affirmation}
+          onChangeText={setAffirmation}
+          multiline
+          style={[styles.input, { height: Math.max(120, textInputHeight) }]}
+          onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
+          autoCapitalize="sentences"
+          outlineColor={COLORS.primary + '30'}
+          activeOutlineColor={COLORS.primary}
+          placeholderTextColor={COLORS.textLight + '80'}
+          textColor={COLORS.text}
+          theme={{
+            colors: {
+              background: COLORS.background,
+            },
+          }}
+        />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    marginBottom: SPACING.md,
-    ...SHADOWS.medium,
+  container: {
+    gap: SPACING.sm,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.bold,
   },
   inputContainer: {
     width: '100%',
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.small,
   },
   input: {
     minHeight: 120,
@@ -52,4 +64,6 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.md,
     lineHeight: 24,
   }
-}); 
+});
+
+export default AffirmationInput; 

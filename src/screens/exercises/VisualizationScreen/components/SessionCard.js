@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 
-export const SessionCard = ({ 
+const SessionCard = ({ 
   visualizationType, 
   affirmation, 
   selectedEmotions
@@ -139,4 +139,6 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.xs,
     fontWeight: FONT.weight.medium,
   },
-}); 
+});
+
+export default SessionCard; 

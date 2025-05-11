@@ -1,90 +1,93 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, Text, TouchableRipple } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
 
-export const VisualizationTypeSelector = ({ 
+const VisualizationTypeSelector = ({ 
   visualizationTypes, 
   selectedType, 
   onSelectType 
 }) => {
-  // Debug log
-  console.debug('VisualizationTypeSelector rendered', { selectedType: selectedType.value });
+  // Debug logging
+  console.debug('VisualizationTypeSelector rendered', { 
+    selectedType: selectedType.value,
+    typesCount: visualizationTypes.length 
+  });
 
-  const renderVisualizationTypeOption = (type) => {
-    const isSelected = selectedType.value === type.value;
-    
-    return (
-      <TouchableRipple
-        key={type.value}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onSelectType(type.value);
-        }}
-        style={styles.typeOptionWrapper}
-      >
-        <Card 
-          style={[
-            styles.typeOption,
-            isSelected && { 
-              borderColor: type.color,
-              borderWidth: 2
-            }
-          ]} 
-          elevation={isSelected ? 4 : 2}
-        >
-          <LinearGradient
-            colors={[`${type.color}15`, `${type.color}05`]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.optionGradient}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: `${type.color}25` }]}>
-              <MaterialCommunityIcons name={type.icon} size={28} color={type.color} />
-            </View>
-            
-            <View style={styles.optionContent}>
-              <Text style={styles.optionTitle}>{type.label}</Text>
-              <Text style={styles.optionDescription}>{type.description}</Text>
-            </View>
-            
-            {isSelected && (
-              <MaterialCommunityIcons name="check-circle" size={22} color={type.color} />
-            )}
-          </LinearGradient>
-        </Card>
-      </TouchableRipple>
-    );
+  const handleSelect = async (type) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSelectType(type);
   };
 
   return (
     <View style={styles.container}>
-      {visualizationTypes.map(renderVisualizationTypeOption)}
+      <View style={styles.optionsContainer}>
+        {visualizationTypes.map((type) => {
+          const isSelected = selectedType.value === type.value;
+          return (
+            <Card
+              key={type.value}
+              style={[
+                styles.card,
+                isSelected && styles.selectedCard
+              ]}
+              onPress={() => handleSelect(type.value)}
+            >
+              <Card.Content style={styles.cardContent}>
+                <View style={[styles.iconContainer, { backgroundColor: `${type.color}15` }]}>
+                  <MaterialCommunityIcons name={type.icon} size={28} color={type.color} />
+                </View>
+                
+                <View style={styles.optionContent}>
+                  <Text style={styles.optionTitle}>{type.label}</Text>
+                  <Text style={styles.optionDescription}>{type.description}</Text>
+                </View>
+                
+                {isSelected && (
+                  <MaterialCommunityIcons 
+                    name="check-circle" 
+                    size={22} 
+                    color={type.color} 
+                    style={styles.checkIcon}
+                  />
+                )}
+              </Card.Content>
+            </Card>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
-  typeOptionWrapper: {
-    marginBottom: SPACING.sm,
-    borderRadius: RADIUS.md,
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.bold,
   },
-  typeOption: {
+  optionsContainer: {
+    gap: SPACING.md,
+  },
+  card: {
+    backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
-    overflow: 'hidden',
     ...SHADOWS.small,
   },
-  optionGradient: {
+  selectedCard: {
+    backgroundColor: COLORS.primary + '08',
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.sm,
   },
   iconContainer: {
     width: 50,
@@ -93,19 +96,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
-    ...SHADOWS.small,
   },
   optionContent: {
     flex: 1,
   },
   optionTitle: {
+    color: COLORS.text,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.bold,
-    color: COLORS.text,
     marginBottom: 2,
   },
   optionDescription: {
     color: COLORS.textLight,
     fontSize: FONT.size.sm,
+    lineHeight: 20,
   },
-}); 
+  checkIcon: {
+    marginLeft: SPACING.sm,
+  },
+});
+
+export default VisualizationTypeSelector; 
