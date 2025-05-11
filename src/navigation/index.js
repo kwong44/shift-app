@@ -26,15 +26,17 @@ import HomeScreen from '../screens/app/HomeScreen';
 
 // Exercise screens
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
-import MindfulnessScreen from '../screens/exercises/MindfulnessScreen/index';
+import MindfulnessSetupScreen from '../screens/exercises/MindfulnessScreen/SetupScreen';
+import MindfulnessPlayerScreen from '../screens/exercises/MindfulnessScreen/PlayerScreen';
 import BinauralSetupScreen from '../screens/exercises/BinauralScreen/SetupScreen';
 import BinauralPlayerScreen from '../screens/exercises/BinauralScreen/PlayerScreen';
-import VisualizationScreen from '../screens/exercises/VisualizationScreen/index';
+import VisualizationSetupScreen from '../screens/exercises/VisualizationScreen/SetupScreen';
+import VisualizationPlayerScreen from '../screens/exercises/VisualizationScreen/PlayerScreen';
 import TaskPlannerScreen from '../screens/exercises/TaskPlannerScreen/index';
-import DeepWorkScreen from '../screens/exercises/DeepWorkScreen/index';
+import DeepWorkSetupScreen from '../screens/exercises/DeepWorkScreen/SetupScreen';
+import { PlayerScreen as DeepWorkPlayerScreen } from '../screens/exercises/DeepWorkScreen/PlayerScreen';
 import JournalingSetupScreen from '../screens/exercises/JournalingScreen/JournalingSetupScreen';
 import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEntry';
-import SelfReflectionScreen from '../screens/exercises/SelfReflectionScreen/index';
 
 const Stack = createStackNavigator();
 
@@ -218,15 +220,17 @@ const Navigation = () => {
             <Stack.Screen name="App" component={BottomTabNavigator} />
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
             <Stack.Screen name="ExercisesDashboard" component={ExercisesDashboard} />
-            <Stack.Screen name="Mindfulness" component={MindfulnessScreen} />
+            <Stack.Screen name="MindfulnessSetup" component={MindfulnessSetupScreen} />
+            <Stack.Screen name="MindfulnessPlayer" component={MindfulnessPlayerScreen} />
             <Stack.Screen name="BinauralSetup" component={BinauralSetupScreen} />
             <Stack.Screen name="BinauralPlayer" component={BinauralPlayerScreen} />
-            <Stack.Screen name="Visualization" component={VisualizationScreen} />
+            <Stack.Screen name="VisualizationSetup" component={VisualizationSetupScreen} />
+            <Stack.Screen name="VisualizationPlayer" component={VisualizationPlayerScreen} />
             <Stack.Screen name="TaskPlanner" component={TaskPlannerScreen} />
-            <Stack.Screen name="DeepWork" component={DeepWorkScreen} />
+            <Stack.Screen name="DeepWorkSetup" component={DeepWorkSetupScreen} />
+            <Stack.Screen name="DeepWorkPlayer" component={DeepWorkPlayerScreen} />
             <Stack.Screen name="Journaling" component={JournalingSetupScreen} />
             <Stack.Screen name="JournalingEntry" component={JournalingEntry} />
-            <Stack.Screen name="SelfReflection" component={SelfReflectionScreen} />
           </Stack.Group>
         )}
       </Stack.Navigator>
