@@ -33,14 +33,13 @@ const reminderFrequencyOptions = [
   'Only when I open the app',
 ];
 
-const exerciseTypeOptions = [
-  'Guided Meditation',
-  'Journaling Prompts',
-  'Deep Work Sessions',
-  'Visualization Exercises',
+const EXERCISE_PREFERENCES = [
+  'Mindfulness',
   'Binaural Beats',
+  'Visualization',
   'Task Planning',
-  'Self-Reflection',
+  'Deep Work',
+  'Journaling'
 ];
 
 const PreferencesScreen = ({ navigation, route }) => {
@@ -170,7 +169,7 @@ const PreferencesScreen = ({ navigation, route }) => {
           </Text>
           
           <View style={styles.chipContainer}>
-            {exerciseTypeOptions.map((exercise) => (
+            {EXERCISE_PREFERENCES.map((exercise) => (
               <Chip
                 key={exercise}
                 selected={preferredExercises.includes(exercise)}
