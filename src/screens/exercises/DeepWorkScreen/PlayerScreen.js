@@ -5,8 +5,9 @@ import { Portal, Dialog, Button, Snackbar, Text, Appbar } from 'react-native-pap
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
-import { supabase } from '../../../config/supabase';
 import * as Haptics from 'expo-haptics';
+import { startDeepWorkSession, endDeepWorkSession } from '../../../api/exercises';
+import { useUser } from '../../../hooks/useUser';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -17,16 +18,19 @@ console.debug('DeepWorkPlayerScreen mounted');
 
 export const PlayerScreen = ({ navigation, route }) => {
   const { taskDescription, duration, durationData } = route.params;
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
 
   // Debug logging for props
   console.debug('DeepWorkPlayerScreen props:', {
     taskLength: taskDescription?.length,
     duration,
-    durationLabel: durationData?.label
+    durationLabel: durationData?.label,
+    sessionId
   });
 
   const handleComplete = async () => {
@@ -34,40 +38,16 @@ export const PlayerScreen = ({ navigation, route }) => {
     try {
       // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
 
-      // Save deep work session
-      const { error: sessionError } = await supabase
-        .from('deep_work_sessions')
-        .insert({
-          user_id: user.id,
-          task_description: taskDescription,
-          duration: duration,
-          completed: true
-        });
+      // End the deep work session
+      if (sessionId) {
+        await endDeepWorkSession(sessionId);
+        console.debug('Deep work session completed successfully');
+      }
 
-      if (sessionError) throw sessionError;
-
-      // Update progress log
-      const { error: progressError } = await supabase
-        .from('progress_logs')
-        .insert({
-          user_id: user.id,
-          exercise_type: 'deep-work',
-          details: {
-            duration: duration,
-            task: taskDescription
-          },
-        });
-
-      if (progressError) throw progressError;
-
-      console.debug('Deep work session saved successfully');
       setShowDialog(true);
     } catch (error) {
-      console.error('Error saving deep work session:', error);
+      console.error('Error completing deep work session:', error);
       setError(error.message);
       setSnackbarVisible(true);
     } finally {
@@ -75,9 +55,42 @@ export const PlayerScreen = ({ navigation, route }) => {
     }
   };
 
+  const startSession = async () => {
+    try {
+      // Start a new deep work session
+      const session = await startDeepWorkSession(
+        user.id,
+        null, // No task ID for now, we'll implement task management later
+        duration / 60 // Convert seconds to minutes
+      );
+      setSessionId(session.id);
+      console.debug('Deep work session started:', session.id);
+    } catch (error) {
+      console.error('Error starting deep work session:', error);
+      setError(error.message);
+      setSnackbarVisible(true);
+    }
+  };
+
+  // Start the session when the screen mounts
+  React.useEffect(() => {
+    startSession();
+  }, []);
+
   const handleSessionCancel = async () => {
     // Provide haptic feedback
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // End the session if it exists
+    if (sessionId) {
+      try {
+        await endDeepWorkSession(sessionId);
+        console.debug('Deep work session cancelled');
+      } catch (error) {
+        console.error('Error cancelling deep work session:', error);
+      }
+    }
+    
     navigation.goBack();
   };
 
@@ -198,33 +211,31 @@ const styles = StyleSheet.create({
   },
   appbarSubtitle: {
     fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
   },
   dialogGradient: {
     borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    padding: SPACING.lg,
   },
   dialogTitle: {
+    textAlign: 'center',
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
-    textAlign: 'center',
   },
   dialogContent: {
     alignItems: 'center',
+    gap: SPACING.md,
   },
   dialogIcon: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   dialogText: {
     textAlign: 'center',
+    color: COLORS.textLight,
     lineHeight: 22,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
   },
   dialogButton: {
-    borderRadius: RADIUS.sm,
-    marginLeft: SPACING.md,
-    backgroundColor: COLORS.primary,
+    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

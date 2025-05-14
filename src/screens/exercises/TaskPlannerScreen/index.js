@@ -12,10 +12,11 @@ import {
   IconButton
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
-import { supabase } from '../../../config/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { createTask, updateTask, deleteTask, getTasks } from '../../../api/exercises';
+import { useUser } from '../../../hooks/useUser';
 
 // Import local components and constants
 import { TaskInput } from './components/TaskInput';
@@ -26,6 +27,7 @@ import { PRIORITY_LEVELS } from './constants';
 console.debug('TaskPlannerScreen mounted');
 
 const TaskPlannerScreen = ({ navigation }) => {
+  const { user } = useUser();
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('medium');
@@ -64,17 +66,7 @@ const TaskPlannerScreen = ({ navigation }) => {
 
   const loadTasks = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
-
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
+      const data = await getTasks(user.id, false);
       console.debug('Tasks loaded successfully', { count: data?.length || 0 });
       setTasks(data || []);
     } catch (error) {
@@ -97,22 +89,12 @@ const TaskPlannerScreen = ({ navigation }) => {
     try {
       // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
 
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert({
-          user_id: user.id,
-          description: newTask.trim(),
-          priority: selectedPriority,
-          completed: false
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await createTask(
+        user.id,
+        newTask.trim(),
+        PRIORITY_LEVELS.findIndex(p => p.value === selectedPriority) + 1
+      );
 
       console.debug('Task added successfully', { taskId: data.id });
       setTasks([data, ...tasks]);
@@ -134,13 +116,7 @@ const TaskPlannerScreen = ({ navigation }) => {
         completed ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
       );
       
-      const { error } = await supabase
-        .from('tasks')
-        .update({ completed })
-        .eq('id', taskId);
-
-      if (error) throw error;
-
+      const updatedTask = await updateTask(taskId, { completed });
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, completed } : task
       ));
@@ -148,23 +124,6 @@ const TaskPlannerScreen = ({ navigation }) => {
       if (completed) {
         // Set completed task ID for dialog
         setCompletedTaskId(taskId);
-        
-        // Update progress log
-        const { error: progressError } = await supabase
-          .from('progress_logs')
-          .insert({
-            user_id: tasks.find(t => t.id === taskId).user_id,
-            exercise_type: 'task-completion',
-            details: {
-              task_id: taskId,
-              description: tasks.find(t => t.id === taskId).description,
-              priority: tasks.find(t => t.id === taskId).priority
-            },
-          });
-
-        if (progressError) throw progressError;
-        
-        // Show completion dialog
         setShowDialog(true);
       }
       
@@ -181,13 +140,7 @@ const TaskPlannerScreen = ({ navigation }) => {
       // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
-
-      if (error) throw error;
-
+      await deleteTask(taskId);
       setTasks(tasks.filter(task => task.id !== taskId));
       setMenuVisible(false);
       
@@ -198,7 +151,7 @@ const TaskPlannerScreen = ({ navigation }) => {
       setSnackbarVisible(true);
     }
   };
-  
+
   const handleDismissDialog = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowDialog(false);
@@ -206,18 +159,11 @@ const TaskPlannerScreen = ({ navigation }) => {
   };
 
   const getCompletedTaskInfo = () => {
-    if (!completedTaskId) return { description: '', priority: PRIORITY_LEVELS[1] };
-    
+    if (!completedTaskId) return null;
     const task = tasks.find(t => t.id === completedTaskId);
-    if (!task) return { description: '', priority: PRIORITY_LEVELS[1] };
-    
-    return { 
-      description: task.description,
-      priority: PRIORITY_LEVELS.find(p => p.value === task.priority)
-    };
+    if (!task) return null;
+    return task;
   };
-
-  const completedTask = getCompletedTaskInfo();
 
   return (
     <View style={styles.container}>
@@ -234,7 +180,7 @@ const TaskPlannerScreen = ({ navigation }) => {
           <Appbar.Content 
             title="Task Planner" 
             titleStyle={styles.appbarTitle}
-            subtitle="Organize your priorities"
+            subtitle="Organize & Focus"
             subtitleStyle={styles.appbarSubtitle}
           />
           <IconButton
@@ -253,82 +199,71 @@ const TaskPlannerScreen = ({ navigation }) => {
             { opacity: fadeAnim }
           ]}
         >
-          <View style={styles.mainContent}>
-            <TaskInput 
-              newTask={newTask}
-              setNewTask={setNewTask}
+          <Surface style={styles.inputContainer}>
+            <TaskInput
+              value={newTask}
+              onChangeText={setNewTask}
+              onSubmit={handleAddTask}
               selectedPriority={selectedPriority}
-              setSelectedPriority={setSelectedPriority}
-              priorityLevels={PRIORITY_LEVELS}
-              onAddTask={handleAddTask}
+              onPriorityChange={setSelectedPriority}
               loading={loading}
             />
-            
-            <TaskList 
-              tasks={tasks}
-              priorityLevels={PRIORITY_LEVELS}
-              onToggleComplete={handleToggleTask}
-              onDeleteTask={handleDeleteTask}
-              menuVisible={menuVisible}
-              selectedTaskId={selectedTaskId}
-              setMenuVisible={setMenuVisible}
-              setSelectedTaskId={setSelectedTaskId}
-            />
-          </View>
-        </Animated.View>
-      </SafeAreaView>
+          </Surface>
 
-      <Portal>
-        <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
-          <LinearGradient
-            colors={[`${completedTask.priority?.color}15`, `${completedTask.priority?.color}05`]}
-            style={styles.dialogGradient}
-          >
-            <Dialog.Title style={styles.dialogTitle}>Task Completed! 🎉</Dialog.Title>
-            <Dialog.Content>
-              <View style={styles.dialogContent}>
-                <MaterialCommunityIcons 
-                  name="check-circle-outline" 
-                  size={48} 
-                  color={completedTask.priority?.color} 
-                  style={styles.dialogIcon} 
-                />
-                <Text style={styles.dialogText}>
-                  Great job completing:
-                </Text>
-                <Text style={[styles.completedTaskText, { color: completedTask.priority?.color }]}>
-                  "{completedTask.description}"
-                </Text>
-                <Text style={styles.dialogText}>
-                  Keep up the momentum and continue building productive habits!
-                </Text>
-              </View>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button 
-                onPress={handleDismissDialog} 
-                mode="contained" 
-                buttonColor={completedTask.priority?.color}
-                style={styles.dialogButton}
-              >
-                Continue
-              </Button>
-            </Dialog.Actions>
-          </LinearGradient>
-        </Dialog>
-      </Portal>
-      
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        action={{
-          label: 'OK',
-          onPress: () => setSnackbarVisible(false),
-        }}
-        style={styles.snackbar}
-      >
-        {error || 'An error occurred. Please try again.'}
-      </Snackbar>
+          <TaskList
+            tasks={tasks}
+            onToggleTask={handleToggleTask}
+            onDeleteTask={handleDeleteTask}
+            loading={loading}
+          />
+        </Animated.View>
+
+        <Portal>
+          <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
+            <LinearGradient
+              colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
+              style={styles.dialogGradient}
+            >
+              <Dialog.Title style={styles.dialogTitle}>Task Complete!</Dialog.Title>
+              <Dialog.Content>
+                <View style={styles.dialogContent}>
+                  <MaterialCommunityIcons 
+                    name="check-circle-outline" 
+                    size={48} 
+                    color={COLORS.primary} 
+                    style={styles.dialogIcon} 
+                  />
+                  <Text style={styles.dialogText}>
+                    Great job completing your task! Keep up the momentum and tackle your next priority.
+                  </Text>
+                </View>
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button 
+                  onPress={handleDismissDialog} 
+                  mode="contained" 
+                  style={styles.dialogButton}
+                >
+                  Continue
+                </Button>
+              </Dialog.Actions>
+            </LinearGradient>
+          </Dialog>
+        </Portal>
+
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={3000}
+          style={styles.snackbar}
+          action={{
+            label: 'OK',
+            onPress: () => setSnackbarVisible(false),
+          }}
+        >
+          {error || 'An error occurred. Please try again.'}
+        </Snackbar>
+      </SafeAreaView>
     </View>
   );
 };
@@ -358,43 +293,39 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  mainContent: {
-    flex: 1,
     padding: SPACING.lg,
-    paddingTop: SPACING.xl,
+  },
+  inputContainer: {
+    elevation: 2,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.background,
+    marginBottom: SPACING.lg,
+    overflow: 'hidden',
   },
   dialogGradient: {
     borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    padding: SPACING.lg,
   },
   dialogTitle: {
+    textAlign: 'center',
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
-    textAlign: 'center',
   },
   dialogContent: {
     alignItems: 'center',
+    gap: SPACING.md,
   },
   dialogIcon: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   dialogText: {
     textAlign: 'center',
+    color: COLORS.textLight,
     lineHeight: 22,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  completedTaskText: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    textAlign: 'center',
-    marginVertical: SPACING.sm,
-    fontStyle: 'italic',
   },
   dialogButton: {
-    borderRadius: RADIUS.sm,
-    marginLeft: SPACING.md,
+    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

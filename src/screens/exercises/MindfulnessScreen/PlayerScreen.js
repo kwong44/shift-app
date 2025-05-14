@@ -10,10 +10,11 @@ import {
   Snackbar
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../config/theme';
-import { supabase } from '../../../config/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { logMindfulnessCheckIn } from '../../../api/exercises';
+import { useUser } from '../../../hooks/useUser';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -24,6 +25,7 @@ console.debug('MindfulnessPlayerScreen mounted');
 
 const PlayerScreen = ({ navigation, route }) => {
   const { mindfulnessType, selectedEmotions, typeData } = route.params;
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -63,37 +65,15 @@ const PlayerScreen = ({ navigation, route }) => {
     try {
       // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
 
-      // Save mindfulness session
-      const { error: sessionError } = await supabase
-        .from('mindfulness_sessions')
-        .insert({
-          user_id: user.id,
-          type: mindfulnessType,
-          duration: typeData.duration,
-          emotions: selectedEmotions,
-          completed: true
-        });
-
-      if (sessionError) throw sessionError;
-
-      // Update progress log
-      const { error: progressError } = await supabase
-        .from('progress_logs')
-        .insert({
-          user_id: user.id,
-          exercise_type: 'mindfulness',
-          details: {
-            type: mindfulnessType,
-            duration: typeData.duration,
-            emotions: selectedEmotions
-          },
-        });
-
-      if (progressError) throw progressError;
+      // Log mindfulness check-in
+      await logMindfulnessCheckIn(user.id, {
+        type: mindfulnessType,
+        duration: typeData.duration,
+        emotions: selectedEmotions,
+        completed: true,
+        timestamp: new Date().toISOString()
+      });
 
       console.debug('Mindfulness session saved successfully');
       setShowDialog(true);
@@ -211,11 +191,12 @@ const PlayerScreen = ({ navigation, route }) => {
         <Snackbar
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
+          duration={3000}
+          style={styles.snackbar}
           action={{
             label: 'OK',
             onPress: () => setSnackbarVisible(false),
           }}
-          style={styles.snackbar}
         >
           {error || 'An error occurred. Please try again.'}
         </Snackbar>
@@ -227,7 +208,7 @@ const PlayerScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
   },
   screenGradient: {
     flex: 1,
@@ -245,64 +226,62 @@ const styles = StyleSheet.create({
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   waveCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   innerCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
     ...SHADOWS.medium,
   },
   practiceTitle: {
     fontSize: FONT.size.xl,
     fontWeight: FONT.weight.bold,
     color: COLORS.background,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
+    textAlign: 'center',
   },
   dialogGradient: {
     borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    padding: SPACING.lg,
   },
   dialogTitle: {
+    textAlign: 'center',
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
-    textAlign: 'center',
   },
   dialogContent: {
     alignItems: 'center',
+    gap: SPACING.md,
   },
   dialogIcon: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   dialogText: {
     textAlign: 'center',
+    color: COLORS.textLight,
     lineHeight: 22,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
   },
   dialogButton: {
-    borderRadius: RADIUS.sm,
-    marginLeft: SPACING.md,
-    backgroundColor: COLORS.primary,
+    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

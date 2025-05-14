@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { Text, TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,8 +19,15 @@ export const JournalEntryCard = ({
   promptsLength,
   isFullScreen = false
 }) => {
-  // Debug log
-  console.debug('JournalEntryCard rendered', { currentPrompt, entry, isFullScreen, promptText });
+  // Debug log only when important props change
+  useEffect(() => {
+    console.debug('[JournalEntryCard] Significant props changed:', { 
+      currentPrompt, 
+      promptText,
+      entryLength: entry?.length || 0,
+      isFullScreen 
+    });
+  }, [currentPrompt, promptText, entry, isFullScreen]);
 
   return (
     <View style={styles.container}>

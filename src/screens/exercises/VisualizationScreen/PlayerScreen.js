@@ -4,8 +4,9 @@ import { Portal, Dialog, Button, Snackbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
-import { supabase } from '../../../config/supabase';
 import * as Haptics from 'expo-haptics';
+import { createVisualization, completeVisualization } from '../../../api/exercises';
+import { useUser } from '../../../hooks/useUser';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -20,51 +21,48 @@ const PlayerScreen = ({ route, navigation }) => {
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [error, setError] = useState(null);
+  const [visualizationId, setVisualizationId] = useState(null);
+  const { user } = useUser();
 
   const { visualizationType, affirmation, selectedEmotions, duration } = route.params;
   const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
+
+  // Start visualization session when component mounts
+  React.useEffect(() => {
+    const startVisualization = async () => {
+      try {
+        const visualization = await createVisualization(user.id, {
+          type: visualizationType,
+          affirmation: affirmation.trim(),
+          emotions: selectedEmotions,
+          duration: duration,
+          completed: false
+        });
+        setVisualizationId(visualization.id);
+        console.debug('Visualization session started:', visualization.id);
+      } catch (error) {
+        console.error('Error starting visualization:', error);
+        setError(error.message);
+        setSnackbarVisible(true);
+      }
+    };
+
+    startVisualization();
+  }, []);
 
   const handleComplete = async () => {
     setLoading(true);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
 
-      // Save visualization session
-      const { error: sessionError } = await supabase
-        .from('visualizations')
-        .insert({
-          user_id: user.id,
-          type: visualizationType,
-          affirmation: affirmation.trim(),
-          emotions: selectedEmotions,
-          duration: duration,
-          completed: true
-        });
+      if (visualizationId) {
+        await completeVisualization(visualizationId);
+        console.debug('Visualization session completed successfully');
+      }
 
-      if (sessionError) throw sessionError;
-
-      // Update progress log
-      const { error: progressError } = await supabase
-        .from('progress_logs')
-        .insert({
-          user_id: user.id,
-          exercise_type: 'visualization',
-          details: {
-            type: visualizationType,
-            emotions: selectedEmotions,
-            duration: duration
-          },
-        });
-
-      if (progressError) throw progressError;
-
-      console.debug('Visualization session saved successfully');
       setShowDialog(true);
     } catch (error) {
-      console.error('Error saving visualization session:', error);
+      console.error('Error completing visualization session:', error);
       setError(error.message);
       setSnackbarVisible(true);
     } finally {
@@ -108,7 +106,7 @@ const PlayerScreen = ({ route, navigation }) => {
       <Portal>
         <Dialog visible={showDialog} onDismiss={handleFinish}>
           <LinearGradient
-            colors={[`${selectedType.color}15`, `${selectedType.color}05`]}
+            colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
             style={styles.dialogGradient}
           >
             <Dialog.Title style={styles.dialogTitle}>Visualization Complete</Dialog.Title>
@@ -117,7 +115,7 @@ const PlayerScreen = ({ route, navigation }) => {
                 <MaterialCommunityIcons 
                   name="check-circle-outline" 
                   size={48} 
-                  color={selectedType.color} 
+                  color={COLORS.primary} 
                   style={styles.dialogIcon} 
                 />
                 <Text style={styles.dialogText}>
@@ -129,7 +127,6 @@ const PlayerScreen = ({ route, navigation }) => {
               <Button 
                 onPress={handleFinish} 
                 mode="contained" 
-                buttonColor={selectedType.color}
                 style={styles.dialogButton}
               >
                 Done
@@ -142,11 +139,12 @@ const PlayerScreen = ({ route, navigation }) => {
       <Snackbar
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={styles.snackbar}
         action={{
           label: 'OK',
           onPress: () => setSnackbarVisible(false),
         }}
-        style={styles.snackbar}
       >
         {error || 'An error occurred. Please try again.'}
       </Snackbar>
@@ -166,28 +164,28 @@ const styles = StyleSheet.create({
   },
   dialogGradient: {
     borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    padding: SPACING.lg,
   },
   dialogTitle: {
+    textAlign: 'center',
+    color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
-    textAlign: 'center',
   },
   dialogContent: {
     alignItems: 'center',
+    gap: SPACING.md,
   },
   dialogIcon: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   dialogText: {
     textAlign: 'center',
+    color: COLORS.textLight,
     lineHeight: 22,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
   },
   dialogButton: {
-    borderRadius: RADIUS.sm,
-    marginLeft: SPACING.md,
+    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

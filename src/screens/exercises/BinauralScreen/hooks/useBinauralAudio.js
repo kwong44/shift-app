@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { startBinauralSession, completeBinauralSession } from '../../../../api/exercises';
+import { useUser } from '../../../../hooks/useUser';
 
 export const useBinauralAudio = (selectedFrequencyData) => {
+  const { user } = useUser();
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [error, setError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
 
   // Debug logging
   console.debug('useBinauralAudio hook state:', {
@@ -15,7 +19,8 @@ export const useBinauralAudio = (selectedFrequencyData) => {
     progress,
     timeElapsed,
     error,
-    selectedFrequency: selectedFrequencyData?.frequency
+    selectedFrequency: selectedFrequencyData?.frequency,
+    sessionId
   });
 
   useEffect(() => {
@@ -35,18 +40,36 @@ export const useBinauralAudio = (selectedFrequencyData) => {
         setTimeElapsed(prev => {
           const newTime = prev + 1;
           const newProgress = newTime / selectedFrequencyData.duration;
-          setProgress(newProgress > 1 ? 1 : newProgress);
+          const finalProgress = newProgress > 1 ? 1 : newProgress;
+          setProgress(finalProgress);
+          
+          // Complete session when finished
+          if (finalProgress >= 1 && sessionId) {
+            completeBinauralSession(sessionId)
+              .then(() => console.debug('Session completed successfully'))
+              .catch(err => console.error('Error completing session:', err));
+          }
+          
           return newTime;
         });
       }, 1000);
     }
     
     return () => clearInterval(interval);
-  }, [isPlaying, selectedFrequencyData.duration]);
+  }, [isPlaying, selectedFrequencyData.duration, sessionId]);
 
   const loadAndPlaySound = async () => {
     try {
       console.debug('Loading binaural beat:', selectedFrequencyData.frequency);
+      
+      // Start a new session in the database
+      const session = await startBinauralSession(
+        user.id,
+        null, // We'll implement audio storage later
+        selectedFrequencyData.duration / 60, // Convert seconds to minutes
+        selectedFrequencyData.name
+      );
+      setSessionId(session.id);
       
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
@@ -143,6 +166,17 @@ export const useBinauralAudio = (selectedFrequencyData) => {
     setIsPlaying(false);
     setProgress(0);
     setTimeElapsed(0);
+    
+    // Complete the session if it exists
+    if (sessionId) {
+      try {
+        await completeBinauralSession(sessionId);
+        console.debug('Session completed successfully');
+      } catch (err) {
+        console.error('Error completing session:', err);
+      }
+      setSessionId(null);
+    }
   };
 
   const resetAudio = () => {
@@ -154,6 +188,7 @@ export const useBinauralAudio = (selectedFrequencyData) => {
     setProgress(0);
     setTimeElapsed(0);
     setError(null);
+    setSessionId(null);
   };
 
   return {
