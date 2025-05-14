@@ -38,6 +38,13 @@ const HomeScreen = ({ navigation }) => {
   const [insights, setInsights] = useState(null);
   const [journalDate, setJournalDate] = useState(null);
 
+  // Transformed roadmap data for GrowthRoadmap component
+  const [focusAreas, setFocusAreas] = useState([]);
+  const [weeklyGoals, setWeeklyGoals] = useState([]);
+  const [currentPhase, setCurrentPhase] = useState(null);
+  const [nextMilestone, setNextMilestone] = useState('');
+  const [overallProgress, setOverallProgress] = useState(0);
+
   useEffect(() => {
     loadUserData();
     checkDailyMood();
@@ -51,6 +58,43 @@ const HomeScreen = ({ navigation }) => {
 
     return unsubscribe;
   }, [navigation]);
+
+  // Transform roadmap data when it changes
+  useEffect(() => {
+    if (roadmap) {
+      // Transform focus areas
+      const transformedFocusAreas = roadmap.goals
+        ?.filter(goal => goal.type === 'focus_area')
+        ?.map(goal => ({
+          name: goal.description,
+          // Calculate progress based on status or other metrics
+          progress: goal.status === 'completed' ? 1 : 
+                   goal.status === 'in_progress' ? 0.5 : 0.1
+        })) || [];
+      setFocusAreas(transformedFocusAreas);
+      
+      // Transform weekly goals
+      const transformedGoals = roadmap.goals
+        ?.filter(goal => !goal.type || goal.type !== 'focus_area')
+        ?.map(goal => ({
+          text: goal.description,
+          completed: goal.status === 'completed'
+        })) || [];
+      setWeeklyGoals(transformedGoals);
+      
+      // Set current phase
+      const activePhase = roadmap.phases?.find(phase => phase.status === 'active');
+      setCurrentPhase(activePhase);
+      
+      // Find next milestone
+      const pendingMilestone = roadmap.milestones?.find(m => m.status === 'pending');
+      setNextMilestone(pendingMilestone?.description || 'Continue building habits');
+      
+      // Calculate overall progress
+      const progressValue = roadmap.progress?.completed_goals / roadmap.progress?.total_goals || 0;
+      setOverallProgress(progressValue);
+    }
+  }, [roadmap]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -281,8 +325,16 @@ const HomeScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <GrowthRoadmap
-            roadmap={roadmap}
             dailyProgress={dailyProgress}
+            streak={streak}
+            currentMood={currentMood}
+            onMoodPress={() => setShowMoodModal(true)}
+            MOODS={MOODS}
+            currentPhase={currentPhase}
+            focusAreas={focusAreas}
+            weeklyGoals={weeklyGoals}
+            nextMilestone={nextMilestone}
+            overallProgress={overallProgress}
             onUpdate={handleGoalUpdate}
           />
 
