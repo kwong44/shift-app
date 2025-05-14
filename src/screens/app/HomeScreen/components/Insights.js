@@ -1,11 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Title, Text, IconButton, Paragraph } from 'react-native-paper';
+import { Card, Title, Text, IconButton, Paragraph, Chip, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 
-const Insights = ({ insights }) => {
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+const Insights = ({ insights, journalDate }) => {
+  // Add state to track expanded/collapsed state
+  const [expanded, setExpanded] = useState(false);
+  
+  // Function to toggle expanded state
+  const toggleExpanded = () => {
+    // Debug log
+    console.debug('[Insights] Toggling expanded state:', { currentState: expanded, newState: !expanded });
+    setExpanded(!expanded);
+  };
+
   if (!insights) return null;
+
+  // Debug log
+  console.debug('[Insights] Rendering insights:', { insights, journalDate, expanded });
+  
+  // Determine if text should be truncated
+  const shouldTruncate = insights.length > 100 && !expanded;
+  const displayText = shouldTruncate ? insights.substring(0, 100) + '...' : insights;
 
   return (
     <Card style={styles.insightCard} elevation={2}>
@@ -17,35 +44,50 @@ const Insights = ({ insights }) => {
       >
         <Card.Content>
           <View style={styles.cardHeader}>
-            <Title style={styles.cardTitle}>AI Insights</Title>
+            <View style={styles.titleContainer}>
+              <Title style={styles.cardTitle}>AI Coach Insights</Title>
+              {journalDate && (
+                <Text style={styles.timestamp}>
+                  from your journal on {formatDate(journalDate)}
+                </Text>
+              )}
+            </View>
             <IconButton 
-              icon="lightbulb-outline" 
+              icon="robot" 
               size={24}
-              iconColor="#ff5757"
+              iconColor={COLORS.primary}
               style={styles.insightIcon}
               accessibilityLabel="AI generated insights"
             />
           </View>
           
           <Paragraph style={styles.insightText}>
-            "{insights.text}"
+            {displayText}
           </Paragraph>
           
-          {insights.recommendations?.length > 0 && (
-            <View style={styles.recommendationsList}>
-              {insights.recommendations.map((recommendation, index) => (
-                <View 
-                  key={index} 
-                  style={styles.recommendationItem}
-                  accessible={true}
-                  accessibilityLabel={`Recommendation ${index + 1}: ${recommendation}`}
-                >
-                  <Text style={styles.recommendationStar}>★</Text>
-                  <Text style={styles.recommendationText}>{recommendation}</Text>
-                </View>
-              ))}
-            </View>
+          {insights.length > 100 && (
+            <Button 
+              mode="text" 
+              onPress={toggleExpanded}
+              style={styles.expandButton}
+              labelStyle={styles.expandButtonText}
+              icon={expanded ? "chevron-up" : "chevron-down"}
+              accessibilityLabel={expanded ? "Collapse insight" : "Expand insight"}
+              accessibilityHint={expanded ? "Collapses the full insight text" : "Expands to show the full insight text"}
+            >
+              {expanded ? "Show less" : "Read more"}
+            </Button>
           )}
+          
+          <View style={styles.tagsContainer}>
+            <Chip 
+              icon="brain" 
+              style={styles.aiTag}
+              textStyle={styles.aiTagText}
+            >
+              AI Generated
+            </Chip>
+          </View>
         </Card.Content>
       </LinearGradient>
     </Card>
@@ -56,6 +98,7 @@ const styles = StyleSheet.create({
   insightCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
+    marginTop: SPACING.lg,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },
@@ -65,43 +108,55 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  titleContainer: {
+    flex: 1,
   },
   cardTitle: {
     fontSize: FONT.size.xl,
     fontWeight: FONT.weight.bold,
     color: COLORS.text,
   },
+  timestamp: {
+    fontSize: FONT.size.sm,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+  },
   insightIcon: {
-    backgroundColor: COLORS.accent + '20',
+    backgroundColor: COLORS.primary + '20',
     borderRadius: 12,
   },
   insightText: {
-    fontStyle: 'italic',
     marginVertical: SPACING.sm,
     color: COLORS.text,
     lineHeight: 22,
     fontSize: FONT.size.md,
   },
-  recommendationsList: {
-    marginTop: SPACING.sm,
+  expandButton: {
+    alignSelf: 'flex-start',
+    marginTop: -SPACING.xs,
+    marginBottom: SPACING.xs,
   },
-  recommendationItem: {
+  expandButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT.size.sm,
+  },
+  tagsContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginVertical: SPACING.xs,
+    marginTop: SPACING.md,
+    flexWrap: 'wrap',
   },
-  recommendationStar: {
-    color: "#ff5757",
-    fontSize: FONT.size.md,
+  aiTag: {
+    backgroundColor: COLORS.primary + '20',
     marginRight: SPACING.xs,
+    marginBottom: SPACING.md,
   },
-  recommendationText: {
-    flex: 1,
-    color: COLORS.text,
-    lineHeight: 20,
-    fontSize: FONT.size.md,
+  aiTagText: {
+    color: COLORS.primary,
+    fontSize: FONT.size.sm,
   },
 });
 
