@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, Animated } from 'react-native';
+import { StyleSheet, View, StatusBar, Animated, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Appbar,
@@ -24,7 +24,7 @@ import { TaskList } from './components/TaskList';
 import { PRIORITY_LEVELS } from './constants';
 
 // Debug logging
-console.debug('TaskPlannerScreen mounted');
+console.debug('TaskPlannerScreen mounted', { priorityLevelsCount: PRIORITY_LEVELS.length });
 
 const TaskPlannerScreen = ({ navigation }) => {
   const { user } = useUser();
@@ -59,20 +59,38 @@ const TaskPlannerScreen = ({ navigation }) => {
     }).start();
   }, []);
 
-  // Load tasks when component mounts
+  // Load tasks when user is available
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (user) {
+      console.debug('User available, loading tasks');
+      loadTasks();
+    } else {
+      console.debug('No user available, waiting...');
+      setLoading(false);
+    }
+  }, [user]); // Add user as dependency
 
   const loadTasks = async () => {
     try {
-      const data = await getTasks(user.id, false);
+      // Check if user exists
+      if (!user) {
+        console.debug('No user found, skipping task load');
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
+      console.debug('Loading tasks for user:', user.id);
+      // Set includeCompleted to true to fetch both active and completed tasks
+      const data = await getTasks(user.id, true);
       console.debug('Tasks loaded successfully', { count: data?.length || 0 });
+      console.debug('Task data structure:', JSON.stringify(data));
       setTasks(data || []);
     } catch (error) {
       console.error('Error loading tasks:', error);
-      setError(error.message);
+      setError(error.message || 'Failed to load tasks');
       setSnackbarVisible(true);
+      setTasks([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -193,30 +211,45 @@ const TaskPlannerScreen = ({ navigation }) => {
           />
         </Appbar.Header>
 
-        <Animated.View 
-          style={[
-            styles.content,
-            { opacity: fadeAnim }
-          ]}
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoidingView} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <Surface style={styles.inputContainer}>
-            <TaskInput
-              value={newTask}
-              onChangeText={setNewTask}
-              onSubmit={handleAddTask}
-              selectedPriority={selectedPriority}
-              onPriorityChange={setSelectedPriority}
-              loading={loading}
-            />
-          </Surface>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Animated.View 
+              style={[
+                styles.content,
+                { opacity: fadeAnim }
+              ]}
+            >
+              <TaskInput
+                newTask={newTask}
+                setNewTask={setNewTask}
+                selectedPriority={selectedPriority}
+                setSelectedPriority={setSelectedPriority}
+                priorityLevels={PRIORITY_LEVELS}
+                onAddTask={handleAddTask}
+                loading={loading}
+              />
 
-          <TaskList
-            tasks={tasks}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            loading={loading}
-          />
-        </Animated.View>
+              <TaskList
+                tasks={tasks}
+                priorityLevels={PRIORITY_LEVELS}
+                onToggleComplete={handleToggleTask}
+                onDeleteTask={handleDeleteTask}
+                menuVisible={menuVisible}
+                selectedTaskId={selectedTaskId}
+                setMenuVisible={setMenuVisible}
+                setSelectedTaskId={setSelectedTaskId}
+              />
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         <Portal>
           <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
@@ -290,6 +323,15 @@ const styles = StyleSheet.create({
   appbarSubtitle: {
     color: COLORS.textLight,
     fontSize: FONT.size.sm,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,

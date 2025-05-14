@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 import { TaskCard } from './TaskCard';
@@ -21,10 +21,29 @@ export const TaskList = ({
   const activeTasks = tasks.filter(task => !task.completed);
   const completedTasks = tasks.filter(task => task.completed);
   
+  // Map numeric priority to string values
+  const getPriorityString = (priority) => {
+    // If already a string that matches our values, return it
+    if (typeof priority === 'string' && ['high', 'medium', 'low'].includes(priority)) {
+      return priority;
+    }
+    
+    // Handle numeric priorities
+    if (priority === 1) return 'high';
+    if (priority === 2) return 'medium';
+    return 'low';
+  };
+  
+  // Add priority string to each task
+  const tasksWithPriorityString = activeTasks.map(task => ({
+    ...task,
+    priorityString: getPriorityString(task.priority)
+  }));
+  
   const activeTasksByPriority = {
-    high: activeTasks.filter(task => task.priority === 'high'),
-    medium: activeTasks.filter(task => task.priority === 'medium'),
-    low: activeTasks.filter(task => task.priority === 'low'),
+    high: tasksWithPriorityString.filter(task => task.priorityString === 'high'),
+    medium: tasksWithPriorityString.filter(task => task.priorityString === 'medium'),
+    low: tasksWithPriorityString.filter(task => task.priorityString === 'low'),
   };
   
   return (
@@ -53,11 +72,7 @@ export const TaskList = ({
         </Card.Content>
       </Card>
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={activeTasks.length === 0 ? styles.emptyScrollContent : styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.tasksContainer}>
         {activeTasks.length > 0 ? (
           <>
             {Object.entries(activeTasksByPriority).map(([priority, priorityTasks]) => (
@@ -75,7 +90,7 @@ export const TaskList = ({
                     </Text>
                   </View>
                   {priorityTasks.map(task => {
-                    const priority = priorityLevels.find(p => p.value === task.priority);
+                    const priority = priorityLevels.find(p => p.value === task.priorityString);
                     return (
                       <TaskCard
                         key={task.id}
@@ -113,7 +128,7 @@ export const TaskList = ({
           setMenuVisible={setMenuVisible}
           setSelectedTaskId={setSelectedTaskId}
         />
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -164,20 +179,13 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     fontWeight: FONT.weight.medium,
   },
-  scrollView: {
+  tasksContainer: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: SPACING.xl,
-  },
-  emptyScrollContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: SPACING.xl,
+    width: '100%',
   },
   prioritySection: {
     marginBottom: SPACING.md,
+    width: '100%',
   },
   priorityHeader: {
     flexDirection: 'row',
@@ -197,6 +205,8 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     alignItems: 'center',
     padding: SPACING.xl,
+    width: '100%',
+    marginBottom: SPACING.xl,
   },
   emptyTitle: {
     fontSize: FONT.size.lg,

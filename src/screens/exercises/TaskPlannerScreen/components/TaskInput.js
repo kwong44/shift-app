@@ -10,12 +10,18 @@ export const TaskInput = ({
   setNewTask, 
   selectedPriority, 
   setSelectedPriority, 
-  priorityLevels,
+  priorityLevels = [],
   onAddTask,
   loading
 }) => {
   // Debug log
-  console.debug('TaskInput rendered', { newTask, selectedPriority });
+  console.debug('TaskInput rendered', { newTask, selectedPriority, priorityLevelsCount: priorityLevels.length });
+
+  const selectedPriorityData = priorityLevels.find(p => p.value === selectedPriority) || {
+    color: COLORS.textLight,
+    label: 'Medium',
+    description: 'Important but not urgent tasks'
+  };
   
   return (
     <Card style={styles.card} elevation={4}>
@@ -25,7 +31,7 @@ export const TaskInput = ({
             mode="outlined"
             label="New Task"
             placeholder="What do you want to accomplish?"
-            value={newTask}
+            value={newTask || ''}
             onChangeText={setNewTask}
             style={styles.input}
             autoCapitalize="sentences"
@@ -36,8 +42,8 @@ export const TaskInput = ({
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   onAddTask();
                 }}
-                disabled={!newTask.trim() || loading}
-                color={newTask.trim() ? priorityLevels.find(p => p.value === selectedPriority).color : COLORS.textLight}
+                disabled={!newTask?.trim() || loading}
+                color={newTask?.trim() ? selectedPriorityData.color : COLORS.textLight}
               />
             }
           />
@@ -74,9 +80,9 @@ export const TaskInput = ({
           </View>
           <Text style={[
             styles.priorityDescription,
-            { color: priorityLevels.find(p => p.value === selectedPriority).color }
+            { color: selectedPriorityData.color }
           ]}>
-            {priorityLevels.find(p => p.value === selectedPriority).description}
+            {selectedPriorityData.description}
           </Text>
         </View>
       </Card.Content>

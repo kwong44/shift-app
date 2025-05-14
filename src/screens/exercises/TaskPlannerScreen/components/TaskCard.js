@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     backgroundColor: COLORS.background,
     ...SHADOWS.small,
+    width: '100%',
   },
   completedCard: {
     opacity: 0.7,
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
+    width: '100%',
   },
   leftContent: {
     flex: 1,

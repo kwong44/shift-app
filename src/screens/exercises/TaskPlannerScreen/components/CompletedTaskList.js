@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text, Card, IconButton } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 import { TaskCard } from './TaskCard';
@@ -20,7 +20,18 @@ export const CompletedTaskList = ({
   // Debug log
   console.debug('CompletedTaskList rendered', { completedTaskCount: tasks.length, isExpanded });
   
-  if (tasks.length === 0) return null;
+  // Map numeric priority to string values
+  const getPriorityString = (priority) => {
+    // If already a string that matches our values, return it
+    if (typeof priority === 'string' && ['high', 'medium', 'low'].includes(priority)) {
+      return priority;
+    }
+    
+    // Handle numeric priorities
+    if (priority === 1) return 'high';
+    if (priority === 2) return 'medium';
+    return 'low';
+  };
   
   return (
     <Card style={styles.container} elevation={1}>
@@ -40,32 +51,38 @@ export const CompletedTaskList = ({
           icon={isExpanded ? "chevron-up" : "chevron-down"}
           size={24}
           onPress={() => setIsExpanded(!isExpanded)}
+          disabled={tasks.length === 0}
         />
       </Card.Content>
       
       {isExpanded && (
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {tasks.map(task => {
-            const priority = priorityLevels.find(p => p.value === task.priority);
-            return (
-              <TaskCard
-                key={task.id}
-                task={task}
-                priority={priority}
-                onToggleComplete={onToggleComplete}
-                onDeleteTask={onDeleteTask}
-                menuVisible={menuVisible}
-                selectedTaskId={selectedTaskId}
-                setMenuVisible={setMenuVisible}
-                setSelectedTaskId={setSelectedTaskId}
-              />
-            );
-          })}
-        </ScrollView>
+        <View style={styles.expandedContent}>
+          {tasks.length > 0 ? (
+            <View style={styles.tasksContainer}>
+              {tasks.map(task => {
+                const priorityString = getPriorityString(task.priority);
+                const priority = priorityLevels.find(p => p.value === priorityString);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    priority={priority}
+                    onToggleComplete={onToggleComplete}
+                    onDeleteTask={onDeleteTask}
+                    menuVisible={menuVisible}
+                    selectedTaskId={selectedTaskId}
+                    setMenuVisible={setMenuVisible}
+                    setSelectedTaskId={setSelectedTaskId}
+                  />
+                );
+              })}
+            </View>
+          ) : (
+            <Card.Content style={styles.emptyContent}>
+              <Text style={styles.emptyText}>No completed tasks yet</Text>
+            </Card.Content>
+          )}
+        </View>
       )}
     </Card>
   );
@@ -77,6 +94,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     backgroundColor: COLORS.background,
     ...SHADOWS.small,
+    width: '100%',
+    marginBottom: SPACING.lg,
   },
   headerContent: {
     flexDirection: 'row',
@@ -105,11 +124,23 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontWeight: FONT.weight.bold,
   },
-  scrollView: {
-    maxHeight: 300,
+  expandedContent: {
+    width: '100%',
+    paddingHorizontal: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
-  scrollContent: {
-    padding: SPACING.sm,
-    paddingTop: 0,
+  tasksContainer: {
+    width: '100%',
+  },
+  emptyContent: {
+    padding: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  emptyText: {
+    fontSize: FONT.size.sm,
+    color: COLORS.textLight,
+    fontStyle: 'italic',
   },
 }); 
