@@ -4,20 +4,33 @@ import { supabase } from '../../config/supabase';
  * Create a new task
  * @param {string} userId - The user's ID
  * @param {string} description - Task description
- * @param {number} priority - Task priority (1-5)
+ * @param {number|string} priority - Task priority (number 1-3 or string 'high', 'medium', 'low')
  * @param {Date} dueDate - Optional due date
  * @returns {Promise} - The created task
  */
 export const createTask = async (userId, description, priority, dueDate = null) => {
   try {
-    console.debug('[createTask] Creating task:', { userId, description, priority, dueDate });
+    // Convert numeric priority to string if needed
+    let priorityString = priority;
+    if (typeof priority === 'number') {
+      if (priority === 1) priorityString = 'high';
+      else if (priority === 2) priorityString = 'medium';
+      else priorityString = 'low';
+    }
+    
+    console.debug('[createTask] Creating task:', { 
+      userId, 
+      description, 
+      priority: priorityString, 
+      dueDate 
+    });
     
     const { data, error } = await supabase
       .from('tasks')
       .insert({
         user_id: userId,
         description,
-        priority,
+        priority: priorityString,
         due_date: dueDate,
       })
       .select()
@@ -39,6 +52,18 @@ export const createTask = async (userId, description, priority, dueDate = null) 
  */
 export const updateTask = async (taskId, updates) => {
   try {
+    // Convert numeric priority to string if needed
+    if (updates.priority !== undefined) {
+      let priorityString = updates.priority;
+      if (typeof updates.priority === 'number') {
+        if (updates.priority === 1) priorityString = 'high';
+        else if (updates.priority === 2) priorityString = 'medium';
+        else priorityString = 'low';
+        
+        updates = { ...updates, priority: priorityString };
+      }
+    }
+    
     console.debug('[updateTask] Updating task:', { taskId, updates });
     
     const { data, error } = await supabase
