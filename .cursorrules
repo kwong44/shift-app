@@ -18,6 +18,9 @@
 ├── babel.config.js
 ├── index.js
 ├── instructions
+│   ├── ai_coach_implementation_plan.md
+│   ├── ai_coach_stage2.md
+│   ├── ai_metadata_querying.md
 │   ├── app-overview.md
 │   ├── design_patterns.md
 │   ├── instruction.md
@@ -25,63 +28,111 @@
 ├── metro.config.js
 ├── package-lock.json
 ├── package.json
-└── src
-    ├── api
-    │   ├── auth.js
-    │   ├── exercises.js
-    │   ├── mood.js
-    │   ├── profile.js
-    │   ├── roadmap.js
-    │   └── selfAssessment.js
-    ├── components
-    │   ├── common
-    │   │   ├── CircularProgress.js
-    │   │   ├── CustomButton.js
-    │   │   ├── CustomInput.js
-    │   │   ├── OptionSelector.js
-    │   │   ├── SetupScreenButton.js
-    │   │   └── SetupScreenButtonContainer.js
-    │   ├── exercises
-    │   │   ├── EmotionPicker.js
-    │   │   ├── ExerciseCard.js
-    │   │   └── Timer.js
-    │   └── onboarding
-    │       ├── HabitCategoryCard.js
-    │       ├── OnboardingCard.js
-    │       ├── OnboardingFooter.js
-    │       ├── OnboardingHeader.js
-    │       ├── OnboardingLayout.js
-    │       ├── ProgressBar.js
-    │       └── index.js
-    ├── config
-    │   ├── supabase.js
-    │   └── theme.js
-    ├── hooks
-    │   └── useUser.js
-    ├── navigation
-    │   ├── BottomTabNavigator.js
-    │   └── index.js
-    ├── screens
-    │   ├── app
-    │   │   ├── HomeScreen
-    │   │   └── ProgressScreen
-    │   ├── auth
-    │   │   ├── SignInScreen.js
-    │   │   ├── SignUpScreen.js
-    │   │   └── WelcomeScreen.js
-    │   ├── exercises
-    │   │   ├── BinauralScreen
-    │   │   ├── DeepWorkScreen
-    │   │   ├── ExercisesDashboard
-    │   │   ├── JournalingScreen
-    │   │   ├── MindfulnessScreen
-    │   │   ├── TaskPlannerScreen
-    │   │   └── VisualizationScreen
-    │   └── onboarding
-    │       ├── HabitsScreen.js
-    │       ├── LifeSatisfactionScreen.js
-    │       ├── OnboardingComplete.js
-    │       ├── OnboardingStart.js
-    │       └── PreferencesScreen.js
-    └── utils
-        └── testConnection.js
+├── src
+│   ├── api
+│   │   ├── aiCoach.js
+│   │   ├── auth.js
+│   │   ├── exercises
+│   │   │   ├── binaural.js
+│   │   │   ├── deepWork.js
+│   │   │   ├── index.js
+│   │   │   ├── journaling.js
+│   │   │   ├── mindfulness.js
+│   │   │   ├── tasks.js
+│   │   │   └── visualization.js
+│   │   ├── mood.js
+│   │   ├── profile.js
+│   │   ├── roadmap.js
+│   │   └── selfAssessment.js
+│   ├── components
+│   │   ├── common
+│   │   │   ├── AITestButton.js
+│   │   │   ├── CircularProgress.js
+│   │   │   ├── CustomButton.js
+│   │   │   ├── CustomInput.js
+│   │   │   ├── OptionSelector.js
+│   │   │   ├── SetupScreenButton.js
+│   │   │   └── SetupScreenButtonContainer.js
+│   │   ├── exercises
+│   │   │   ├── EmotionPicker.js
+│   │   │   ├── ExerciseCard.js
+│   │   │   └── Timer.js
+│   │   └── onboarding
+│   │       ├── HabitCategoryCard.js
+│   │       ├── OnboardingCard.js
+│   │       ├── OnboardingFooter.js
+│   │       ├── OnboardingHeader.js
+│   │       ├── OnboardingLayout.js
+│   │       ├── ProgressBar.js
+│   │       └── index.js
+│   ├── config
+│   │   ├── supabase.js
+│   │   └── theme.js
+│   ├── hooks
+│   │   └── useUser.js
+│   ├── navigation
+│   │   ├── BottomTabNavigator.js
+│   │   └── index.js
+│   ├── screens
+│   │   ├── app
+│   │   │   ├── HomeScreen
+│   │   │   │   ├── components
+│   │   │   │   └── index.js
+│   │   │   └── ProgressScreen
+│   │   │       ├── components
+│   │   │       ├── helpers
+│   │   │       └── index.js
+│   │   ├── auth
+│   │   │   ├── SignInScreen.js
+│   │   │   ├── SignUpScreen.js
+│   │   │   └── WelcomeScreen.js
+│   │   ├── exercises
+│   │   │   ├── BinauralScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   ├── constants.js
+│   │   │   │   └── hooks
+│   │   │   ├── DeepWorkScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   └── constants.js
+│   │   │   ├── ExercisesDashboard
+│   │   │   │   ├── components
+│   │   │   │   ├── hooks
+│   │   │   │   └── index.js
+│   │   │   ├── JournalingScreen
+│   │   │   │   ├── JournalingEntry.js
+│   │   │   │   ├── JournalingSetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   └── constants.js
+│   │   │   ├── MindfulnessScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   └── constants.js
+│   │   │   ├── TaskPlannerScreen
+│   │   │   │   ├── components
+│   │   │   │   ├── constants.js
+│   │   │   │   └── index.js
+│   │   │   └── VisualizationScreen
+│   │   │       ├── PlayerScreen.js
+│   │   │       ├── SetupScreen.js
+│   │   │       ├── components
+│   │   │       └── constants.js
+│   │   └── onboarding
+│   │       ├── HabitsScreen.js
+│   │       ├── LifeSatisfactionScreen.js
+│   │       ├── OnboardingComplete.js
+│   │       ├── OnboardingStart.js
+│   │       └── PreferencesScreen.js
+│   └── utils
+│       └── testConnection.js
+├── supabase
+│   └── functions
+│       ├── analyze-text
+│       │   └── index.ts
+│       └── test-ai-connection
+│           └── index.ts
+└── tsconfig.json
