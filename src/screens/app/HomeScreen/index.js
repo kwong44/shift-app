@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Animated } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Animated, ScrollView } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS } from '../../../config/theme';
 import { signOut } from '../../../api/auth';
 import { fetchRoadmap } from '../../../api/roadmap';
 import { supabase } from '../../../config/supabase';
-import { getVisualizations, getTasks, getJournalEntries } from '../../../api/exercises';
+import { 
+  getVisualizations, 
+  getTasks, 
+  getJournalEntries,
+  getRecentJournalInsights 
+} from '../../../api/exercises';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import AITestButton from '../../../components/common/AITestButton';
 import { 
   MoodModal, 
-  TopBar, 
   GrowthRoadmap, 
   DailyFocus,
   Insights,
@@ -31,11 +36,21 @@ const HomeScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [scrollY] = useState(new Animated.Value(0));
   const [insights, setInsights] = useState(null);
+  const [journalDate, setJournalDate] = useState(null);
 
   useEffect(() => {
     loadUserData();
     checkDailyMood();
+    refreshInsights();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refreshInsights();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -126,16 +141,41 @@ const HomeScreen = ({ navigation }) => {
     return streak;
   };
 
+  const refreshInsights = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.debug('[HomeScreen] Refreshing insights');
+      
+      const latestInsights = await getRecentJournalInsights(user.id, 1);
+      
+      if (latestInsights?.length > 0) {
+        const latestEntry = latestInsights[0];
+        setInsights(latestEntry.insights);
+        setJournalDate(latestEntry.created_at);
+        console.debug('[HomeScreen] Insights updated:', { 
+          hasInsights: Boolean(latestEntry.insights),
+          date: latestEntry.created_at 
+        });
+      } else {
+        setInsights(null);
+        setJournalDate(null);
+      }
+    } catch (error) {
+      console.error('[HomeScreen] Error refreshing insights:', error);
+    }
+  };
+
   const loadUserData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
 
-      const [roadmapData, tasksData, visualizations, journalEntries, userData, streakData] = await Promise.all([
+      const [roadmapData, tasksData, visualizations, userData, streakData] = await Promise.all([
         fetchRoadmap(user.id),
         getTasks(user.id),
         getVisualizations(user.id),
-        getJournalEntries(user.id, new Date()),
         supabase.from('users').select('name').eq('id', user.id).single(),
         supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false })
       ]);
@@ -151,24 +191,16 @@ const HomeScreen = ({ navigation }) => {
       let progress = 0;
       
       if (totalActivities > 0) {
-        progress = (completedTasks + (visualizations || []).length + (journalEntries || []).length) / totalActivities;
+        progress = (completedTasks + (visualizations || []).length) / totalActivities;
       }
       
       progress = Math.min(Math.max(Number(progress) || 0, 0), 1);
       setDailyProgress(progress);
 
-      // Set insights if available
-      if (journalEntries?.length > 0 && journalEntries[0]?.insights) {
-        setInsights({
-          text: journalEntries[0].insights,
-          recommendations: generateRecommendations(journalEntries[0].insights, roadmapData?.goals || [])
-        });
-      }
-
-      console.debug("Data loaded successfully");
+      console.debug("[HomeScreen] Data loaded successfully");
 
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('[HomeScreen] Error loading user data:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -239,55 +271,32 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TopBar 
-        userName={userName}
-        onSignOut={signOut}
-        greeting={getGreeting()}
-      />
-      
-      <Animated.ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
+      <LinearGradient
+        colors={[COLORS.background, '#f5f5f5']}
+        style={styles.gradient}
       >
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              Error loading your data. Please try again later.
-            </Text>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <GrowthRoadmap
+            roadmap={roadmap}
+            dailyProgress={dailyProgress}
+            onUpdate={handleGoalUpdate}
+          />
+
+          <Insights insights={insights} journalDate={journalDate} />
+          
+          <View style={styles.componentWrapper}>
+            <DailyFocus 
+              onExercisePress={(route) => navigation.navigate(route)} 
+            />
           </View>
-        ) : (
-          <>
-            <View style={styles.componentWrapper}>
-              <GrowthRoadmap 
-                dailyProgress={dailyProgress}
-                streak={streak}
-                currentMood={currentMood}
-                onMoodPress={() => setShowMoodModal(true)}
-                MOODS={MOODS}
-                currentPhase={roadmap?.currentPhase}
-                focusAreas={roadmap?.focusAreas}
-                weeklyGoals={roadmap?.weeklyGoals}
-                nextMilestone={roadmap?.nextMilestone}
-                overallProgress={roadmap?.overallProgress}
-              />
-            </View>
-            
-            <View style={styles.componentWrapper}>
-              <DailyFocus 
-                onExercisePress={(route) => navigation.navigate(route)} 
-              />
-            </View>
-            
-            <Insights insights={insights} />
-          </>
-        )}
-      </Animated.ScrollView>
+          
+          <AITestButton />
+        </ScrollView>
+      </LinearGradient>
 
       <MoodModal
         visible={showMoodModal}
@@ -303,7 +312,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  gradient: {
+    flex: 1,
+  },
+  scrollView: {
     flex: 1,
   },
   scrollContent: {
