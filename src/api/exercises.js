@@ -160,24 +160,69 @@ export const logMindfulnessCheckIn = async (userId, response) => {
 /**
  * Create a journal entry
  * @param {string} userId - The user's ID
- * @param {string} content - The journal entry content
+ * @param {object} entryData - The journal entry data
+ * @param {string} entryData.content - The journal entry content
+ * @param {string} entryData.insights - AI-generated insights about the entry
+ * @param {object} entryData.aiMetadata - Metadata about the AI processing
+ * @param {string} entryData.aiMetadata.model - The AI model used
+ * @param {number} entryData.aiMetadata.tokensUsed - Number of tokens used
+ * @param {number} entryData.aiMetadata.processingTimeMs - Processing time in milliseconds
+ * @param {number} entryData.aiMetadata.confidenceScore - AI confidence score
+ * @param {object} entryData.aiMetadata.promptInfo - Information about the prompt used
+ * @param {string[]} entryData.aiMetadata.emotions - Detected emotions
  * @returns {Promise} - The created entry
  */
-export const createJournalEntry = async (userId, content) => {
+export const createJournalEntry = async (userId, entryData) => {
   try {
+    // Input validation
+    if (!userId) throw new Error('User ID is required');
+    if (!entryData?.content?.trim()) throw new Error('Entry content is required');
+
+    // Debug log
+    console.debug('[createJournalEntry] Creating entry:', { 
+      userId,
+      contentLength: entryData.content.length,
+      hasInsights: Boolean(entryData.insights),
+      hasAiMetadata: Boolean(entryData.aiMetadata)
+    });
+
+    // Prepare AI metadata
+    const aiMetadata = entryData.aiMetadata ? {
+      model: entryData.aiMetadata.model,
+      tokens_used: entryData.aiMetadata.tokensUsed,
+      processing_time_ms: entryData.aiMetadata.processingTimeMs,
+      confidence_score: entryData.aiMetadata.confidenceScore,
+      prompt_info: entryData.aiMetadata.promptInfo,
+      emotions: entryData.aiMetadata.emotions,
+      analysis_timestamp: new Date().toISOString()
+    } : null;
+
+    // Create entry
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
         user_id: userId,
-        content,
+        content: entryData.content.trim(),
+        insights: entryData.insights,
+        ai_metadata: aiMetadata,
+        created_at: new Date().toISOString()
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[createJournalEntry] Database error:', error);
+      throw error;
+    }
+
+    console.debug('[createJournalEntry] Entry created successfully:', { 
+      entryId: data.id,
+      hasAiMetadata: Boolean(data.ai_metadata)
+    });
+    
     return data;
   } catch (error) {
-    console.error('Error creating journal entry:', error.message);
+    console.error('[createJournalEntry] Error:', error.message);
     throw error;
   }
 };
@@ -433,6 +478,42 @@ export const getVisualizations = async (userId, includeCompleted = true) => {
   }
 };
 
+/**
+ * Get recent journal insights
+ * @param {string} userId - The user's ID
+ * @param {number} limit - Maximum number of insights to fetch (default: 1)
+ * @returns {Promise} Array of journal entries with insights
+ */
+export const getRecentJournalInsights = async (userId, limit = 1) => {
+  try {
+    // Debug log
+    console.debug('[getRecentJournalInsights] Fetching insights:', { userId, limit });
+
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .not('insights', 'is', null) // Only entries with insights
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[getRecentJournalInsights] Error:', error);
+      throw error;
+    }
+
+    console.debug('[getRecentJournalInsights] Found insights:', { 
+      count: data?.length,
+      latestDate: data?.[0]?.created_at 
+    });
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching journal insights:', error.message);
+    throw error;
+  }
+};
+
 export default {
   startBinauralSession,
   completeBinauralSession,
@@ -451,4 +532,5 @@ export default {
   updateJournalEntry,
   getJournalEntries,
   createReflection,
+  getRecentJournalInsights,
 }; 
