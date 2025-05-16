@@ -85,6 +85,8 @@ const ExercisesDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <DashboardHeader scrollY={scrollY} />
+      
       <Animated.ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -95,8 +97,6 @@ const ExercisesDashboard = ({ navigation }) => {
         )}
         scrollEventThrottle={16}
       >
-        <DashboardHeader scrollY={scrollY} />
-        
         <View style={styles.exercisesContainer}>
           {EXERCISES.map(exercise => (
             <ExerciseCard
@@ -104,7 +104,6 @@ const ExercisesDashboard = ({ navigation }) => {
               exercise={exercise}
               isCompleted={completedExercises[exercise.id]}
               onPress={handleExercisePress}
-              style={styles.card}
             />
           ))}
         </View>
@@ -138,10 +137,7 @@ const styles = StyleSheet.create({
   },
   exercisesContainer: {
     paddingHorizontal: SPACING.md,
-  },
-  card: {
-    marginBottom: SPACING.md,
-    width: '100%', // Make cards full width
+    paddingTop: SPACING.xs,
   },
   snackbar: {
     bottom: SPACING.md,
