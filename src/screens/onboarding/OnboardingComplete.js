@@ -46,6 +46,20 @@ const OnboardingComplete = ({ navigation, route }) => {
     return null;
   };
   
+  const navigateToApp = () => {
+    debug.log('Navigating to App screen with reset');
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [
+          { 
+            name: 'App',
+          }
+        ]
+      })
+    );
+  };
+  
   const handleComplete = async () => {
     debug.log('Starting completion process');
     debug.log('Assessment data:', assessmentData);
@@ -66,13 +80,7 @@ const OnboardingComplete = ({ navigation, route }) => {
       const roadmap = await createRoadmap(user.id, assessmentData);
       debug.log('Roadmap created:', roadmap);
 
-      debug.log('Navigating to App screen');
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'App' }],
-        })
-      );
+      navigateToApp();
     } catch (error) {
       debug.log('Error during completion:', error.message);
       setError(error.message || 'Failed to complete onboarding. Please try again.');
@@ -85,12 +93,7 @@ const OnboardingComplete = ({ navigation, route }) => {
   const handleDialogConfirm = () => {
     debug.log('Confirming dialog');
     setShowDialog(false);
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'App' }],
-      })
-    );
+    navigateToApp();
   };
 
   return (

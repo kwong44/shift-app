@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase'; // Your Supabase client initialization
+import { getWeeklyGoals } from './exercises/goals'; // Import the goals API
 
 // Debug logging
 console.debug('[aiCoach] Initializing AI Coach API layer');
@@ -125,11 +126,99 @@ export const analyzeText = async (text, context = {}) => {
   }
 };
 
+/**
+ * Initiates or continues a conversation with the AI coach
+ * @param {string} message - The user's message
+ * @param {object} context - Additional context for the conversation
+ * @returns {Promise<object>} The AI coach's response
+ */
+export const chatWithCoach = async (message, context = {}) => {
+  console.debug('[aiCoachAPI] Starting coach conversation', { messageLength: message?.length, context });
+
+  try {
+    if (!canMakeRequest()) {
+      throw new Error('Please wait a moment before making another request');
+    }
+
+    if (!message?.trim()) {
+      throw new Error('Message is required');
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Fetch the user's weekly goals to provide context
+    console.debug('[aiCoachAPI] Fetching user goals for context');
+    let userGoals = [];
+    try {
+      userGoals = await getWeeklyGoals(user.id) || [];
+      console.debug(`[aiCoachAPI] Found ${userGoals?.length || 0} goals`);
+    } catch (error) {
+      console.error('[aiCoachAPI] Error fetching goals:', error);
+      // Continue without goals rather than failing the whole request
+    }
+
+    // Debug log the payload being sent to the Edge Function
+    console.debug('[aiCoachAPI] Sending payload to Edge Function:', {
+      messageLength: message?.length,
+      userId: user.id,
+      contextSize: Object.keys(context).length,
+      goalsCount: userGoals?.length || 0,
+    });
+
+    // Call the Edge Function with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    try {
+      // Use the real coach-conversation function
+      const { data, error } = await supabase.functions.invoke('coach-conversation', {
+        body: { 
+          message,
+          userId: user.id,
+          context,
+          userGoals,
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.error('[aiCoachAPI] Edge function error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No response data received from coach');
+      }
+
+      console.debug('[aiCoachAPI] Coach response received:', {
+        responseLength: data.data?.response?.length,
+        metadata: data.data?.metadata
+      });
+
+      updateLastCallTime();
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out. The coach is taking too long to respond.');
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('[aiCoachAPI] Error in coach conversation:', error);
+    throw error;
+  }
+};
+
 // Export configuration for use in other parts of the app
 export default {
   config: AI_COACH_CONFIG,
   testConnection: testAiConnection,
   analyzeText: analyzeText,
+  chatWithCoach: chatWithCoach,
 };
 
 /*

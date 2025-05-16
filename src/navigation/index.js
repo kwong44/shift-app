@@ -37,6 +37,7 @@ import DeepWorkSetupScreen from '../screens/exercises/DeepWorkScreen/SetupScreen
 import { PlayerScreen as DeepWorkPlayerScreen } from '../screens/exercises/DeepWorkScreen/PlayerScreen';
 import JournalingSetupScreen from '../screens/exercises/JournalingScreen/JournalingSetupScreen';
 import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEntry';
+import AICoachScreen from '../screens/app/AICoachScreen';
 
 const Stack = createStackNavigator();
 
@@ -231,6 +232,19 @@ const Navigation = () => {
             <Stack.Screen name="DeepWorkPlayer" component={DeepWorkPlayerScreen} />
             <Stack.Screen name="Journaling" component={JournalingSetupScreen} />
             <Stack.Screen name="JournalingEntry" component={JournalingEntry} />
+            <Stack.Screen 
+              name="AICoachChat"
+              component={AICoachScreen}
+              options={{
+                title: 'AI Coach',
+                headerShadowVisible: false,
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                presentation: 'modal',
+                cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
+              }}
+            />
           </Stack.Group>
         )}
       </Stack.Navigator>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Animated, ScrollView } from 'react-native';
-import { Text, TouchableRipple, ProgressBar } from 'react-native-paper';
+import { View, StyleSheet, Animated, ScrollView, TextInput } from 'react-native';
+import { Text, TouchableRipple, ProgressBar, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
+import { createWeeklyGoal, updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
+import { supabase } from '../../../../config/supabase';
 
 // Debug logger for tracking component lifecycle and user interactions
 const debug = {
@@ -22,10 +24,14 @@ const GrowthRoadmap = ({
   focusAreas = [],
   weeklyGoals = [],
   nextMilestone,
-  overallProgress
+  overallProgress,
+  onUpdate
 }) => {
   const [animatedProgress] = React.useState(new Animated.Value(0));
   const [expandedSection, setExpandedSection] = useState(null);
+  const [newGoalText, setNewGoalText] = useState('');
+  const [localWeeklyGoals, setLocalWeeklyGoals] = useState(weeklyGoals || []);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     debug.log('Animating progress bar');
@@ -36,9 +42,96 @@ const GrowthRoadmap = ({
     }).start();
   }, [dailyProgress]);
 
+  // Initialize local goals when props change
+  useEffect(() => {
+    if (weeklyGoals) {
+      setLocalWeeklyGoals(weeklyGoals);
+    }
+  }, [weeklyGoals]);
+
   const toggleSection = (section) => {
     debug.log(`Toggling section: ${section}`);
     setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  const addWeeklyGoal = async () => {
+    if (newGoalText.trim() === '') return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Create goal in database
+      const newGoal = await createWeeklyGoal(user.id, newGoalText);
+      
+      // Update local state
+      setLocalWeeklyGoals(prev => [...prev, newGoal]);
+      setNewGoalText('');
+      
+      // Expand the goals section when adding a new goal
+      if (expandedSection !== 'goals') {
+        setExpandedSection('goals');
+      }
+      
+      debug.log(`Added new weekly goal: ${newGoalText}`);
+    } catch (error) {
+      console.error('Failed to add weekly goal:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleGoalCompletion = async (goalId, isCompleted) => {
+    try {
+      setIsLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Update goal in database
+      await updateWeeklyGoal(user.id, goalId, { completed: !isCompleted });
+      
+      // Update local state
+      setLocalWeeklyGoals(prev => 
+        prev.map(goal => 
+          goal.id === goalId 
+            ? { ...goal, completed: !goal.completed } 
+            : goal
+        )
+      );
+      
+      debug.log(`Toggled completion for goal: ${goalId}`);
+    } catch (error) {
+      console.error('Failed to toggle goal completion:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeGoal = async (goalId) => {
+    try {
+      setIsLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Delete goal from database
+      await deleteWeeklyGoal(user.id, goalId);
+      
+      // Update local state
+      setLocalWeeklyGoals(prev => prev.filter(goal => goal.id !== goalId));
+      
+      debug.log(`Removed goal: ${goalId}`);
+    } catch (error) {
+      console.error('Failed to remove goal:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderPhaseIndicator = () => (
@@ -104,16 +197,63 @@ const GrowthRoadmap = ({
         </View>
         {expandedSection === 'goals' && (
           <View style={styles.goalsList}>
-            {weeklyGoals.map((goal, index) => (
-              <View key={index} style={styles.goalItem}>
-                <MaterialCommunityIcons 
-                  name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
-                  size={16} 
-                  color={COLORS.text} 
+            {/* Input for adding new goals */}
+            <View style={styles.addGoalContainer}>
+              <TextInput
+                style={styles.goalInput}
+                value={newGoalText}
+                onChangeText={setNewGoalText}
+                placeholder="Add a new weekly goal..."
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                editable={!isLoading}
+              />
+              <IconButton
+                icon="plus-circle"
+                size={24}
+                color={COLORS.primary}
+                onPress={addWeeklyGoal}
+                disabled={!newGoalText.trim() || isLoading}
+              />
+            </View>
+            
+            {/* List of goals */}
+            {localWeeklyGoals.map((goal) => (
+              <View key={goal.id} style={styles.goalItem}>
+                <TouchableRipple
+                  onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
+                  style={styles.goalCheckbox}
+                  disabled={isLoading}
+                >
+                  <MaterialCommunityIcons 
+                    name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
+                    size={16} 
+                    color={COLORS.text} 
+                  />
+                </TouchableRipple>
+                <Text 
+                  style={[
+                    styles.goalText, 
+                    goal.completed && styles.completedGoalText
+                  ]}
+                >
+                  {goal.text}
+                </Text>
+                <IconButton
+                  icon="close-circle"
+                  size={16}
+                  color="rgba(0, 0, 0, 0.5)"
+                  onPress={() => removeGoal(goal.id)}
+                  style={styles.removeGoalButton}
+                  disabled={isLoading}
                 />
-                <Text style={styles.goalText}>{goal.text}</Text>
               </View>
             ))}
+            
+            {localWeeklyGoals.length === 0 && (
+              <Text style={styles.emptyGoalsText}>
+                No weekly goals yet. Add some above!
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -347,11 +487,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: SPACING.xs,
   },
+  goalCheckbox: {
+    padding: SPACING.xxs,
+  },
   goalText: {
     color: COLORS.text,
     fontSize: FONT.size.sm,
     marginLeft: SPACING.xs,
+    flex: 1,
   },
+  completedGoalText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
+  },
+  addGoalContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  goalInput: {
+    flex: 1,
+    height: 40,
+    color: COLORS.text,
+    fontSize: FONT.size.sm,
+  },
+  removeGoalButton: {
+    margin: 0,
+    padding: 0,
+  },
+  emptyGoalsText: {
+    color: 'rgba(0, 0, 0, 0.5)',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+  }
 });
 
 export default GrowthRoadmap; 

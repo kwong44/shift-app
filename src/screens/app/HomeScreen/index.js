@@ -9,7 +9,8 @@ import {
   getVisualizations, 
   getTasks, 
   getJournalEntries,
-  getRecentJournalInsights 
+  getRecentJournalInsights,
+  getWeeklyGoals
 } from '../../../api/exercises';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +22,7 @@ import {
   Insights,
   MOODS 
 } from './components';
+import { chatWithCoach } from '../../../api/aiCoach';
 
 // Debug logging
 console.debug('HomeScreen mounted');
@@ -49,11 +51,13 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     checkDailyMood();
     refreshInsights();
+    fetchWeeklyGoals();
   }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshInsights();
+      fetchWeeklyGoals();
     });
 
     return unsubscribe;
@@ -73,14 +77,8 @@ const HomeScreen = ({ navigation }) => {
         })) || [];
       setFocusAreas(transformedFocusAreas);
       
-      // Transform weekly goals
-      const transformedGoals = roadmap.goals
-        ?.filter(goal => !goal.type || goal.type !== 'focus_area')
-        ?.map(goal => ({
-          text: goal.description,
-          completed: goal.status === 'completed'
-        })) || [];
-      setWeeklyGoals(transformedGoals);
+      // We no longer transform weekly goals from roadmap data
+      // as they will be user-inputted directly in the GrowthRoadmap component
       
       // Set current phase
       const activePhase = roadmap.phases?.find(phase => phase.status === 'active');
@@ -95,6 +93,20 @@ const HomeScreen = ({ navigation }) => {
       setOverallProgress(progressValue);
     }
   }, [roadmap]);
+
+  const fetchWeeklyGoals = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.debug('[HomeScreen] Fetching weekly goals');
+      const goals = await getWeeklyGoals(user.id);
+      setWeeklyGoals(goals);
+      console.debug(`[HomeScreen] Fetched ${goals?.length || 0} weekly goals`);
+    } catch (error) {
+      console.error('[HomeScreen] Error fetching weekly goals:', error);
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -394,7 +406,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
-  }
+  },
 });
 
 export default HomeScreen; 
