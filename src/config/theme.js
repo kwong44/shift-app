@@ -23,6 +23,12 @@ export const COLORS = {
   warning: '#FFC107',       // Amber for warnings
   info: '#2196F3',          // Blue for information
   
+  // Stat card colors
+  blue: '#5AC8FA',          // Blue for Focus Time
+  orange: '#FF9500',        // Orange for Streaks
+  teal: '#00B894',          // Teal for Mindful Minutes
+  purple: '#6C63FF',        // Purple for Exercise Count
+  
   // Border & Divider
   border: '#E0E0E0',        // Light gray for borders
   divider: '#F0F0F0',       // Subtle divider

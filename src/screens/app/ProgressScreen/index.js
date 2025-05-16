@@ -5,7 +5,8 @@ import { supabase } from '../../../config/supabase';
 import { SPACING, COLORS } from '../../../config/theme';
 
 // Import components
-import ProgressHeader from './components/ProgressHeader';
+import ProfileTabHeader from './components/ProfileTabHeader';
+import ProfileInfo from './components/ProfileInfo';
 import StatCard from './components/StatCard';
 import GoalsProgress from './components/GoalsProgress';
 import MoodTrend from './components/MoodTrend';
@@ -21,16 +22,21 @@ import {
   calculateMindfulMinutes 
 } from './helpers/statsCalculator';
 
+// Import profile API
+import { getProfile, updateProfile, updateAvatar } from '../../../api/profile';
+
 // Debug logger
 const debug = {
   log: (message, data = '') => {
-    console.log(`[ProgressScreen] ${message}`, data);
+    console.log(`[ProfileScreen] ${message}`, data);
   }
 };
 
-const ProgressScreen = () => {
+const ProfileScreen = () => {
   debug.log('Component mounted');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [profileData, setProfileData] = useState(null);
   const [stats, setStats] = useState({
     totalExercises: 0,
     weeklyStreak: 0,
@@ -45,20 +51,52 @@ const ProgressScreen = () => {
   });
 
   useEffect(() => {
-    debug.log('useEffect triggered: Loading user stats');
-    loadUserStats();
-  }, []);
-
-  const loadUserStats = async () => {
-    try {
+    debug.log(`useEffect triggered: Loading ${activeTab} data`);
+    
+    const loadData = async () => {
       setLoading(true);
-      debug.log('Attempting to load user statistics');
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        debug.log('User not found');
-        throw new Error('User not found');
+      
+      try {
+        // Get user data
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          debug.log('User not found');
+          throw new Error('User not found');
+        }
+        debug.log('User found:', user.id);
+        
+        // Load profile data
+        if (activeTab === 'profile') {
+          const profile = await getProfile();
+          debug.log('Profile loaded:', profile);
+          
+          // Merge user email with profile data
+          setProfileData({
+            ...profile,
+            email: user.email,
+          });
+        }
+        
+        // Load stats for the progress tab
+        if (activeTab === 'progress') {
+          await loadUserStats(user.id);
+        }
+        
+      } catch (error) {
+        debug.log('Error loading data:', error.message);
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+        debug.log('Loading finished');
       }
-      debug.log('User found:', user.id);
+    };
+    
+    loadData();
+  }, [activeTab]);
+
+  const loadUserStats = async (userId) => {
+    try {
+      debug.log('Attempting to load user statistics');
 
       // Fetching data in parallel
       const [
@@ -67,10 +105,10 @@ const ProgressScreen = () => {
         { data: moods },
         { data: journals }
       ] = await Promise.all([
-        supabase.from('exercise_logs').select('*').eq('user_id', user.id),
-        supabase.from('goals').select('*').eq('user_id', user.id),
-        supabase.from('mood_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(7),
-        supabase.from('journal_entries').select('*').eq('user_id', user.id)
+        supabase.from('exercise_logs').select('*').eq('user_id', userId),
+        supabase.from('goals').select('*').eq('user_id', userId),
+        supabase.from('mood_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(7),
+        supabase.from('journal_entries').select('*').eq('user_id', userId)
       ]);
       debug.log('Data fetched:', { exercises: exercises?.length, goals: goals?.length, moods: moods?.length, journals: journals?.length });
 
@@ -94,9 +132,23 @@ const ProgressScreen = () => {
     } catch (error) {
       debug.log('Error loading statistics:', error.message);
       console.error('Error loading statistics:', error);
-    } finally {
-      setLoading(false);
-      debug.log('Loading finished');
+    }
+  };
+  
+  const handleEditProfile = async (field) => {
+    debug.log('Edit profile field:', field);
+    // In a real implementation, this would show modals/forms for editing different profile fields
+    // For now, we'll just log the action
+    
+    if (field === 'avatar') {
+      // Implement image picker and avatar update
+      debug.log('Opening image picker for avatar update');
+    } else if (field === 'name') {
+      // Implement name update
+      debug.log('Opening dialog for name update');
+    } else if (field === 'settings') {
+      // Navigate to settings
+      debug.log('Navigating to settings');
     }
   };
 
@@ -105,7 +157,9 @@ const ProgressScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading your progress...</Text>
+          <Text style={styles.loadingText}>
+            Loading {activeTab === 'profile' ? 'profile' : 'progress'}...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -113,51 +167,61 @@ const ProgressScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <ProfileTabHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+      
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <ProgressHeader />
-
-        {/* Key Stats Overview Grid */}
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Weekly Streak"
-            value={`${stats.weeklyStreak}`}
-            icon="fire"
-            color={COLORS.orange}
-            unit="weeks"
+        {activeTab === 'profile' ? (
+          <ProfileInfo 
+            profile={profileData}
+            onEditProfile={handleEditProfile}
           />
-          <StatCard
-            title="Total Exercises"
-            value={`${stats.totalExercises}`}
-            icon="dumbbell"
-            color={COLORS.purple}
-            unit="completed"
-          />
-          <StatCard
-            title="Focus Time"
-            value={`${stats.focusTime}m`}
-            icon="brain"
-            color={COLORS.blue}
-          />
-          <StatCard
-            title="Mindful Minutes"
-            value={`${stats.mindfulMinutes}m`}
-            icon="meditation"
-            color={COLORS.teal}
-          />
-        </View>
+        ) : (
+          // Progress Screen Content
+          <>
+            {/* Key Stats Overview Grid */}
+            <View style={styles.statsGrid}>
+              <StatCard
+                title="Weekly Streak"
+                value={`${stats.weeklyStreak}`}
+                icon="fire"
+                color={COLORS.orange}
+                unit="weeks"
+              />
+              <StatCard
+                title="Total Exercises"
+                value={`${stats.totalExercises}`}
+                icon="dumbbell"
+                color={COLORS.purple}
+                unit="completed"
+              />
+              <StatCard
+                title="Focus Time"
+                value={`${stats.focusTime}m`}
+                icon="brain"
+                color={COLORS.blue}
+              />
+              <StatCard
+                title="Mindful Minutes"
+                value={`${stats.mindfulMinutes}m`}
+                icon="meditation"
+                color={COLORS.teal}
+              />
+            </View>
 
-        <GoalsProgress 
-          completedGoals={stats.completedGoals}
-          totalGoals={stats.totalGoals}
-        />
+            <GoalsProgress 
+              completedGoals={stats.completedGoals}
+              totalGoals={stats.totalGoals}
+            />
 
-        <MoodTrend trend={stats.moodTrend} />
+            <MoodTrend trend={stats.moodTrend} />
 
-        <ExerciseBreakdown exerciseBreakdown={stats.exerciseBreakdown} />
+            <ExerciseBreakdown exerciseBreakdown={stats.exerciseBreakdown} />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -193,4 +257,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProgressScreen; 
+export default ProfileScreen; 

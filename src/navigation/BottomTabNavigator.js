@@ -11,7 +11,7 @@ import { StyleSheet } from 'react-native';
 // Import screens
 import HomeScreen from '../screens/app/HomeScreen';
 import ExercisesDashboard from '../screens/exercises/ExercisesDashboard';
-import ProgressScreen from '../screens/app/ProgressScreen';
+import ProfileScreen from '../screens/app/ProgressScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -97,14 +97,14 @@ const BottomTabNavigator = () => {
           }}
         />
         <Tab.Screen
-          name="Progress"
-          component={ProgressScreen}
+          name="Profile"
+          component={ProfileScreen}
           listeners={{
-            tabPress: () => logTabPress('Progress'),
+            tabPress: () => logTabPress('Profile'),
           }}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="trending-up-outline" size={size} color={color} />
+              <Ionicons name="person-outline" size={size} color={color} />
             ),
           }}
         />
