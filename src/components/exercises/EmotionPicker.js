@@ -1,15 +1,10 @@
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import React, { useCallback } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { 
-  Surface, 
   Text, 
   Chip, 
   useTheme, 
-  IconButton,
   HelperText,
-  Portal,
-  Dialog,
-  Button
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
 import CustomDialog from '../common/CustomDialog';
@@ -42,20 +37,29 @@ const EmotionPicker = ({
   helperText
 }) => {
   const theme = useTheme();
-  const [showMaxDialog, setShowMaxDialog] = useState(false);
+  const [showMaxDialog, setShowMaxDialog] = React.useState(false);
+
+  // Debug logs
+  console.log('Rendering EmotionPicker with selections:', selectedEmotions);
 
   const handleSelect = useCallback((emotionId) => {
+    console.log('Emotion selected:', emotionId);
     if (selectedEmotions.includes(emotionId)) {
+      // If already selected, remove it
       onSelectEmotion(selectedEmotions.filter(id => id !== emotionId));
     } else if (selectedEmotions.length < maxSelections) {
+      // If not at max selections, add it
       onSelectEmotion([...selectedEmotions, emotionId]);
     } else {
+      // At max selections, show dialog
+      console.log('Max selections reached, showing dialog');
       setShowMaxDialog(true);
     }
   }, [selectedEmotions, maxSelections, onSelectEmotion]);
 
   const renderEmotionChip = useCallback((emotion) => {
     const isSelected = selectedEmotions.includes(emotion.id);
+    
     return (
       <Chip
         key={emotion.id}
@@ -64,67 +68,32 @@ const EmotionPicker = ({
         onPress={() => handleSelect(emotion.id)}
         style={[
           styles.emotionChip,
-          isSelected && { backgroundColor: `${emotion.color}40` }
+          isSelected && { 
+            backgroundColor: `${emotion.color}40`,
+            borderWidth: 2,
+            borderColor: emotion.color
+          }
         ]}
         icon={emotion.icon}
         showSelectedOverlay
+        elevated={isSelected}
       >
         {emotion.label}
       </Chip>
     );
   }, [selectedEmotions, handleSelect]);
 
-  const renderSelectedEmotions = useCallback(() => {
-    if (selectedEmotions.length === 0) return null;
-
-    return (
-      <Surface style={styles.selectedContainer} elevation={0}>
-        <Text variant="labelMedium" style={styles.selectedLabel}>
-          Selected Emotions
-        </Text>
-        <View style={styles.selectedEmotions}>
-          {selectedEmotions.map(id => {
-            const emotion = EMOTIONS.find(e => e.id === id);
-            return (
-              <Surface
-                key={emotion.id}
-                style={[
-                  styles.selectedEmotion,
-                  { backgroundColor: `${emotion.color}20` }
-                ]}
-                elevation={0}
-              >
-                <IconButton
-                  icon={emotion.icon}
-                  size={24}
-                  iconColor={emotion.color}
-                />
-                <Text variant="bodyMedium">{emotion.label}</Text>
-              </Surface>
-            );
-          })}
-        </View>
-      </Surface>
-    );
-  }, [selectedEmotions]);
-
   return (
     <View style={styles.container}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.gridContainer}>
         {EMOTIONS.map(renderEmotionChip)}
-      </ScrollView>
+      </View>
 
       {helperText && (
         <HelperText type="info" style={styles.helperText}>
           {helperText}
         </HelperText>
       )}
-
-      {renderSelectedEmotions()}
 
       <CustomDialog
         visible={showMaxDialog}
@@ -143,36 +112,21 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
   },
-  scrollContent: {
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: SPACING.md,
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: SPACING.xs,
   },
   emotionChip: {
-    marginVertical: SPACING.xs,
+    margin: SPACING.xxs,
+    minWidth: 100,
+    justifyContent: 'center',
   },
   helperText: {
     marginHorizontal: SPACING.md,
-  },
-  selectedContainer: {
-    marginTop: SPACING.lg,
-    marginHorizontal: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: 8,
-  },
-  selectedLabel: {
-    marginBottom: SPACING.sm,
-    opacity: 0.7,
-  },
-  selectedEmotions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  selectedEmotion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingRight: SPACING.sm,
+    marginTop: SPACING.sm,
   },
 });
 

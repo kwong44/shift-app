@@ -12,7 +12,7 @@ const DAILY_EXERCISES = [
     title: 'Mindfulness',
     icon: 'meditation',
     duration: '5-10 min',
-    route: 'Mindfulness',
+    route: 'MindfulnessSetup',
     benefit: 'Reduce stress and improve focus',
     gradientColors: [COLORS.tealGradient.start, COLORS.tealGradient.end]
   },
