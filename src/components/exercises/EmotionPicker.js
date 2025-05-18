@@ -12,6 +12,7 @@ import {
   Button
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
+import CustomDialog from '../common/CustomDialog';
 
 const EMOTIONS = [
   { id: 'joy', label: 'Joy', icon: 'emoticon-happy', color: '#FFD700' },
@@ -125,22 +126,15 @@ const EmotionPicker = ({
 
       {renderSelectedEmotions()}
 
-      <Portal>
-        <Dialog
-          visible={showMaxDialog}
-          onDismiss={() => setShowMaxDialog(false)}
-        >
-          <Dialog.Title>Maximum Selections Reached</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              You can select up to {maxSelections} emotions. Please deselect an emotion before adding a new one.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowMaxDialog(false)}>Got it</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showMaxDialog}
+        onDismiss={() => setShowMaxDialog(false)}
+        title="Maximum Selections Reached"
+        content={`You can select up to ${maxSelections} emotions. Please deselect an emotion before adding a new one.`}
+        icon="alert-circle-outline"
+        confirmText="Got it"
+        onConfirm={() => setShowMaxDialog(false)}
+      />
     </View>
   );
 };

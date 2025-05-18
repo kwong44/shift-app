@@ -43,20 +43,20 @@ const DashboardHeader = ({ scrollY }) => {
   const greeting = getGreeting();
 
   return (
-    <Animated.View 
-      style={[
-        styles.headerContainer, 
-        { 
-          opacity: headerOpacity,
-          transform: [{ scale: headerScale }]
-        }
-      ]}
+    <LinearGradient
+      colors={[COLORS.primary + '20', COLORS.backgroundLight]}
+      style={styles.gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
     >
-      <LinearGradient
-        colors={[COLORS.primary + '20', COLORS.backgroundLight]}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <Animated.View 
+        style={[
+          styles.headerContainer, 
+          { 
+            opacity: headerOpacity,
+            transform: [{ scale: headerScale }]
+          }
+        ]}
       >
         <View style={styles.headerContent}>
           <View style={styles.greetingContainer}>
@@ -73,30 +73,26 @@ const DashboardHeader = ({ scrollY }) => {
             Develop habits that transform your life
           </Text>
         </View>
-      </LinearGradient>
-    </Animated.View>
+      </Animated.View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    marginBottom: SPACING.lg,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
-    ...SHADOWS.small,
-    height: 'auto',
-  },
   gradient: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  headerContainer: {
     width: '100%',
   },
   headerContent: {
-    padding: SPACING.lg,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.lg,
+    padding: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.md,
   },
   greetingContainer: {
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   greetingText: {
     fontSize: FONT.size.sm,

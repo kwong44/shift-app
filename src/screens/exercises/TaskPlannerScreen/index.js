@@ -22,6 +22,7 @@ import { useUser } from '../../../hooks/useUser';
 import { TaskInput } from './components/TaskInput';
 import { TaskList } from './components/TaskList';
 import { PRIORITY_LEVELS } from './constants';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('TaskPlannerScreen mounted', { priorityLevelsCount: PRIORITY_LEVELS.length });
@@ -251,38 +252,23 @@ const TaskPlannerScreen = ({ navigation }) => {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        <Portal>
-          <Dialog visible={showDialog} onDismiss={handleDismissDialog}>
-            <LinearGradient
-              colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
-              style={styles.dialogGradient}
-            >
-              <Dialog.Title style={styles.dialogTitle}>Task Complete!</Dialog.Title>
-              <Dialog.Content>
-                <View style={styles.dialogContent}>
-                  <MaterialCommunityIcons 
-                    name="check-circle-outline" 
-                    size={48} 
-                    color={COLORS.primary} 
-                    style={styles.dialogIcon} 
-                  />
-                  <Text style={styles.dialogText}>
-                    Great job completing your task! Keep up the momentum and tackle your next priority.
-                  </Text>
-                </View>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button 
-                  onPress={handleDismissDialog} 
-                  mode="contained" 
-                  style={styles.dialogButton}
-                >
-                  Continue
-                </Button>
-              </Dialog.Actions>
-            </LinearGradient>
-          </Dialog>
-        </Portal>
+        <CustomDialog
+          visible={showDialog}
+          onDismiss={handleDismissDialog}
+          title="Task Complete!"
+          content={
+            <View style={styles.dialogContent}>
+              <Text style={styles.dialogText}>
+                Great job completing your task! Keep up the momentum and tackle your next priority.
+              </Text>
+            </View>
+          }
+          icon="check-circle-outline"
+          confirmText="Continue"
+          onConfirm={handleDismissDialog}
+          iconColor={COLORS.primary}
+          iconBackgroundColor={`${COLORS.primary}10`}
+        />
 
         <Snackbar
           visible={snackbarVisible}

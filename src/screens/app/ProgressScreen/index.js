@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { supabase } from '../../../config/supabase';
 import { SPACING, COLORS } from '../../../config/theme';
+import { useNavigation } from '@react-navigation/native';
 
 // Import components
 import ProfileTabHeader from './components/ProfileTabHeader';
@@ -34,6 +35,7 @@ const debug = {
 
 const ProfileScreen = () => {
   debug.log('Component mounted');
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
   const [profileData, setProfileData] = useState(null);
@@ -152,6 +154,27 @@ const ProfileScreen = () => {
     }
   };
 
+  // Handle user logout
+  const handleLogout = async () => {
+    debug.log('Logging out user');
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      debug.log('User logged out successfully');
+      // The auth state change listener in navigation/index.js will handle the redirect
+    } catch (error) {
+      debug.log('Error logging out:', error.message);
+      console.error('Logout error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -178,6 +201,7 @@ const ProfileScreen = () => {
           <ProfileInfo 
             profile={profileData}
             onEditProfile={handleEditProfile}
+            onLogout={handleLogout}
           />
         ) : (
           // Progress Screen Content

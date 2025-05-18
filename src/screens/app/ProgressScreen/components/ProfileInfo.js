@@ -11,8 +11,16 @@ const debug = {
   }
 };
 
-const ProfileInfo = ({ profile, onEditProfile }) => {
+const ProfileInfo = ({ profile, onEditProfile, onLogout }) => {
   debug.log('Rendering with profile:', profile);
+  
+  // Function to handle logout
+  const handleLogout = () => {
+    debug.log('Logout button pressed');
+    if (onLogout) {
+      onLogout();
+    }
+  };
   
   return (
     <View style={styles.container}>
@@ -89,6 +97,17 @@ const ProfileInfo = ({ profile, onEditProfile }) => {
       >
         Settings
       </Button>
+      
+      {/* Logout Button */}
+      <Button 
+        mode="outlined" 
+        icon="logout"
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        textColor={COLORS.error}
+      >
+        Log Out
+      </Button>
     </View>
   );
 };
@@ -160,6 +179,10 @@ const styles = StyleSheet.create({
   settingsButton: {
     borderColor: COLORS.primary,
     marginVertical: SPACING.sm,
+  },
+  logoutButton: {
+    borderColor: COLORS.error,
+    marginBottom: SPACING.sm,
   },
 });
 

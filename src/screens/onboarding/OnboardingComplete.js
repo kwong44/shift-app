@@ -15,6 +15,7 @@ import { supabase } from '../../config/supabase';
 import { submitSelfAssessment } from '../../api/selfAssessment';
 import { createRoadmap } from '../../api/roadmap';
 import { OnboardingLayout, OnboardingCard } from '../../components/onboarding';
+import CustomDialog from '../../components/common/CustomDialog';
 
 // Debug logger
 const debug = {
@@ -48,16 +49,40 @@ const OnboardingComplete = ({ navigation, route }) => {
   
   const navigateToApp = () => {
     debug.log('Navigating to App screen with reset');
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [
-          { 
-            name: 'App',
-          }
-        ]
-      })
-    );
+    
+    try {
+      // First update the onboarding status if the global function is available
+      if (global.updateOnboardingStatus) {
+        debug.log('Updating onboarding status...');
+        global.updateOnboardingStatus().then(completed => {
+          debug.log(`Onboarding status updated: ${completed ? 'Completed' : 'Not completed'}`);
+          
+          // Now reset navigation to HomeScreen
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [
+                { name: 'HomeScreen' }
+              ]
+            })
+          );
+        });
+      } else {
+        // Fallback if global function not available
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              { name: 'HomeScreen' }
+            ]
+          })
+        );
+      }
+    } catch (error) {
+      debug.log('Navigation error:', error.message);
+      // Fallback to simple navigation
+      navigation.navigate('HomeScreen');
+    }
   };
   
   const handleComplete = async () => {
@@ -78,9 +103,13 @@ const OnboardingComplete = ({ navigation, route }) => {
 
       debug.log('Creating initial roadmap');
       const roadmap = await createRoadmap(user.id, assessmentData);
-      debug.log('Roadmap created:', roadmap);
+      debug.log('Roadmap created successfully');
 
-      navigateToApp();
+      // Small delay to ensure database operations complete
+      debug.log('Preparing to navigate to main app...');
+      setTimeout(() => {
+        navigateToApp();
+      }, 500);
     } catch (error) {
       debug.log('Error during completion:', error.message);
       setError(error.message || 'Failed to complete onboarding. Please try again.');
@@ -164,19 +193,15 @@ const OnboardingComplete = ({ navigation, route }) => {
         </View>
       )}
 
-      <Portal>
-        <Dialog visible={showDialog} onDismiss={handleDialogConfirm}>
-          <Dialog.Title>Assessment Complete!</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              Your personalized transformation roadmap has been created. Let's begin your journey!
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={handleDialogConfirm}>Start Journey</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showDialog}
+        onDismiss={handleDialogConfirm}
+        title="Assessment Complete!"
+        content="Your personalized transformation roadmap has been created. Let's begin your journey!"
+        icon="check-circle-outline"
+        confirmText="Start Journey"
+        onConfirm={handleDialogConfirm}
+      />
     </OnboardingLayout>
   );
 };

@@ -12,6 +12,7 @@ import { SPACING, COLORS, RADIUS, FONT } from '../../../config/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 // Import local components and hooks
 import PlayerCard from './components/PlayerCard';
@@ -80,17 +81,17 @@ const PlayerScreen = ({ navigation, route }) => {
             />
           </View>
 
-          <Portal>
-            <Dialog visible={!!error} onDismiss={resetAudio}>
-              <Dialog.Title>Error</Dialog.Title>
-              <Dialog.Content>
-                <Text>{error}</Text>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={resetAudio}>OK</Button>
-              </Dialog.Actions>
-            </Dialog>
-          </Portal>
+          <CustomDialog
+            visible={!!error}
+            onDismiss={resetAudio}
+            title="Error"
+            content={error}
+            confirmText="OK"
+            onConfirm={resetAudio}
+            icon="alert-circle"
+            iconColor={COLORS.error}
+            iconBackgroundColor="rgba(255,59,48,0.1)"
+          />
         </LinearGradient>
       </SafeAreaView>
     </View>

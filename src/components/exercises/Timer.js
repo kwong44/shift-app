@@ -13,6 +13,7 @@ import { SPACING, COLORS, SHADOWS, RADIUS } from '../../config/theme';
 import Svg, { Circle, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import CustomDialog from '../common/CustomDialog';
 
 // Debug logger
 const debug = {
@@ -301,41 +302,20 @@ const Timer = ({
         )}
       </View>
 
-      <Portal>
-        <Dialog
-          visible={showCancelDialog}
-          onDismiss={() => setShowCancelDialog(false)}
-          style={styles.dialog}
-        >
-          <LinearGradient
-            colors={['#ffffff', '#f8f9fc']}
-            style={styles.dialogGradient}
-          >
-            <Dialog.Title style={styles.dialogTitle}>Cancel Timer?</Dialog.Title>
-            <Dialog.Content>
-              <Text variant="bodyMedium" style={styles.dialogText}>
-                Are you sure you want to cancel the current session?
-              </Text>
-            </Dialog.Content>
-            <Dialog.Actions style={styles.dialogActions}>
-              <Button 
-                onPress={() => setShowCancelDialog(false)} 
-                mode="outlined"
-                style={styles.dialogButton}
-              >
-                No, Continue
-              </Button>
-              <Button 
-                onPress={confirmCancel} 
-                mode="contained"
-                style={[styles.dialogButton, { backgroundColor: COLORS.error }]}
-              >
-                Yes, Cancel
-              </Button>
-            </Dialog.Actions>
-          </LinearGradient>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showCancelDialog}
+        onDismiss={() => setShowCancelDialog(false)}
+        title="Cancel Timer?"
+        content="Are you sure you want to cancel the current session?"
+        icon="timer-off"
+        confirmText="Yes, Cancel"
+        confirmMode="contained"
+        onConfirm={confirmCancel}
+        cancelText="No, Continue"
+        onCancel={() => setShowCancelDialog(false)}
+        iconColor={COLORS.error}
+        iconBackgroundColor={`${COLORS.error}20`}
+      />
     </View>
   );
 };

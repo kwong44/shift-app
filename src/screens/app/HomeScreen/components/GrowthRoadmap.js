@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5', // Light gray background matching DashboardHeader
     borderBottomLeftRadius: RADIUS.xl,
     borderBottomRightRadius: RADIUS.xl,
+    marginBottom: SPACING.lg,
   },
   scrollContainer: {
     maxHeight: 500,
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   streakContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.05)',

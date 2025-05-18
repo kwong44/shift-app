@@ -19,6 +19,7 @@ import { useUser } from '../../../hooks/useUser';
 // Import local components
 import Timer from '../../../components/exercises/Timer';
 import { SessionCard } from './components/SessionCard';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('MindfulnessPlayerScreen mounted');
@@ -155,38 +156,17 @@ const PlayerScreen = ({ navigation, route }) => {
           </View>
         </SafeAreaView>
 
-        <Portal>
-          <Dialog visible={showDialog} onDismiss={handleFinish}>
-            <LinearGradient
-              colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
-              style={styles.dialogGradient}
-            >
-              <Dialog.Title style={styles.dialogTitle}>Practice Complete</Dialog.Title>
-              <Dialog.Content>
-                <View style={styles.dialogContent}>
-                  <MaterialCommunityIcons 
-                    name="check-circle-outline" 
-                    size={48} 
-                    color={COLORS.primary} 
-                    style={styles.dialogIcon} 
-                  />
-                  <Text style={styles.dialogText}>
-                    Well done! Regular mindfulness practice can help reduce stress, improve focus, and enhance emotional well-being. Try to incorporate these moments of awareness throughout your day.
-                  </Text>
-                </View>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button 
-                  onPress={handleFinish} 
-                  mode="contained" 
-                  style={styles.dialogButton}
-                >
-                  Done
-                </Button>
-              </Dialog.Actions>
-            </LinearGradient>
-          </Dialog>
-        </Portal>
+        <CustomDialog
+          visible={showDialog}
+          onDismiss={handleFinish}
+          title="Practice Complete"
+          content="Well done! Regular mindfulness practice can help reduce stress, improve focus, and enhance emotional well-being. Try to incorporate these moments of awareness throughout your day."
+          icon="check-circle-outline"
+          confirmText="Done"
+          onConfirm={handleFinish}
+          iconColor={COLORS.primary}
+          iconBackgroundColor={`${COLORS.primary}15`}
+        />
 
         <Snackbar
           visible={snackbarVisible}

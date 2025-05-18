@@ -21,6 +21,7 @@ import { createJournalEntry } from '../../../api/exercises';
 import { JournalEntryCard } from './components/JournalEntryCard';
 import { JOURNAL_PROMPTS, PROMPT_TYPES } from './constants';
 import { useUser } from '../../../hooks/useUser';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 const { height } = Dimensions.get('window');
 
@@ -246,44 +247,29 @@ const JournalingEntry = ({ route, navigation }) => {
           loading={loading}
         />
 
-        <Portal>
-          <Dialog visible={showDialog} onDismiss={handleFinish}>
-            <LinearGradient
-              colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
-              style={styles.dialogGradient}
-            >
-              <Dialog.Title style={styles.dialogTitle}>Entry Saved!</Dialog.Title>
-              <Dialog.Content>
-                <View style={styles.dialogContent}>
-                  <MaterialCommunityIcons 
-                    name="check-circle-outline" 
-                    size={48} 
-                    color={COLORS.primary} 
-                    style={styles.dialogIcon} 
-                  />
-                  <Text style={styles.dialogText}>
-                    Great job! Your journal entry has been saved and analyzed. 
-                    Regular journaling helps improve self-awareness and emotional intelligence.
-                  </Text>
-                  {insights && (
-                    <Text style={styles.insightsText}>
-                      {insights}
-                    </Text>
-                  )}
-                </View>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button 
-                  onPress={handleFinish} 
-                  mode="contained" 
-                  style={styles.dialogButton}
-                >
-                  Done
-                </Button>
-              </Dialog.Actions>
-            </LinearGradient>
-          </Dialog>
-        </Portal>
+        <CustomDialog
+          visible={showDialog}
+          onDismiss={handleFinish}
+          title="Entry Saved!"
+          content={
+            <View style={styles.dialogContent}>
+              <Text style={styles.dialogText}>
+                Great job! Your journal entry has been saved and analyzed. 
+                Regular journaling helps improve self-awareness and emotional intelligence.
+              </Text>
+              {insights && (
+                <Text style={styles.insightsText}>
+                  {insights}
+                </Text>
+              )}
+            </View>
+          }
+          icon="check-circle-outline"
+          confirmText="Done"
+          onConfirm={handleFinish}
+          iconColor={COLORS.primary}
+          iconBackgroundColor={`${COLORS.primary}15`}
+        />
 
         <Snackbar
           visible={snackbarVisible}

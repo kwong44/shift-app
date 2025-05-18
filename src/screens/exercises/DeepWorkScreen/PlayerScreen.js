@@ -12,6 +12,7 @@ import { useUser } from '../../../hooks/useUser';
 // Import local components
 import Timer from '../../../components/exercises/Timer';
 import { FocusCard } from './components/FocusCard';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('DeepWorkPlayerScreen mounted');
@@ -138,39 +139,17 @@ export const PlayerScreen = ({ navigation, route }) => {
         </SafeAreaView>
       </LinearGradient>
 
-      <Portal>
-        <Dialog visible={showDialog} onDismiss={handleFinish}>
-          <LinearGradient
-            colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
-            style={styles.dialogGradient}
-          >
-            <Dialog.Title style={styles.dialogTitle}>Session Complete!</Dialog.Title>
-            <Dialog.Content>
-              <View style={styles.dialogContent}>
-                <MaterialCommunityIcons 
-                  name="check-circle-outline" 
-                  size={48} 
-                  color={COLORS.primary} 
-                  style={styles.dialogIcon} 
-                />
-                <Text style={styles.dialogText}>
-                  Excellent work! You've successfully completed a focused deep work session. 
-                  Regular deep work will help build your concentration and productivity.
-                </Text>
-              </View>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button 
-                onPress={handleFinish} 
-                mode="contained" 
-                style={styles.dialogButton}
-              >
-                Done
-              </Button>
-            </Dialog.Actions>
-          </LinearGradient>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showDialog}
+        onDismiss={handleFinish}
+        title="Session Complete!"
+        content="Excellent work! You've successfully completed a focused deep work session. Regular deep work will help build your concentration and productivity."
+        icon="check-circle-outline"
+        confirmText="Done"
+        onConfirm={handleFinish}
+        iconColor={COLORS.primary}
+        iconBackgroundColor={`${COLORS.primary}15`}
+      />
 
       <Snackbar
         visible={snackbarVisible}

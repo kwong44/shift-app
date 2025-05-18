@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Animated, View } from 'react-native';
+import { StyleSheet, Animated, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Snackbar } from 'react-native-paper';
 import { COLORS, SPACING } from '../../../config/theme';
@@ -8,6 +8,24 @@ import useExercises from './hooks/useExercises';
 
 // Constants
 const EXERCISES = [
+  {
+    id: 'journaling',
+    title: 'Journaling',
+    description: 'Process thoughts and emotions through writing',
+    icon: 'book-outline',
+    duration: '10-15 min',
+    route: 'Journaling',
+    color: '#5C96AE'
+  },
+   {
+    id: 'tasks',
+    title: 'Task Planner',
+    description: 'Break down your goals into actionable tasks',
+    icon: 'checkbox-marked-outline',
+    duration: '5-10 min',
+    route: 'TaskPlanner',
+    color: '#5C5C8E'
+  },
   {
     id: 'binaural',
     title: 'Binaural Beats',
@@ -27,15 +45,6 @@ const EXERCISES = [
     color: '#6A8EAE'
   },
   {
-    id: 'tasks',
-    title: 'Task Planner',
-    description: 'Break down your goals into actionable tasks',
-    icon: 'checkbox-marked-outline',
-    duration: '5-10 min',
-    route: 'TaskPlanner',
-    color: '#5C5C8E'
-  },
-  {
     id: 'deepwork',
     title: 'Deep Work',
     description: 'Focus intensely on important tasks without distractions',
@@ -52,15 +61,6 @@ const EXERCISES = [
     duration: '5-10 min',
     route: 'MindfulnessSetup',
     color: '#4C63B6'
-  },
-  {
-    id: 'journaling',
-    title: 'Journaling',
-    description: 'Process thoughts and emotions through writing',
-    icon: 'book-outline',
-    duration: '10-15 min',
-    route: 'Journaling',
-    color: '#5C96AE'
   }
 ];
 
@@ -84,8 +84,10 @@ const ExercisesDashboard = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <DashboardHeader scrollY={scrollY} />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.headerArea} edges={['top']}>
+        <DashboardHeader scrollY={scrollY} />
+      </SafeAreaView>
       
       <Animated.ScrollView 
         style={styles.scrollContainer}
@@ -97,16 +99,14 @@ const ExercisesDashboard = ({ navigation }) => {
         )}
         scrollEventThrottle={16}
       >
-        <View style={styles.exercisesContainer}>
-          {EXERCISES.map(exercise => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              isCompleted={completedExercises[exercise.id]}
-              onPress={handleExercisePress}
-            />
-          ))}
-        </View>
+        {EXERCISES.map(exercise => (
+          <ExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            isCompleted={completedExercises[exercise.id]}
+            onPress={handleExercisePress}
+          />
+        ))}
       </Animated.ScrollView>
 
       <Snackbar
@@ -120,7 +120,7 @@ const ExercisesDashboard = ({ navigation }) => {
       >
         {error || 'An error occurred. Please try again.'}
       </Snackbar>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -129,15 +129,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  headerArea: {
+    backgroundColor: COLORS.primary + '20', // Match header gradient start color
+    zIndex: 1,
+  },
   scrollContainer: {
-    flex: 1,
+    flex: 1, 
+    backgroundColor: COLORS.background,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
   },
   scrollContent: {
     paddingBottom: SPACING.xl,
-  },
-  exercisesContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.xs,
   },
   snackbar: {
     bottom: SPACING.md,

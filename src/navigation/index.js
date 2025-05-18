@@ -127,6 +127,33 @@ const Navigation = () => {
     }
   }, []);
 
+  // Add a function to update onboarding status
+  const updateOnboardingStatus = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const completed = await hasCompletedAssessment(user.id);
+        console.debug('Manually updating onboarding status:', { userId: user.id, completed });
+        setHasCompletedOnboarding(completed);
+        return completed;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error updating onboarding status:', error);
+      return false;
+    }
+  }, []);
+
+  // Export the update function to the global space so it can be called from screens
+  React.useEffect(() => {
+    // @ts-ignore
+    global.updateOnboardingStatus = updateOnboardingStatus;
+    return () => {
+      // @ts-ignore
+      delete global.updateOnboardingStatus;
+    };
+  }, [updateOnboardingStatus]);
+
   useEffect(() => {
     checkSession();
 
@@ -207,14 +234,22 @@ const Navigation = () => {
             <Stack.Screen name="SignUp" component={SignUpScreen} />
           </Stack.Group>
         ) : !hasCompletedOnboarding ? (
-          // Onboarding Stack
-          <Stack.Group screenOptions={screenOptions}>
-            <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
-            <Stack.Screen name="LifeSatisfaction" component={LifeSatisfactionScreen} />
-            <Stack.Screen name="Habits" component={HabitsScreen} />
-            <Stack.Screen name="Preferences" component={PreferencesScreen} />
-            <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
-          </Stack.Group>
+          // Onboarding Stack - Include main app screens to enable reset navigation
+          <>
+            <Stack.Group screenOptions={screenOptions}>
+              <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
+              <Stack.Screen name="LifeSatisfaction" component={LifeSatisfactionScreen} />
+              <Stack.Screen name="Habits" component={HabitsScreen} />
+              <Stack.Screen name="Preferences" component={PreferencesScreen} />
+              <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
+            </Stack.Group>
+            
+            {/* Include main app screens to enable direct navigation after onboarding */}
+            <Stack.Group screenOptions={{...screenOptions, presentation: 'containedModal'}}>
+              <Stack.Screen name="HomeScreen" component={HomeScreen} />
+              <Stack.Screen name="App" component={BottomTabNavigator} />
+            </Stack.Group>
+          </>
         ) : (
           // Main App Stack
           <Stack.Group screenOptions={screenOptions}>

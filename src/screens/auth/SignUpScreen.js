@@ -8,11 +8,10 @@ import {
   Surface,
   HelperText,
   TouchableRipple,
-  Portal,
-  Dialog
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
 import { signUp } from '../../api/auth';
+import CustomDialog from '../../components/common/CustomDialog';
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -162,32 +161,21 @@ const SignUpScreen = ({ navigation }) => {
         </ScrollView>
       </Surface>
 
-      <Portal>
-        <Dialog
-          visible={showSuccessDialog}
-          onDismiss={() => {
-            setShowSuccessDialog(false);
-            navigation.navigate('SignIn');
-          }}
-        >
-          <Dialog.Title>Check your email</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              We sent you a confirmation email. Please confirm your email address to continue.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button 
-              onPress={() => {
-                setShowSuccessDialog(false);
-                navigation.navigate('SignIn');
-              }}
-            >
-              Got it
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showSuccessDialog}
+        onDismiss={() => {
+          setShowSuccessDialog(false);
+          navigation.navigate('SignIn');
+        }}
+        title="Check your email"
+        content="We sent you a confirmation email. Please confirm your email address to continue."
+        icon="email-check"
+        confirmText="Got it"
+        onConfirm={() => {
+          setShowSuccessDialog(false);
+          navigation.navigate('SignIn');
+        }}
+      />
     </SafeAreaView>
   );
 };

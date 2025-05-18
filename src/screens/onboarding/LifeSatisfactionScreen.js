@@ -177,41 +177,39 @@ const LifeSatisfactionScreen = ({ navigation }) => {
       ))}
 
       <OnboardingCard>
-        <View style={styles.sectionHeader}>
+        <View style={styles.areaHeader}>
           <MaterialCommunityIcons
             name="rocket-launch"
             size={24}
             color={theme.colors.primary}
           />
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Motivation to Change
-          </Text>
-        </View>
-        <Text 
-          variant="bodyMedium" 
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
-          How motivated are you to improve these areas?
-        </Text>
-        
-        <View style={styles.motivationContainer}>
-          <Slider
-            style={styles.slider}
-            minimumValue={1}
-            maximumValue={10}
-            step={1}
-            value={motivationLevel}
-            onValueChange={setMotivationLevel}
-            minimumTrackTintColor={theme.colors.primary}
-            maximumTrackTintColor={theme.colors.surfaceVariant}
-          />
+          <View style={styles.areaTitleContainer}>
+            <Text variant="titleMedium" style={styles.areaTitle}>Motivation to Change</Text>
+            <Text 
+              variant="bodyMedium" 
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              How motivated are you to improve these areas?
+            </Text>
+          </View>
           <Text 
-            variant="headlineMedium" 
-            style={[styles.motivationScore, { color: theme.colors.primary }]}
+            variant="titleLarge" 
+            style={{ color: theme.colors.primary }}
           >
             {motivationLevel}
           </Text>
         </View>
+        
+        <Slider
+          style={styles.slider}
+          minimumValue={1}
+          maximumValue={10}
+          step={1}
+          value={motivationLevel}
+          onValueChange={setMotivationLevel}
+          minimumTrackTintColor={theme.colors.primary}
+          maximumTrackTintColor={theme.colors.surfaceVariant}
+        />
         
         <View style={styles.sliderLabels}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>

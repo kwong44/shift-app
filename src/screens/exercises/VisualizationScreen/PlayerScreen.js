@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Portal, Dialog, Button, Snackbar, Text } from 'react-native-paper';
+import { Snackbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
 import { createVisualization, completeVisualization } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
+import CustomDialog from '../../../components/common/CustomDialog';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -103,38 +104,17 @@ const PlayerScreen = ({ route, navigation }) => {
         />
       </LinearGradient>
 
-      <Portal>
-        <Dialog visible={showDialog} onDismiss={handleFinish}>
-          <LinearGradient
-            colors={[`${COLORS.primary}10`, `${COLORS.secondary}05`]}
-            style={styles.dialogGradient}
-          >
-            <Dialog.Title style={styles.dialogTitle}>Visualization Complete</Dialog.Title>
-            <Dialog.Content>
-              <View style={styles.dialogContent}>
-                <MaterialCommunityIcons 
-                  name="check-circle-outline" 
-                  size={48} 
-                  color={COLORS.primary} 
-                  style={styles.dialogIcon} 
-                />
-                <Text style={styles.dialogText}>
-                  Excellent work! Regular visualization practice can help strengthen your mindset and bring you closer to your goals. Remember to carry this positive energy throughout your day.
-                </Text>
-              </View>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button 
-                onPress={handleFinish} 
-                mode="contained" 
-                style={styles.dialogButton}
-              >
-                Done
-              </Button>
-            </Dialog.Actions>
-          </LinearGradient>
-        </Dialog>
-      </Portal>
+      <CustomDialog
+        visible={showDialog}
+        onDismiss={handleFinish}
+        title="Visualization Complete"
+        content="Excellent work! Regular visualization practice can help strengthen your mindset and bring you closer to your goals. Remember to carry this positive energy throughout your day."
+        icon="check-circle-outline"
+        confirmText="Done"
+        onConfirm={handleFinish}
+        iconColor={COLORS.primary}
+        iconBackgroundColor={`${COLORS.primary}15`}
+      />
 
       <Snackbar
         visible={snackbarVisible}
