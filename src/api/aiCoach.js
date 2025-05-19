@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase'; // Your Supabase client initialization
 import { getWeeklyGoals } from './exercises/goals'; // Import the goals API
 import { getUserTokens, updateUserTokens, TOKENS_CONFIG } from './credits'; // Import tokens API
+import conversationHistory, { getContextMessages } from './conversationHistory'; // Import conversation history API
 
 // Debug logging
 console.debug('[aiCoach] Initializing AI Coach API layer');
@@ -22,7 +23,7 @@ export const AI_COACH_CONFIG = {
   limits: {
     maxDailyInteractions: 10,
     maxTokensPerResponse: 150,
-    minTimeBetweenRequests: 60000, // 1 minute in milliseconds
+    minTimeBetweenRequests: 1000, // 1 second in milliseconds (reduced from 60 seconds)
   },
   
   // Token system configuration
@@ -231,6 +232,17 @@ export const chatWithCoach = async (message, context = {}) => {
       console.error('[aiCoachAPI] Error fetching goals:', error);
       // Continue without goals rather than failing the whole request
     }
+    
+    // Get conversation history for the AI context
+    console.debug('[aiCoachAPI] Fetching conversation history for context');
+    let pastMessages = [];
+    try {
+      pastMessages = await getContextMessages();
+      console.debug(`[aiCoachAPI] Found ${pastMessages.length} past messages for context`);
+    } catch (error) {
+      console.error('[aiCoachAPI] Error fetching conversation history:', error);
+      // Continue without history rather than failing the whole request
+    }
 
     // Debug log the payload being sent to the Edge Function
     console.debug('[aiCoachAPI] Sending payload to Edge Function:', {
@@ -238,6 +250,7 @@ export const chatWithCoach = async (message, context = {}) => {
       userId: user.id,
       contextSize: Object.keys(context).length,
       goalsCount: userGoals?.length || 0,
+      pastMessagesCount: pastMessages.length
     });
 
     // Call the Edge Function with a timeout
@@ -252,6 +265,7 @@ export const chatWithCoach = async (message, context = {}) => {
           userId: user.id,
           context,
           userGoals,
+          pastMessages
         },
         signal: controller.signal,
       });
@@ -270,17 +284,26 @@ export const chatWithCoach = async (message, context = {}) => {
       // Process token usage data
       let tokenInfo = null;
       if (data.tokens) {
-        console.debug('[aiCoachAPI] Token usage info received:', data.tokens);
+        const tokensUsed = data.tokens.used || 0;
+        const tokensRemaining = data.tokens.remaining || 0;
+        
+        console.debug('[aiCoachAPI] Token usage info received:', {
+          used: tokensUsed,
+          remaining: tokensRemaining,
+          deducted: tokens - tokensRemaining // Calculate how many tokens were actually deducted
+        });
         
         tokenInfo = {
-          used: data.tokens.used,
-          remaining: data.tokens.remaining,
-          credits: Math.floor(data.tokens.remaining / TOKENS_CONFIG.tokensPerCredit),
-          lowBalanceWarning: data.tokens.remaining <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
+          used: tokensUsed,
+          remaining: tokensRemaining,
+          credits: Math.floor(tokensRemaining / TOKENS_CONFIG.tokensPerCredit),
+          lowBalanceWarning: tokensRemaining <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
         };
       } else {
         // Fallback if the edge function doesn't return token usage
         const { tokens: updatedTokens, credits: updatedCredits } = await getUserTokens();
+        console.debug('[aiCoachAPI] No token info in response, fetched current balance:', updatedTokens);
+        
         tokenInfo = {
           used: 0, // unknown
           remaining: updatedTokens,
@@ -292,7 +315,11 @@ export const chatWithCoach = async (message, context = {}) => {
       console.debug('[aiCoachAPI] Coach response received:', {
         responseLength: data.data?.response?.length,
         metadata: data.data?.metadata,
-        tokenInfo
+        tokenInfo: {
+          used: tokenInfo.used,
+          remaining: tokenInfo.remaining,
+          deducted: tokens - tokenInfo.remaining
+        }
       });
 
       // Add token information to response

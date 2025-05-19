@@ -13,6 +13,7 @@ import { Text, TextInput, IconButton, ActivityIndicator, Button, Badge } from 'r
 import { COLORS, SPACING, RADIUS } from '../../../config/theme';
 import { chatWithCoach, checkUserTokens } from '../../../api/aiCoach';
 import { getUserTokens, mockPurchaseTokens, TOKENS_CONFIG, tokensToCredits } from '../../../api/credits';
+import conversationHistory, { CONVERSATION_CONFIG, getConversationHistory } from '../../../api/conversationHistory';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -29,7 +30,7 @@ const HAPTIC_FEEDBACK = {
   ERROR: Haptics.NotificationFeedbackType.Error,
 };
 
-const Message = ({ content, isUser }) => (
+const Message = ({ content, isUser, tokenInfo }) => (
   <View style={[
     styles.messageBubble,
     isUser ? styles.userMessage : styles.aiMessage
@@ -40,6 +41,11 @@ const Message = ({ content, isUser }) => (
     ]}>
       {content}
     </Text>
+    {tokenInfo && !isUser && (
+      <Text style={styles.tokenUsageText}>
+        {`${tokenInfo.used} tokens used`}
+      </Text>
+    )}
   </View>
 );
 
@@ -56,21 +62,21 @@ const CreditDisplay = ({ credits, onTopUp }) => (
 
 const AICoachScreen = ({ navigation }) => {
   // State management
-  const [messages, setMessages] = useState([
-    { 
-      id: '1', 
-      content: "So, tell me about your goals. What are you supposedly 'working toward' but making excuses about?", 
-      isUser: false 
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [tokens, setTokens] = useState(null);
   const [credits, setCredits] = useState(null);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   
   // Refs
   const flatListRef = useRef(null);
+
+  // Load conversation history when component mounts
+  useEffect(() => {
+    loadConversationHistory();
+  }, []);
 
   // Debug logging for messages changes
   useEffect(() => {
@@ -105,6 +111,47 @@ const AICoachScreen = ({ navigation }) => {
     
     return unsubscribe;
   }, [navigation, credits]);
+
+  // Load conversation history from the database
+  const loadConversationHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      console.debug('[AICoachScreen] Loading conversation history');
+      
+      const historyMessages = await getConversationHistory();
+      
+      if (historyMessages.length > 0) {
+        // Format messages for our UI
+        const formattedMessages = historyMessages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          isUser: msg.isUser,
+          tokenInfo: msg.isUser ? null : { used: msg.tokenUsage || 0 }
+        }));
+        
+        setMessages(formattedMessages);
+        console.debug(`[AICoachScreen] Loaded ${formattedMessages.length} messages from history`);
+      } else {
+        // If no history exists, add default first message
+        console.debug('[AICoachScreen] No history found, setting default first message');
+        setMessages([{
+          id: '1',
+          content: CONVERSATION_CONFIG.defaultFirstMessage,
+          isUser: false
+        }]);
+      }
+    } catch (error) {
+      console.error('[AICoachScreen] Error loading conversation history:', error);
+      // If there's an error, fall back to the default message
+      setMessages([{
+        id: '1',
+        content: CONVERSATION_CONFIG.defaultFirstMessage,
+        isUser: false
+      }]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   // Load user tokens from the database
   const loadUserTokens = async () => {
@@ -206,6 +253,7 @@ const AICoachScreen = ({ navigation }) => {
     }
   };
 
+  // Handle sending a message to the AI Coach
   const handleSend = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
@@ -228,6 +276,18 @@ const AICoachScreen = ({ navigation }) => {
       // Haptic feedback - stronger for the tough coach
       await Haptics.impactAsync(HAPTIC_FEEDBACK.MEDIUM);
 
+      // Save user message to conversation history
+      try {
+        await conversationHistory.saveMessage({
+          content: userMessage.content,
+          isUser: true
+        });
+        console.debug('[AICoachScreen] User message saved to history');
+      } catch (error) {
+        console.error('[AICoachScreen] Error saving user message to history:', error);
+        // Continue anyway - the edge function will save it as a backup
+      }
+
       // Get AI response
       try {
         console.debug('[AICoachScreen] Sending message to coach API');
@@ -238,12 +298,29 @@ const AICoachScreen = ({ navigation }) => {
           const aiMessage = {
             id: (Date.now() + 1).toString(),
             content: response.data.response,
-            isUser: false
+            isUser: false,
+            tokenInfo: {
+              used: response.tokenInfo?.used || 0,
+              remaining: response.tokenInfo?.remaining || 0
+            }
           };
           
           setMessages(prev => [...prev, aiMessage]);
           await Haptics.notificationAsync(HAPTIC_FEEDBACK.SUCCESS);
           console.debug('[AICoachScreen] Successfully received and displayed coach response');
+
+          // Save AI message to conversation history
+          try {
+            await conversationHistory.saveMessage({
+              content: aiMessage.content,
+              isUser: false,
+              tokenUsage: aiMessage.tokenInfo.used
+            });
+            console.debug('[AICoachScreen] AI response saved to history');
+          } catch (error) {
+            console.error('[AICoachScreen] Error saving AI response to history:', error);
+            // Continue anyway - the edge function will save it as a backup
+          }
           
           // Update tokens and credits display with latest balance
           if (response.tokenInfo) {
@@ -252,6 +329,11 @@ const AICoachScreen = ({ navigation }) => {
             setShowCreditWarning(response.tokenInfo.lowBalanceWarning);
             
             console.debug('[AICoachScreen] Updated token info:', response.tokenInfo);
+            
+            // Show usage information in the console for debugging
+            if (response.tokenInfo.used > 0) {
+              console.debug(`[AICoachScreen] This interaction used ${response.tokenInfo.used} tokens (${(response.tokenInfo.used / 1000).toFixed(3)} credits)`);
+            }
             
             // Show warning if tokens are low
             if (response.tokenInfo.lowBalanceWarning && response.tokenInfo.remaining > 0) {
@@ -273,11 +355,6 @@ const AICoachScreen = ({ navigation }) => {
             // Refresh tokens just in case
             loadUserTokens();
           }
-          
-          // Show token usage info if available
-          if (response.tokenInfo?.used) {
-            console.debug(`[AICoachScreen] This interaction used ${response.tokenInfo.used} tokens`);
-          }
         } else {
           throw new Error('Invalid response from coach');
         }
@@ -293,6 +370,16 @@ const AICoachScreen = ({ navigation }) => {
           };
           
           setMessages(prev => [...prev, errorMessage]);
+          
+          // Save error message to conversation history
+          try {
+            await conversationHistory.saveMessage({
+              content: errorMessage.content,
+              isUser: false
+            });
+          } catch (historyError) {
+            console.error('[AICoachScreen] Error saving error message to history:', historyError);
+          }
           
           // Refresh tokens
           loadUserTokens();
@@ -317,6 +404,16 @@ const AICoachScreen = ({ navigation }) => {
           };
           
           setMessages(prev => [...prev, errorMessage]);
+          
+          // Save error message to conversation history
+          try {
+            await conversationHistory.saveMessage({
+              content: errorMessage.content,
+              isUser: false
+            });
+          } catch (historyError) {
+            console.error('[AICoachScreen] Error saving error message to history:', historyError);
+          }
         }
         
         await Haptics.notificationAsync(HAPTIC_FEEDBACK.ERROR);
@@ -327,6 +424,42 @@ const AICoachScreen = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add a function to clear conversation history
+  const handleClearHistory = () => {
+    Alert.alert(
+      'Clear Conversation History',
+      'Are you sure you want to clear your entire conversation history with the AI Coach? This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Clear History',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.debug('[AICoachScreen] Clearing conversation history');
+              await conversationHistory.clearConversationHistory();
+              
+              // Reset the messages state with just the default message
+              setMessages([{
+                id: '1',
+                content: CONVERSATION_CONFIG.defaultFirstMessage,
+                isUser: false
+              }]);
+              
+              console.debug('[AICoachScreen] Conversation history cleared');
+            } catch (error) {
+              console.error('[AICoachScreen] Error clearing conversation history:', error);
+              Alert.alert('Error', 'Failed to clear conversation history.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Check if user has enough tokens to chat
@@ -368,15 +501,33 @@ const AICoachScreen = ({ navigation }) => {
           style={styles.container}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => <Message {...item} />}
-            contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-            showsVerticalScrollIndicator={false}
-          />
+          {isLoadingHistory ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.accent} />
+              <Text style={styles.loadingText}>Loading conversation history...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.headerContainer}>
+                <TouchableOpacity 
+                  style={styles.clearButton} 
+                  onPress={handleClearHistory}
+                >
+                  <Text style={styles.clearButtonText}>Clear History</Text>
+                </TouchableOpacity>
+              </View>
+            
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => <Message {...item} />}
+                contentContainerStyle={styles.messageList}
+                onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+                showsVerticalScrollIndicator={false}
+              />
+            </>
+          )}
           
           <View style={styles.inputContainer}>
             <TextInput
@@ -410,12 +561,17 @@ const AICoachScreen = ({ navigation }) => {
               </Button>
             )}
             {tokens !== null && (
-              <Text style={styles.tokenInfoText}>
-                {hasEnoughTokens 
-                  ? `You have ${credits} credits (${tokens.toLocaleString()} tokens)`
-                  : `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to chat`
-                }
-              </Text>
+              <View style={styles.tokenInfoContainer}>
+                <Text style={styles.tokenInfoText}>
+                  {hasEnoughTokens 
+                    ? `You have ${credits} credits (${tokens.toLocaleString()} tokens)`
+                    : `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to chat`
+                  }
+                </Text>
+                <Text style={styles.tokenCostText}>
+                  {`Each interaction costs ~300-500 tokens (0.3-0.5 credits)`}
+                </Text>
+              </View>
             )}
           </View>
         </KeyboardAvoidingView>
@@ -508,11 +664,47 @@ const styles = StyleSheet.create({
   purchaseButton: {
     marginTop: SPACING.sm,
   },
+  tokenInfoContainer: {
+    marginTop: SPACING.xs,
+  },
   tokenInfoText: {
     textAlign: 'center',
     fontSize: 12,
     color: COLORS.textLight,
-    marginTop: SPACING.xs,
+  },
+  tokenCostText: {
+    textAlign: 'center',
+    fontSize: 10,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  tokenUsageText: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.accent,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: SPACING.sm,
+  },
+  clearButton: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+  },
+  clearButtonText: {
+    color: COLORS.accent,
+    fontSize: 14,
   },
 });
 
