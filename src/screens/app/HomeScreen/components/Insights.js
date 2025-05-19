@@ -98,7 +98,6 @@ const styles = StyleSheet.create({
   insightCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
-    marginTop: SPACING.lg,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },

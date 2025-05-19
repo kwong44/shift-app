@@ -4,6 +4,19 @@ import * as Haptics from 'expo-haptics';
 import { startBinauralSession, completeBinauralSession } from '../../../../api/exercises';
 import { useUser } from '../../../../hooks/useUser';
 
+// Audio placeholders for different binaural frequencies
+// Replace these commented imports with your actual audio files once you have them
+const BINAURAL_AUDIO = {
+  // Example of what to uncomment when you add actual files:
+  // focus: require('../../../../../assets/audio/binaural-15hz.mp3'),
+  // meditation: require('../../../../../assets/audio/binaural-6hz.mp3'),
+  // creativity: require('../../../../../assets/audio/binaural-8hz.mp3'),
+  // sleep: require('../../../../../assets/audio/binaural-4hz.mp3'),
+  
+  // This is a temporary placeholder - you'll need to create or download this file
+  placeholder: require('../../../../../assets/audio/silence.mp3'),
+};
+
 export const useBinauralAudio = (selectedFrequencyData) => {
   const { user } = useUser();
   const [sound, setSound] = useState(null);
@@ -20,7 +33,9 @@ export const useBinauralAudio = (selectedFrequencyData) => {
     timeElapsed,
     error,
     selectedFrequency: selectedFrequencyData?.frequency,
-    sessionId
+    sessionId,
+    waveformType: selectedFrequencyData?.waveform || 'sine',
+    audioCategoryKey: selectedFrequencyData?.name?.toLowerCase()
   });
 
   useEffect(() => {
@@ -60,12 +75,15 @@ export const useBinauralAudio = (selectedFrequencyData) => {
 
   const loadAndPlaySound = async () => {
     try {
-      console.debug('Loading binaural beat:', selectedFrequencyData.frequency);
+      console.debug('Loading binaural beat:', selectedFrequencyData.name);
+      
+      // Generate a mock audio URL based on the frequency settings for database requirements
+      const mockAudioUrl = `binaural_${selectedFrequencyData.frequency}hz_${selectedFrequencyData.waveform}.mp3`;
       
       // Start a new session in the database
       const session = await startBinauralSession(
         user.id,
-        null, // We'll implement audio storage later
+        mockAudioUrl,
         selectedFrequencyData.duration / 60, // Convert seconds to minutes
         selectedFrequencyData.name
       );
@@ -81,54 +99,31 @@ export const useBinauralAudio = (selectedFrequencyData) => {
         await sound.unloadAsync();
       }
       
-      // Create binaural beat using Web Audio API
-      const audioContext = new Audio.Context();
+      // Get the audio file for this frequency type
+      // When you add actual audio files, modify this line to use the frequency type
+      // const audioSource = BINAURAL_AUDIO[frequencyType.toLowerCase()];
       
-      // Create oscillators for left and right ear
-      const leftOsc = audioContext.createOscillator();
-      const rightOsc = audioContext.createOscillator();
+      // For now, use the placeholder
+      const audioSource = BINAURAL_AUDIO.placeholder;
       
-      // Set base frequency and calculate binaural beat frequency
-      const baseFreq = 440; // Base frequency in Hz
-      const beatFreq = selectedFrequencyData.frequency; // Binaural beat frequency
+      if (!audioSource) {
+        console.error('No audio file found for:', selectedFrequencyData.name);
+        throw new Error('Audio file not found');
+      }
       
-      leftOsc.frequency.value = baseFreq;
-      rightOsc.frequency.value = baseFreq + beatFreq;
+      console.debug('Playing audio file for:', selectedFrequencyData.name);
       
-      // Create gain nodes for volume control
-      const leftGain = audioContext.createGain();
-      const rightGain = audioContext.createGain();
-      
-      leftGain.gain.value = 0.5;
-      rightGain.gain.value = 0.5;
-      
-      // Create stereo panner for channel separation
-      const leftPanner = audioContext.createStereoPanner();
-      const rightPanner = audioContext.createStereoPanner();
-      
-      leftPanner.pan.value = -1; // Full left
-      rightPanner.pan.value = 1;  // Full right
-      
-      // Connect the audio graph
-      leftOsc.connect(leftGain).connect(leftPanner).connect(audioContext.destination);
-      rightOsc.connect(rightGain).connect(rightPanner).connect(audioContext.destination);
-      
-      // Start the oscillators
-      leftOsc.start();
-      rightOsc.start();
-      
-      // Create a cleanup object
-      const newSound = {
-        unloadAsync: () => {
-          leftOsc.stop();
-          rightOsc.stop();
-          audioContext.close();
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        audioSource,
+        { 
+          shouldPlay: true, 
+          isLooping: true,
+          volume: 1.0,
+          progressUpdateIntervalMillis: 1000,
         }
-      };
+      );
       
       setSound(newSound);
-      console.debug('Binaural beat loaded successfully');
-      
       setIsPlaying(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
@@ -144,15 +139,19 @@ export const useBinauralAudio = (selectedFrequencyData) => {
     if (isPlaying) {
       setIsPlaying(false);
       if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
+        await sound.pauseAsync();
       }
     } else {
-      if (progress > 0) {
-        loadAndPlaySound();
+      if (sound) {
+        await sound.playAsync();
+        setIsPlaying(true);
       } else {
-        setTimeElapsed(0);
-        loadAndPlaySound();
+        if (progress > 0) {
+          loadAndPlaySound();
+        } else {
+          setTimeElapsed(0);
+          loadAndPlaySound();
+        }
       }
     }
   };

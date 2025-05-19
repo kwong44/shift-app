@@ -38,3 +38,6 @@ yarn-error.*
 # cursor
 .cursorrules
 .cursor
+
+# Instructions
+instructions/

@@ -39,7 +39,9 @@ const PlayerScreen = ({ navigation, route }) => {
     isPlaying,
     progress,
     timeElapsed,
-    error
+    error,
+    waveform: frequencyData.waveform,
+    frequencyCategory: frequencyData.category
   });
 
   useEffect(() => {
@@ -78,6 +80,8 @@ const PlayerScreen = ({ navigation, route }) => {
               timeElapsed={timeElapsed}
               onPlayPause={handlePlayPause}
               onStop={handleStop}
+              waveform={frequencyData.waveform}
+              frequencyCategory={frequencyData.category}
             />
           </View>
 
