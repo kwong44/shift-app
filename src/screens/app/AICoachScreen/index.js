@@ -51,9 +51,6 @@ const Message = ({ content, isUser, tokenInfo }) => (
 
 const CreditDisplay = ({ credits, onTopUp }) => (
   <View style={styles.creditContainer}>
-    <View style={styles.creditBadge}>
-      <Text style={styles.creditText}>Credits: {credits}</Text>
-    </View>
     <TouchableOpacity onPress={onTopUp} style={styles.topUpButton}>
       <Text style={styles.topUpText}>Top Up</Text>
     </TouchableOpacity>
