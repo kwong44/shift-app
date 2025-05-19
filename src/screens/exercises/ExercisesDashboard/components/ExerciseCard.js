@@ -9,31 +9,31 @@ import { COLORS, SPACING, RADIUS, FONT, SHADOWS } from '../../../../config/theme
 // Debug logging
 console.debug('ExerciseCard mounted');
 
-// Custom icon mappings with enhanced visuals
+// Custom icon mappings with enhanced visuals and matching gradients
 const ENHANCED_ICONS = {
   'headphones': {
     icon: 'headphones-bluetooth',
-    gradient: ['#7D8CC4', '#5D6CAF']
+    gradient: [COLORS.indigoGradient.start, COLORS.indigoGradient.end]
   },
   'eye': {
     icon: 'eye-plus-outline',
-    gradient: ['#6A8EAE', '#4A6E8E']
+    gradient: [COLORS.coralGradient.start, COLORS.coralGradient.end]
   },
   'checkbox-marked-outline': {
     icon: 'format-list-checks',
-    gradient: ['#5C5C8E', '#3C3C6E']
+    gradient: [COLORS.purpleGradient.start, COLORS.purpleGradient.end]
   },
   'timer-outline': {
     icon: 'timer-sand',
-    gradient: ['#9067C6', '#7047A6']
+    gradient: [COLORS.blueGradient.start, COLORS.blueGradient.end]
   },
   'meditation': {
     icon: 'head-heart-outline',
-    gradient: ['#4C63B6', '#2C4396']
+    gradient: [COLORS.tealGradient.start, COLORS.tealGradient.end]
   },
   'book-outline': {
     icon: 'notebook-outline',
-    gradient: ['#5C96AE', '#3C768E']
+    gradient: [COLORS.pinkGradient.start, COLORS.pinkGradient.end]
   }
 };
 
@@ -44,7 +44,7 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
   // Get enhanced icon data
   const enhancedIcon = ENHANCED_ICONS[exercise.icon] || { 
     icon: exercise.icon, 
-    gradient: [`${exercise.color}`, `${exercise.color}90`] 
+    gradient: [COLORS.purpleGradient.start, COLORS.purpleGradient.end] 
   };
 
   const handlePressIn = () => {
@@ -86,7 +86,7 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
         accessibilityHint={`Takes ${exercise.duration} to complete`}
         style={styles.touchable}
       >
-        <View style={[styles.card, { borderColor: `${exercise.color}30` }]}>
+        <View style={[styles.card, { borderColor: `${enhancedIcon.gradient[0]}30` }]}>
           <LinearGradient
             colors={enhancedIcon.gradient}
             style={styles.iconContainer}

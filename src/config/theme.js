@@ -55,6 +55,10 @@ export const COLORS = {
     start: '#6C63FF',
     end: '#5F52EE',
   },
+  indigoGradient: {
+    start: '#7D8CC4',
+    end: '#5D6CAF',
+  },
   
   // Navigation & Interactive elements
   navigationActive: '#5F52EE',    // Active nav item (purple)
@@ -252,4 +256,5 @@ export const GRADIENTS = {
   teal: createGradient([COLORS.tealGradient.start, COLORS.tealGradient.end]),
   coral: createGradient([COLORS.coralGradient.start, COLORS.coralGradient.end]),
   purple: createGradient([COLORS.purpleGradient.start, COLORS.purpleGradient.end]),
+  indigo: createGradient([COLORS.indigoGradient.start, COLORS.indigoGradient.end]),
 }; 
