@@ -1,13 +1,22 @@
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { OpenAI } from 'https://esm.sh/openai@4.20.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 console.log('Initializing coach-conversation function');
 
-// Get API key from environment
+// Get environment variables
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+// Verify environment variables
 if (!openaiApiKey) {
   console.error('Missing OPENAI_API_KEY environment variable');
+}
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing Supabase environment variables');
 }
 
 // Initialize OpenAI client
@@ -15,8 +24,112 @@ const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
 
+// Initialize Supabase admin client (with service role for direct DB access)
+const supabaseAdmin = createClient(
+  supabaseUrl || '',
+  supabaseServiceKey || ''
+);
+
 // Store conversation histories by user ID
 const conversationHistories = new Map();
+
+// Token usage settings
+const MIN_TOKENS_REQUIRED = 1000; // Require at least 1000 tokens (1 credit) to use the service
+
+/**
+ * Check if a user has enough tokens
+ * @param userId - The user ID to check
+ * @param requiredTokens - The minimum number of tokens required
+ * @returns A result object with success flag and token balance
+ */
+async function checkUserTokens(userId: string, requiredTokens: number = MIN_TOKENS_REQUIRED) {
+  console.log(`Checking token balance for user ${userId}`);
+  
+  try {
+    // Query the user's token balance
+    const { data, error } = await supabaseAdmin
+      .from('user_credits')
+      .select('tokens')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking user tokens:', error);
+      return { 
+        success: false, 
+        error: 'Could not verify token balance',
+        tokens: 0
+      };
+    }
+    
+    // If no record exists, we'll initialize one when deducting tokens
+    if (!data) {
+      console.log(`No token record found for user ${userId}, will initialize with default`);
+      // Return success but with 0 tokens - the first operation will initialize
+      return { 
+        success: true, 
+        tokens: 0,
+        hasEnough: false
+      };
+    }
+    
+    const hasEnough = data.tokens >= requiredTokens;
+    console.log(`User ${userId} has ${data.tokens} tokens, requires ${requiredTokens}, hasEnough: ${hasEnough}`);
+    
+    return {
+      success: true,
+      tokens: data.tokens,
+      hasEnough
+    };
+  } catch (error) {
+    console.error('Error in checkUserTokens:', error);
+    return { 
+      success: false, 
+      error: String(error),
+      tokens: 0
+    };
+  }
+}
+
+/**
+ * Update a user's token balance
+ * @param userId - The user ID to update
+ * @param amount - The amount to adjust (negative to deduct)
+ * @returns The new token balance or error
+ */
+async function updateUserTokens(userId: string, amount: number) {
+  console.log(`Updating tokens for user ${userId} by ${amount}`);
+  
+  try {
+    // Use the server-side function to update tokens safely
+    const { data, error } = await supabaseAdmin.rpc(
+      'add_user_tokens',
+      { p_user_id: userId, p_amount: amount }
+    );
+    
+    if (error) {
+      console.error('Error updating user tokens:', error);
+      return { 
+        success: false, 
+        error: 'Failed to update token balance',
+        tokens: 0
+      };
+    }
+    
+    console.log(`Updated token balance for user ${userId} to ${data}`);
+    return { 
+      success: true, 
+      tokens: data
+    };
+  } catch (error) {
+    console.error('Error in updateUserTokens:', error);
+    return { 
+      success: false, 
+      error: String(error),
+      tokens: 0
+    };
+  }
+}
 
 serve(async (req) => {
   try {
@@ -31,12 +144,6 @@ serve(async (req) => {
       goalsCount: userGoals?.length || 0
     });
 
-    // Get or initialize conversation history for this user
-    if (!conversationHistories.has(userId)) {
-      conversationHistories.set(userId, []);
-    }
-    const conversationHistory = conversationHistories.get(userId);
-
     // Validate request
     if (!message?.trim()) {
       return new Response(
@@ -44,6 +151,45 @@ serve(async (req) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User ID is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Check if the user has enough tokens before making the API call
+    const tokenCheck = await checkUserTokens(userId);
+    if (!tokenCheck.success) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Could not verify token balance',
+          errorDetail: tokenCheck.error
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // If not enough tokens, return early
+    if (tokenCheck.hasEnough === false) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Insufficient tokens',
+          tokens: tokenCheck.tokens,
+          required: MIN_TOKENS_REQUIRED
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get or initialize conversation history for this user
+    if (!conversationHistories.has(userId)) {
+      conversationHistories.set(userId, []);
+    }
+    const conversationHistory = conversationHistories.get(userId);
 
     // Format user goals for the system prompt
     let formattedGoals = '\n\nThe user has not set any specific goals yet.';
@@ -97,17 +243,30 @@ If they haven't shared their goals yet, ask them about their goals and then begi
     // Get the response
     const response = completion.choices[0].message.content;
     
+    // Get token usage 
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    
     // Update conversation history
     conversationHistory.push(
       { role: 'user', content: message },
       { role: 'assistant', content: response }
     );
 
-    // Debug log
+    // Log token usage
     console.log('Coach response generated:', { 
       responseLength: response.length,
-      tokensUsed: completion.usage?.total_tokens 
+      tokensUsed,
+      userId 
     });
+    
+    // Deduct tokens used from the user's balance
+    // Note: if this fails, the user still gets the response this time
+    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed);
+    
+    if (!tokenUpdateResult.success) {
+      console.error('Failed to update token balance after usage:', tokenUpdateResult.error);
+      // Continue anyway and return the response, but include the error
+    }
 
     return new Response(
       JSON.stringify({
@@ -115,9 +274,14 @@ If they haven't shared their goals yet, ask them about their goals and then begi
         data: {
           response,
           metadata: {
-            tokensUsed: completion.usage?.total_tokens,
+            tokensUsed,
             model: 'gpt-3.5-turbo'
           }
+        },
+        tokens: {
+          used: tokensUsed,
+          remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
+          error: tokenUpdateResult.success ? null : tokenUpdateResult.error
         }
       }),
       { headers: { 'Content-Type': 'application/json' } }

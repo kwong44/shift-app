@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'; // Your Supabase client initialization
 import { getWeeklyGoals } from './exercises/goals'; // Import the goals API
+import { getUserTokens, updateUserTokens, TOKENS_CONFIG } from './credits'; // Import tokens API
 
 // Debug logging
 console.debug('[aiCoach] Initializing AI Coach API layer');
@@ -22,6 +23,12 @@ export const AI_COACH_CONFIG = {
     maxDailyInteractions: 10,
     maxTokensPerResponse: 150,
     minTimeBetweenRequests: 60000, // 1 minute in milliseconds
+  },
+  
+  // Token system configuration
+  tokens: {
+    minTokensRequired: TOKENS_CONFIG.minTokensRequired,
+    lowBalanceWarningThreshold: TOKENS_CONFIG.lowBalanceThreshold
   }
 };
 
@@ -48,6 +55,36 @@ const canMakeRequest = () => {
  */
 const updateLastCallTime = () => {
   lastApiCallTime = Date.now();
+};
+
+/**
+ * Checks if a user has enough tokens for an interaction
+ * @returns {Promise<{hasEnough: boolean, tokens: number, credits: number}>} Token status
+ */
+export const checkUserTokens = async () => {
+  console.debug('[aiCoach] Checking if user has enough tokens');
+  
+  try {
+    const { tokens, credits } = await getUserTokens();
+    const hasEnough = tokens >= AI_COACH_CONFIG.tokens.minTokensRequired;
+    
+    console.debug('[aiCoach] Token check result:', { 
+      hasEnough, 
+      tokens, 
+      credits,
+      required: AI_COACH_CONFIG.tokens.minTokensRequired 
+    });
+    
+    return {
+      hasEnough,
+      tokens,
+      credits,
+      isLow: tokens <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold && tokens > 0
+    };
+  } catch (error) {
+    console.error('[aiCoach] Error checking user tokens:', error);
+    throw error;
+  }
 };
 
 /**
@@ -107,17 +144,48 @@ export const analyzeText = async (text, context = {}) => {
     if (!text?.trim()) {
       throw new Error('Text for analysis is required');
     }
+    
+    // Get the authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    
+    // Check if user has enough tokens
+    const { hasEnough, tokens, credits, isLow } = await checkUserTokens();
+    if (!hasEnough) {
+      throw new Error(`Insufficient tokens to use AI Coach. You need at least ${AI_COACH_CONFIG.tokens.minTokensRequired} tokens.`);
+    }
 
     const { data, error } = await supabase.functions.invoke('analyze-text', {
       body: { 
         text,
         context,
-        maxTokens: AI_COACH_CONFIG.limits.maxTokensPerResponse
+        maxTokens: AI_COACH_CONFIG.limits.maxTokensPerResponse,
+        userId: user.id // Add user ID to the request so the edge function can track token usage
       },
     });
 
     if (error) throw error;
-
+    
+    // Add token information to response
+    // The edge function will report the exact token usage and new balance
+    if (data.tokens) {
+      data.tokenInfo = {
+        used: data.tokens.used,
+        remaining: data.tokens.remaining,
+        credits: Math.floor(data.tokens.remaining / TOKENS_CONFIG.tokensPerCredit),
+        lowBalanceWarning: data.tokens.remaining <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
+      };
+    } else {
+      // Fallback if the edge function doesn't return token usage
+      const { tokens: updatedTokens, credits: updatedCredits } = await getUserTokens();
+      data.tokenInfo = {
+        used: 0, // unknown
+        remaining: updatedTokens,
+        credits: updatedCredits,
+        lowBalanceWarning: updatedTokens <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
+      };
+    }
+    
     updateLastCallTime();
     return data;
   } catch (error) {
@@ -146,6 +214,12 @@ export const chatWithCoach = async (message, context = {}) => {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
+    
+    // Check if user has enough tokens
+    const { hasEnough, tokens, credits, isLow } = await checkUserTokens();
+    if (!hasEnough) {
+      throw new Error(`Insufficient tokens to use AI Coach. You need at least ${AI_COACH_CONFIG.tokens.minTokensRequired} tokens.`);
+    }
 
     // Fetch the user's weekly goals to provide context
     console.debug('[aiCoachAPI] Fetching user goals for context');
@@ -192,11 +266,37 @@ export const chatWithCoach = async (message, context = {}) => {
       if (!data) {
         throw new Error('No response data received from coach');
       }
-
+      
+      // Process token usage data
+      let tokenInfo = null;
+      if (data.tokens) {
+        console.debug('[aiCoachAPI] Token usage info received:', data.tokens);
+        
+        tokenInfo = {
+          used: data.tokens.used,
+          remaining: data.tokens.remaining,
+          credits: Math.floor(data.tokens.remaining / TOKENS_CONFIG.tokensPerCredit),
+          lowBalanceWarning: data.tokens.remaining <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
+        };
+      } else {
+        // Fallback if the edge function doesn't return token usage
+        const { tokens: updatedTokens, credits: updatedCredits } = await getUserTokens();
+        tokenInfo = {
+          used: 0, // unknown
+          remaining: updatedTokens,
+          credits: updatedCredits,
+          lowBalanceWarning: updatedTokens <= AI_COACH_CONFIG.tokens.lowBalanceWarningThreshold
+        };
+      }
+      
       console.debug('[aiCoachAPI] Coach response received:', {
         responseLength: data.data?.response?.length,
-        metadata: data.data?.metadata
+        metadata: data.data?.metadata,
+        tokenInfo
       });
+
+      // Add token information to response
+      data.tokenInfo = tokenInfo;
 
       updateLastCallTime();
       return data;
@@ -219,6 +319,7 @@ export default {
   testConnection: testAiConnection,
   analyzeText: analyzeText,
   chatWithCoach: chatWithCoach,
+  checkUserTokens,
 };
 
 /*
@@ -229,4 +330,5 @@ Debug Comments:
 - Includes detailed console logs for request initiation, parameters, success, and errors.
 - Enhanced error handling: checks for invalid input before calling the function and provides structured error responses.
 - Ensures the payload structure matches the Edge Function's expectations.
+- Added token system functions to track, check, and update user tokens.
 */ 

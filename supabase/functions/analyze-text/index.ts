@@ -1,33 +1,98 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { OpenAI } from 'https://esm.sh/openai@4.20.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 console.log('Initializing analyze-text function');
 
+// Get environment variables
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+// Verify environment variables
 if (!openaiApiKey) {
   console.error('Missing OPENAI_API_KEY environment variable');
 }
 
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing Supabase environment variables');
+}
+
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
 
+// Initialize Supabase admin client (with service role for direct DB access)
+const supabaseAdmin = createClient(
+  supabaseUrl || '',
+  supabaseServiceKey || ''
+);
+
+/**
+ * Update a user's token balance
+ * @param userId - The user ID to update
+ * @param amount - The amount to adjust (negative to deduct)
+ * @returns The new token balance or error
+ */
+async function updateUserTokens(userId: string, amount: number) {
+  console.log(`Updating tokens for user ${userId} by ${amount}`);
+  
+  try {
+    // Use the server-side function to update tokens safely
+    const { data, error } = await supabaseAdmin.rpc(
+      'add_user_tokens',
+      { p_user_id: userId, p_amount: amount }
+    );
+    
+    if (error) {
+      console.error('Error updating user tokens:', error);
+      return { 
+        success: false, 
+        error: 'Failed to update token balance',
+        tokens: 0
+      };
+    }
+    
+    console.log(`Updated token balance for user ${userId} to ${data}`);
+    return { 
+      success: true, 
+      tokens: data
+    };
+  } catch (error) {
+    console.error('Error in updateUserTokens:', error);
+    return { 
+      success: false, 
+      error: String(error),
+      tokens: 0
+    };
+  }
+}
+
 serve(async (req) => {
   try {
     // 1. Parse the request body
-    const { text, context, maxTokens = 150 } = await req.json();
+    const { text, context, maxTokens = 150, userId } = await req.json();
     
     // Debug log the request (excluding sensitive data)
     console.log('Analyzing text:', { 
       textLength: text?.length,
       contextKeys: context ? Object.keys(context) : [],
-      maxTokens 
+      maxTokens,
+      userId
     });
 
     // 2. Validate the request
     if (!text?.trim()) {
       return new Response(
         JSON.stringify({ error: 'Text is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User ID is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -53,12 +118,21 @@ serve(async (req) => {
 
     // 5. Process and return the response
     const analysis = completion.choices[0].message.content;
+    const tokensUsed = completion.usage?.total_tokens || 0;
     
     // Debug log the response length
     console.log('Analysis complete:', { 
       analysisLength: analysis.length,
-      tokensUsed: completion.usage?.total_tokens 
+      tokensUsed 
     });
+
+    // 6. Deduct tokens used from the user's balance
+    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed);
+    
+    if (!tokenUpdateResult.success) {
+      console.error('Failed to update token balance after usage:', tokenUpdateResult.error);
+      // Continue anyway and return the response, but include the error
+    }
 
     return new Response(
       JSON.stringify({
@@ -66,9 +140,14 @@ serve(async (req) => {
         data: {
           analysis,
           metadata: {
-            tokensUsed: completion.usage?.total_tokens,
+            tokensUsed,
             model: 'gpt-3.5-turbo'
           }
+        },
+        tokens: {
+          used: tokensUsed,
+          remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
+          error: tokenUpdateResult.success ? null : tokenUpdateResult.error
         }
       }),
       { headers: { 'Content-Type': 'application/json' } }
