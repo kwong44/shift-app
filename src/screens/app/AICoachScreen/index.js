@@ -72,8 +72,10 @@ const AICoachScreen = ({ navigation }) => {
   // Refs
   const flatListRef = useRef(null);
 
-  // Debug logging for state changes
-  console.debug('[AICoachScreen] Messages count:', messages.length);
+  // Debug logging for messages changes
+  useEffect(() => {
+    console.debug('[AICoachScreen] Messages count:', messages.length);
+  }, [messages]);
 
   // Set navigation options when screen is focused
   useEffect(() => {

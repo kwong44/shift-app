@@ -56,8 +56,16 @@ export const getUserTokens = async () => {
       .maybeSingle(); // Use maybeSingle instead of single to handle the "no record" case
     
     // Handle non-critical errors that aren't just "no record found"
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       console.error('[tokens] Error fetching token balance:', error);
+      
+      // Check if the error is "The result contains 0 rows" which just means the user
+      // doesn't have a record yet - we'll initialize them with free tokens below
+      if (error.code === 'PGRST116' || error.message?.includes('contains 0 rows')) {
+        console.debug('[tokens] No token record found (error code), initializing user');
+        return initializeUserTokens(user.id);
+      }
+      
       throw error;
     }
     
@@ -76,7 +84,14 @@ export const getUserTokens = async () => {
     };
   } catch (error) {
     console.error('[tokens] Error getting user tokens:', error);
-    throw error;
+    
+    // In case of an error, rather than crashing, return default values
+    // so the app can still function with a temporary token allocation
+    console.debug('[tokens] Returning default tokens due to error');
+    return {
+      tokens: TOKENS_CONFIG.initialFreeTokens,
+      credits: tokensToCredits(TOKENS_CONFIG.initialFreeTokens)
+    };
   }
 };
 
