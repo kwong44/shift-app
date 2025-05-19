@@ -18,6 +18,9 @@ export const SessionDurationSelector = ({
     onSelectDuration(duration);
   };
 
+  // Use the blue gradient color for deep work
+  const deepWorkColor = COLORS.blueGradient.start;
+
   return (
     <View style={styles.container}>
       <View style={styles.optionsContainer}>
@@ -33,10 +36,6 @@ export const SessionDurationSelector = ({
               onPress={() => handleSelect(duration.value)}
             >
               <Card.Content style={styles.cardContent}>
-                <View style={[styles.iconContainer, { backgroundColor: `${duration.color}15` }]}>
-                  <MaterialCommunityIcons name={duration.icon} size={28} color={duration.color} />
-                </View>
-                
                 <View style={styles.optionContent}>
                   <Text style={styles.optionTitle}>{duration.label}</Text>
                   <Text style={styles.optionDescription}>{duration.description}</Text>
@@ -46,7 +45,7 @@ export const SessionDurationSelector = ({
                   <MaterialCommunityIcons 
                     name="check-circle" 
                     size={22} 
-                    color={duration.color} 
+                    color={deepWorkColor} 
                     style={styles.checkIcon}
                   />
                 )}
@@ -72,22 +71,14 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   selectedCard: {
-    backgroundColor: COLORS.primary + '08',
+    backgroundColor: `${COLORS.blueGradient.start}08`,
     borderWidth: 1,
-    borderColor: COLORS.primary + '30',
+    borderColor: `${COLORS.blueGradient.start}30`,
   },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.sm,
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
   },
   optionContent: {
     flex: 1,

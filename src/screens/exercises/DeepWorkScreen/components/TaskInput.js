@@ -24,8 +24,8 @@ export const TaskInput = ({
           style={[styles.input, { height: Math.max(120, textInputHeight) }]}
           onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
           autoCapitalize="sentences"
-          outlineColor={COLORS.primary + '30'}
-          activeOutlineColor={COLORS.primary}
+          outlineColor={`${COLORS.blueGradient.start}30`}
+          activeOutlineColor={COLORS.blueGradient.start}
           placeholderTextColor={COLORS.textLight + '80'}
           textColor={COLORS.text}
           theme={{

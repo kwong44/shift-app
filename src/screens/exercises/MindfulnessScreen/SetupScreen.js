@@ -127,7 +127,7 @@ const SetupScreen = ({ navigation }) => {
             label="Begin Practice"
             onPress={handleStart}
             icon="meditation"
-            backgroundColor={selectedType.color}
+            backgroundColor={COLORS.tealGradient.start}
           />
         </SetupScreenButtonContainer>
 

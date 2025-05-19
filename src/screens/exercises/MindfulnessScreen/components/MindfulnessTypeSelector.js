@@ -18,6 +18,9 @@ export const MindfulnessTypeSelector = ({
     onSelectType(typeValue);
   };
 
+  // Use the teal gradient color for mindfulness
+  const mindfulnessColor = COLORS.tealGradient.start;
+
   return (
     <View style={styles.container}>
       <View style={styles.optionsContainer}>
@@ -33,10 +36,6 @@ export const MindfulnessTypeSelector = ({
               onPress={() => handleSelect(type.value)}
             >
               <Card.Content style={styles.cardContent}>
-                <View style={[styles.iconContainer, { backgroundColor: `${type.color}15` }]}>
-                  <MaterialCommunityIcons name={type.icon} size={28} color={type.color} />
-                </View>
-                
                 <View style={styles.optionContent}>
                   <Text style={styles.optionTitle}>{type.label}</Text>
                   <Text style={styles.optionDescription}>{type.description}</Text>
@@ -46,7 +45,7 @@ export const MindfulnessTypeSelector = ({
                   <MaterialCommunityIcons 
                     name="check-circle" 
                     size={22} 
-                    color={type.color} 
+                    color={mindfulnessColor} 
                     style={styles.checkIcon}
                   />
                 )}
@@ -72,22 +71,14 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   selectedCard: {
-    backgroundColor: COLORS.primary + '08',
+    backgroundColor: `${COLORS.tealGradient.start}08`,
     borderWidth: 1,
-    borderColor: COLORS.primary + '30',
+    borderColor: `${COLORS.tealGradient.start}30`,
   },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.sm,
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
   },
   optionContent: {
     flex: 1,

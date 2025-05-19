@@ -118,7 +118,7 @@ const SetupScreen = ({ navigation }) => {
             label="Start Deep Work Session"
             onPress={handleStart}
             icon="clock-start"
-            backgroundColor={selectedDurationData.color}
+            backgroundColor={COLORS.blueGradient.start}
           />
         </SetupScreenButtonContainer>
 
