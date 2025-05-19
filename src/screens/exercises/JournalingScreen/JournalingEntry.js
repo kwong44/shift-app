@@ -8,8 +8,7 @@ import {
   Portal,
   Dialog,
   Snackbar,
-  IconButton,
-  FAB
+  IconButton
 } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +23,10 @@ import { useUser } from '../../../hooks/useUser';
 import CustomDialog from '../../../components/common/CustomDialog';
 
 const { height } = Dimensions.get('window');
+
+// Light gray color for journaling
+const JOURNAL_GRAY = '#7A7A7A';
+const JOURNAL_BACKGROUND = '#F0F0F0';
 
 const JournalingEntry = ({ route, navigation }) => {
   const { promptType, selectedEmotions } = route.params;
@@ -154,141 +157,97 @@ const JournalingEntry = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={selectedPromptType.gradient[0]} />
-      <LinearGradient
-        colors={selectedPromptType.gradient}
-        style={styles.screenGradient}
+      <StatusBar barStyle="dark-content" backgroundColor={JOURNAL_BACKGROUND} />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoidingView}
-        >
-          <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-              <Appbar.BackAction 
-                onPress={async () => {
-                  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (entry.trim()) {
-                    setError('Do you want to discard your journal entry?');
-                    setSnackbarVisible(true);
-                  } else {
-                    navigation.goBack();
-                  }
-                }} 
-                color={COLORS.background} 
-              />
-              <Appbar.Content 
-                title="Journaling" 
-                titleStyle={styles.appbarTitle}
-                subtitle={selectedPromptType.label}
-                subtitleStyle={styles.appbarSubtitle}
-              />
-              <IconButton
-                icon="information"
-                iconColor={COLORS.background}
-                size={24}
-                onPress={() => {
-                  // TODO: Show info modal about journaling
-                }}
-              />
-            </Appbar.Header>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+            <Appbar.BackAction 
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (entry.trim()) {
+                  setError('Do you want to discard your journal entry?');
+                  setSnackbarVisible(true);
+                } else {
+                  navigation.goBack();
+                }
+              }} 
+              color={COLORS.text} 
+            />
+            <Appbar.Content 
+              title="Journal Entry" 
+              titleStyle={styles.appbarTitle}
+            />
+            <Button 
+              mode="text"
+              loading={loading}
+              disabled={!entry.trim() || loading}
+              onPress={handleSaveEntry}
+              labelStyle={styles.saveButtonLabel}
+              style={styles.saveButton}
+            >
+              Save
+            </Button>
+          </Appbar.Header>
 
-            <View style={styles.content}>
-              <JournalEntryCard
-                prompt={JOURNAL_PROMPTS[promptType][currentPrompt]}
-                entry={entry}
-                onChangeText={setEntry}
-                textInputHeight={textInputHeight}
-                onContentSizeChange={e => {
-                  const minHeight = height * 0.4;
-                  const maxHeight = height * 0.6;
-                  const newHeight = Math.max(minHeight, Math.min(e.nativeEvent.contentSize.height, maxHeight));
-                  setTextInputHeight(newHeight);
-                }}
-                loading={loading}
-                isAnalyzing={isAnalyzing}
-              />
-            </View>
+          <JournalEntryCard
+            promptData={selectedPromptType}
+            currentPrompt={currentPrompt}
+            promptText={JOURNAL_PROMPTS[promptType][currentPrompt]}
+            entry={entry}
+            setEntry={setEntry}
+            textInputHeight={textInputHeight}
+            setTextInputHeight={setTextInputHeight}
+            onNextPrompt={handleNextPrompt}
+            onPreviousPrompt={handlePreviousPrompt}
+            promptsLength={JOURNAL_PROMPTS[promptType].length}
+          />
+        </SafeAreaView>
+      </KeyboardAvoidingView>
 
-            <View style={styles.footer}>
-              <View style={styles.promptNavigation}>
-                <IconButton
-                  icon="chevron-left"
-                  iconColor={currentPrompt > 0 ? COLORS.background : 'rgba(255,255,255,0.3)'}
-                  size={28}
-                  onPress={handlePreviousPrompt}
-                  disabled={currentPrompt === 0}
-                />
-                <Text style={styles.promptCounter}>
-                  {currentPrompt + 1} / {JOURNAL_PROMPTS[promptType].length}
-                </Text>
-                <IconButton
-                  icon="chevron-right"
-                  iconColor={currentPrompt < JOURNAL_PROMPTS[promptType].length - 1 ? COLORS.background : 'rgba(255,255,255,0.3)'}
-                  size={28}
-                  onPress={handleNextPrompt}
-                  disabled={currentPrompt === JOURNAL_PROMPTS[promptType].length - 1}
-                />
-              </View>
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-
-        <FAB
-          icon="check"
-          label="Save Entry"
-          style={[
-            styles.fab,
-            { backgroundColor: entry.trim() ? COLORS.background : 'rgba(255,255,255,0.5)' }
-          ]}
-          color={selectedPromptType.gradient[0]}
-          onPress={handleSaveEntry}
-          disabled={!entry.trim() || loading}
-          loading={loading}
-        />
-
-        <CustomDialog
-          visible={showDialog}
-          onDismiss={handleFinish}
-          title="Entry Saved!"
-          content={
-            <View style={styles.dialogContent}>
-              <Text style={styles.dialogText}>
-                Great job! Your journal entry has been saved and analyzed. 
-                Regular journaling helps improve self-awareness and emotional intelligence.
+      <CustomDialog
+        visible={showDialog}
+        onDismiss={handleFinish}
+        title="Entry Saved!"
+        content={
+          <View style={styles.dialogContent}>
+            <Text style={styles.dialogText}>
+              Great job! Your journal entry has been saved and analyzed. 
+              Regular journaling helps improve self-awareness and emotional intelligence.
+            </Text>
+            {insights && (
+              <Text style={styles.insightsText}>
+                {insights}
               </Text>
-              {insights && (
-                <Text style={styles.insightsText}>
-                  {insights}
-                </Text>
-              )}
-            </View>
-          }
-          icon="check-circle-outline"
-          confirmText="Done"
-          onConfirm={handleFinish}
-          iconColor={COLORS.primary}
-          iconBackgroundColor={`${COLORS.primary}15`}
-        />
+            )}
+          </View>
+        }
+        icon="check-circle-outline"
+        confirmText="Done"
+        onConfirm={handleFinish}
+        iconColor={COLORS.primary}
+        iconBackgroundColor={`${COLORS.primary}15`}
+      />
 
-        <Snackbar
-          visible={snackbarVisible}
-          onDismiss={() => setSnackbarVisible(false)}
-          duration={3000}
-          style={styles.snackbar}
-          action={{
-            label: error?.includes('discard') ? 'Yes' : 'OK',
-            onPress: () => {
-              setSnackbarVisible(false);
-              if (error?.includes('discard')) {
-                navigation.goBack();
-              }
-            },
-          }}
-        >
-          {error}
-        </Snackbar>
-      </LinearGradient>
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={styles.snackbar}
+        action={{
+          label: error?.includes('discard') ? 'Yes' : 'OK',
+          onPress: () => {
+            setSnackbarVisible(false);
+            if (error?.includes('discard')) {
+              navigation.goBack();
+            }
+          },
+        }}
+      >
+        {error}
+      </Snackbar>
     </View>
   );
 };
@@ -296,10 +255,7 @@ const JournalingEntry = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  screenGradient: {
-    flex: 1,
+    backgroundColor: JOURNAL_BACKGROUND,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -308,62 +264,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   appbar: {
-    backgroundColor: 'transparent',
+    backgroundColor: JOURNAL_BACKGROUND,
     elevation: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   appbarTitle: {
-    color: COLORS.background,
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-  },
-  appbarSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: FONT.size.sm,
-  },
-  content: {
-    flex: 1,
-    padding: SPACING.lg,
-  },
-  footer: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.lg,
-  },
-  promptNavigation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: RADIUS.full,
-    alignSelf: 'center',
-  },
-  promptCounter: {
-    color: COLORS.background,
-    fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
-    marginHorizontal: SPACING.sm,
-  },
-  fab: {
-    position: 'absolute',
-    margin: SPACING.lg,
-    right: 0,
-    bottom: 0,
-  },
-  dialogGradient: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-  },
-  dialogTitle: {
-    textAlign: 'center',
     color: COLORS.text,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
+  saveButton: {
+    marginRight: SPACING.xs,
+  },
+  saveButtonLabel: {
+    color: COLORS.primary,
+    fontWeight: FONT.weight.semiBold,
+  },
   dialogContent: {
     alignItems: 'center',
     gap: SPACING.md,
-  },
-  dialogIcon: {
-    marginBottom: SPACING.sm,
   },
   dialogText: {
     textAlign: 'center',
@@ -379,9 +299,6 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: RADIUS.sm,
     width: '100%',
-  },
-  dialogButton: {
-    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

@@ -24,11 +24,7 @@ export const PromptTypeSelector = ({
           key={type.value}
           style={[
             styles.card,
-            selectedPromptType.value === type.value && {
-              backgroundColor: `${type.color}08`,
-              borderWidth: 1,
-              borderColor: `${type.color}30`,
-            }
+            selectedPromptType.value === type.value && styles.selectedCard
           ]}
           onPress={() => handleSelect(type.value)}
         >
@@ -37,12 +33,7 @@ export const PromptTypeSelector = ({
               <Text style={styles.optionTitle}>
                 {type.label}
               </Text>
-              <Text 
-                style={[
-                  styles.optionHighlight,
-                  { color: type.color }
-                ]}
-              >
+              <Text style={styles.optionHighlight}>
                 {type.duration}
               </Text>
             </View>
@@ -64,6 +55,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
     ...SHADOWS.small,
+  },
+  selectedCard: {
+    backgroundColor: `${COLORS.pinkGradient.start}08`,
+    borderWidth: 1,
+    borderColor: `${COLORS.pinkGradient.start}30`,
   },
   cardContent: {
     padding: SPACING.sm,
@@ -87,5 +83,6 @@ const styles = StyleSheet.create({
   optionHighlight: {
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
+    color: COLORS.pinkGradient.start,
   },
 }); 

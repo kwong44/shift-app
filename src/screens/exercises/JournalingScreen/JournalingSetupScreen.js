@@ -101,7 +101,7 @@ const JournalingSetupScreen = ({ navigation }) => {
             label="Continue to Journal"
             onPress={handleContinue}
             icon="arrow-right"
-            backgroundColor={selectedPromptType.color}
+            backgroundColor={COLORS.pinkGradient.start}
           />
         </SetupScreenButtonContainer>
       </SafeAreaView>

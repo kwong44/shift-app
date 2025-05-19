@@ -14,8 +14,7 @@ const EXERCISES = [
     description: 'Process thoughts and emotions through writing',
     icon: 'book-outline',
     duration: '10-15 min',
-    route: 'Journaling',
-    color: '#5C96AE'
+    route: 'Journaling',  
   },
    {
     id: 'tasks',
@@ -24,7 +23,6 @@ const EXERCISES = [
     icon: 'checkbox-marked-outline',
     duration: '5-10 min',
     route: 'TaskPlanner',
-    color: '#5C5C8E'
   },
   {
     id: 'binaural',
@@ -33,7 +31,6 @@ const EXERCISES = [
     icon: 'headphones',
     duration: '10-15 min',
     route: 'BinauralSetup',
-    color: '#7D8CC4'
   },
   {
     id: 'visualization',
@@ -42,7 +39,6 @@ const EXERCISES = [
     icon: 'eye',
     duration: '5 min',
     route: 'VisualizationSetup',
-    color: '#6A8EAE'
   },
   {
     id: 'deepwork',
@@ -51,7 +47,6 @@ const EXERCISES = [
     icon: 'timer-outline',
     duration: '25-50 min',
     route: 'DeepWorkSetup',
-    color: '#9067C6'
   },
   {
     id: 'mindfulness',
@@ -60,7 +55,6 @@ const EXERCISES = [
     icon: 'meditation',
     duration: '5-10 min',
     route: 'MindfulnessSetup',
-    color: '#4C63B6'
   }
 ];
 
