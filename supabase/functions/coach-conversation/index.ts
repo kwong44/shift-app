@@ -30,8 +30,8 @@ const supabaseAdmin = createClient(
   supabaseServiceKey || ''
 );
 
-// Store conversation histories by user ID
-const conversationHistories = new Map();
+// No longer storing conversation histories in memory
+// Removed the conversationHistories Map
 
 // Token usage settings
 const MIN_TOKENS_REQUIRED = 1000; // Require at least 1000 tokens (1 credit) to use the service
@@ -134,14 +134,15 @@ async function updateUserTokens(userId: string, amount: number) {
 serve(async (req) => {
   try {
     // Parse the request body
-    const { message, userId, context = {}, userGoals = [] } = await req.json();
+    const { message, userId, context = {}, userGoals = [], pastMessages = [] } = await req.json();
     
     // Debug log the request (without sensitive data)
     console.log('Processing coach conversation:', { 
       messageLength: message?.length,
       userId,
       contextKeys: Object.keys(context),
-      goalsCount: userGoals?.length || 0
+      goalsCount: userGoals?.length || 0,
+      pastMessagesCount: pastMessages.length
     });
 
     // Validate request
@@ -185,11 +186,8 @@ serve(async (req) => {
       );
     }
 
-    // Get or initialize conversation history for this user
-    if (!conversationHistories.has(userId)) {
-      conversationHistories.set(userId, []);
-    }
-    const conversationHistory = conversationHistories.get(userId);
+    // No longer using conversationHistories Map
+    // Use pastMessages from the client instead
 
     // Format user goals for the system prompt
     let formattedGoals = '\n\nThe user has not set any specific goals yet.';
@@ -223,14 +221,15 @@ Your responses should be direct, somewhat cold, and focused on exposing their se
 
 If they haven't shared their goals yet, ask them about their goals and then begin systematically dismantling every excuse they make for not achieving them.`;
 
-    // Prepare conversation messages
+    // Prepare conversation messages using the past messages from the client
+    // Convert from array of {role, content} objects for OpenAI
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory.slice(-5), // Keep last 5 messages for context
+      ...pastMessages, // Use history from the client
       { role: 'user', content: message }
     ];
 
-    console.log('Sending request to OpenAI');
+    console.log('Sending request to OpenAI with message count:', messages.length);
     
     // Make OpenAI API call
     const completion = await openai.chat.completions.create({
@@ -246,11 +245,8 @@ If they haven't shared their goals yet, ask them about their goals and then begi
     // Get token usage 
     const tokensUsed = completion.usage?.total_tokens || 0;
     
-    // Update conversation history
-    conversationHistory.push(
-      { role: 'user', content: message },
-      { role: 'assistant', content: response }
-    );
+    // No longer updating conversation history in memory
+    // The client will save these messages to the database
 
     // Log token usage
     console.log('Coach response generated:', { 

@@ -97,42 +97,87 @@ export const saveMessages = async (messages) => {
  * @returns {Promise<Array<object>>} Messages in chronological order (oldest first)
  */
 export const getConversationHistory = async (limit = CONVERSATION_CONFIG.maxUIMessages) => {
-  console.debug('[conversationHistory] Getting conversation history');
+  console.debug('[conversationHistory] Getting conversation history with limit:', limit);
   
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      console.debug('[conversationHistory] No authenticated user found');
+      throw new Error('User not authenticated');
+    }
     
-    // Use the database function to get recent messages
-    const { data, error } = await supabase
+    console.debug(`[conversationHistory] Getting history for user: ${user.id.substring(0, 8)}...`);
+    
+    // Try with a performance timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 8000);
+    });
+    
+    // Actual database query
+    const dbQueryPromise = supabase
       .rpc('get_recent_conversation', {
         p_user_id: user.id,
         p_limit: limit
       });
     
-    if (error) throw error;
+    // Race between timeout and actual query
+    const { data, error } = await Promise.race([
+      dbQueryPromise,
+      timeoutPromise.then(() => { throw new Error('Database query timeout'); })
+    ]);
     
-    // Process the data to match our expected format
-    const messages = data.map(item => ({
-      id: item.id,
-      content: item.content,
-      isUser: item.is_user,
-      tokenUsage: item.token_usage,
-      timestamp: item.created_at
-    })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Sort by time (oldest first)
+    if (error) {
+      console.error('[conversationHistory] Database error getting conversation:', error);
+      throw error;
+    }
     
-    console.debug(`[conversationHistory] Retrieved ${messages.length} messages`);
+    console.debug(`[conversationHistory] Raw database result contains ${data?.length || 0} messages`);
     
-    // If no messages were found, return an empty array
-    if (messages.length === 0) {
-      console.debug('[conversationHistory] No conversation history found');
+    if (!data || data.length === 0) {
+      console.debug('[conversationHistory] No conversation history found in database');
       return [];
+    }
+    
+    // Directly map the data without any sorting - the SQL function should handle this now
+    const messages = data.map(item => {
+      // Check timestamp format
+      const timestamp = item.created_at;
+      console.debug(`[conversationHistory] Message timestamp: ${timestamp}, id: ${item.id?.substring(0, 8) || 'unknown'}..., isUser: ${item.is_user}`);
+      
+      return {
+        id: item.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // Generate id if missing
+        content: item.content || '',
+        isUser: !!item.is_user, // Ensure boolean
+        tokenUsage: item.token_usage || 0,
+        timestamp: timestamp || new Date().toISOString()
+      };
+    }).filter(item => item.content); // Remove empty messages
+    
+    // Check the order of messages by timestamps
+    if (messages.length > 1) {
+      const firstTime = new Date(messages[0].timestamp).getTime();
+      const lastTime = new Date(messages[messages.length-1].timestamp).getTime();
+      console.debug(`[conversationHistory] First message time: ${messages[0].timestamp}, Last message time: ${messages[messages.length-1].timestamp}`);
+      console.debug(`[conversationHistory] Messages in correct order (first earlier than last): ${firstTime < lastTime}`);
+      
+      // Ensure proper order if database didn't sort correctly
+      if (firstTime > lastTime) {
+        console.debug('[conversationHistory] Messages in wrong order, sorting manually');
+        messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      }
+    }
+    
+    console.debug(`[conversationHistory] Retrieved and processed ${messages.length} messages`);
+    if (messages.length > 0) {
+      console.debug(`[conversationHistory] First message: ${messages[0].content?.substring(0, 30) || 'empty'}...`);
+      console.debug(`[conversationHistory] Last message: ${messages[messages.length-1]?.content?.substring(0, 30) || 'empty'}...`);
     }
     
     return messages;
   } catch (error) {
     console.error('[conversationHistory] Error getting conversation history:', error);
-    throw error;
+    // Return empty array instead of throwing to improve app resilience
+    return [];
   }
 };
 

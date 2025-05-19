@@ -69,13 +69,40 @@ const AICoachScreen = ({ navigation }) => {
   const [credits, setCredits] = useState(null);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [loadingError, setLoadingError] = useState(false);
   
   // Refs
   const flatListRef = useRef(null);
 
   // Load conversation history when component mounts
   useEffect(() => {
-    loadConversationHistory();
+    console.debug('[AICoachScreen] Component mounted, loading conversation history');
+    
+    // Track loading time for debugging
+    const startTime = Date.now();
+    
+    // Ensure loading state is set correctly
+    setIsLoadingHistory(true);
+    
+    // Add a timeout to ensure we don't get stuck in loading state
+    const timeoutId = setTimeout(() => {
+      console.warn('[AICoachScreen] Safety timeout triggered - forcing loading state to complete');
+      setIsLoadingHistory(false);
+    }, 15000); // 15 second safety timeout
+    
+    loadConversationHistory()
+      .then(() => {
+        const loadTime = Date.now() - startTime;
+        console.debug(`[AICoachScreen] Conversation history loaded in ${loadTime}ms`);
+        clearTimeout(timeoutId);
+      })
+      .catch(error => {
+        console.error('[AICoachScreen] Failed to load conversation history on mount:', error);
+        setIsLoadingHistory(false);
+        clearTimeout(timeoutId);
+      });
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Debug logging for messages changes
@@ -87,7 +114,6 @@ const AICoachScreen = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      headerTitle: 'Accountability Coach',
       headerTintColor: COLORS.white,
       headerStyle: {
         backgroundColor: COLORS.background,
@@ -113,16 +139,35 @@ const AICoachScreen = ({ navigation }) => {
   }, [navigation, credits]);
 
   // Load conversation history from the database
-  const loadConversationHistory = async () => {
+  const loadConversationHistory = async (retryCount = 0) => {
     try {
+      // Reset loading error state
+      setLoadingError(false);
+      console.debug(`[AICoachScreen] Starting to load conversation history (attempt ${retryCount + 1})`);
       setIsLoadingHistory(true);
-      console.debug('[AICoachScreen] Loading conversation history');
       
-      const historyMessages = await getConversationHistory();
+      // Track if we've already been in this function too long - increase to 10 seconds
+      const timeoutId = setTimeout(() => {
+        console.warn('[AICoachScreen] loadConversationHistory is taking too long (> 10 seconds)');
+      }, 10000); // Increased from 5 seconds to 10 seconds
       
-      if (historyMessages.length > 0) {
-        // Format messages for our UI
-        const formattedMessages = historyMessages.map(msg => ({
+      console.debug('[AICoachScreen] Fetching conversation history from API');
+      // Reduce the limit to improve loading time
+      const historyMessages = await getConversationHistory(25); // Reduced from 50 to 25 for faster loading
+      console.debug(`[AICoachScreen] getConversationHistory returned ${historyMessages?.length || 0} messages`);
+      
+      clearTimeout(timeoutId);
+      
+      if (historyMessages && historyMessages.length > 0) {
+        // Format messages for our UI and ensure they're sorted correctly
+        console.debug('[AICoachScreen] Formatting conversation history messages for UI');
+        
+        // Double-check that messages are in chronological order (oldest first)
+        const sortedMessages = [...historyMessages].sort((a, b) => 
+          new Date(a.timestamp) - new Date(b.timestamp)
+        );
+        
+        const formattedMessages = sortedMessages.map(msg => ({
           id: msg.id,
           content: msg.content,
           isUser: msg.isUser,
@@ -130,7 +175,7 @@ const AICoachScreen = ({ navigation }) => {
         }));
         
         setMessages(formattedMessages);
-        console.debug(`[AICoachScreen] Loaded ${formattedMessages.length} messages from history`);
+        console.debug(`[AICoachScreen] Successfully set ${formattedMessages.length} history messages to state`);
       } else {
         // If no history exists, add default first message
         console.debug('[AICoachScreen] No history found, setting default first message');
@@ -139,16 +184,36 @@ const AICoachScreen = ({ navigation }) => {
           content: CONVERSATION_CONFIG.defaultFirstMessage,
           isUser: false
         }]);
+        console.debug('[AICoachScreen] Set default first message to state');
       }
+      
+      // Important: Set loading to false on success
+      console.debug('[AICoachScreen] Setting isLoadingHistory to false after successful load');
+      setIsLoadingHistory(false);
+      
     } catch (error) {
-      console.error('[AICoachScreen] Error loading conversation history:', error);
-      // If there's an error, fall back to the default message
+      console.error('[AICoachScreen] Error in loadConversationHistory:', error.message, error.stack);
+      
+      // If we haven't tried too many times, retry after a short delay
+      if (retryCount < 2) {
+        console.debug(`[AICoachScreen] Retrying load conversation history (attempt ${retryCount + 1} of 3)`);
+        setTimeout(() => loadConversationHistory(retryCount + 1), 1000);
+        return; // Don't mark as loaded yet, since we're retrying
+      }
+      
+      // After max retries, set the error state
+      setLoadingError(true);
+      
+      // Fall back to the default message
       setMessages([{
         id: '1',
         content: CONVERSATION_CONFIG.defaultFirstMessage,
         isUser: false
       }]);
-    } finally {
+      console.debug('[AICoachScreen] Set default first message to state (after error)');
+      
+      // Set loading to false even after error (after max retries)
+      console.debug('[AICoachScreen] Setting isLoadingHistory to false after error (max retries reached)');
       setIsLoadingHistory(false);
     }
   };
@@ -504,7 +569,20 @@ const AICoachScreen = ({ navigation }) => {
           {isLoadingHistory ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={COLORS.accent} />
-              <Text style={styles.loadingText}>Loading conversation history...</Text>
+              <Text style={styles.loadingText}>
+                {loadingError 
+                  ? "Failed to load conversation history" 
+                  : "Loading conversation history..."}
+              </Text>
+              {loadingError && (
+                <Button 
+                  mode="contained" 
+                  onPress={() => loadConversationHistory(0)}
+                  style={styles.retryButton}
+                >
+                  Retry
+                </Button>
+              )}
             </View>
           ) : (
             <>
@@ -692,6 +770,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     color: COLORS.accent,
+  },
+  retryButton: {
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.accent,
   },
   headerContainer: {
     flexDirection: 'row',
