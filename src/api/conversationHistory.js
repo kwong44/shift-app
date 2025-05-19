@@ -14,7 +14,7 @@ export const CONVERSATION_CONFIG = {
   maxAIContextMessages: 10,
   
   // Default first message if no history exists
-  defaultFirstMessage: "So, tell me about your goals. What are you supposedly 'working toward' but making excuses about?"
+  defaultFirstMessage: "Let's talk about your goals. What are you working on right now that you'd like to make more progress on? Share your goals with me, and I'll help you break through whatever's holding you back."
 };
 
 /**

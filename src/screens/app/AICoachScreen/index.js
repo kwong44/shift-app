@@ -16,6 +16,9 @@ import { getUserTokens, mockPurchaseTokens, TOKENS_CONFIG, tokensToCredits } fro
 import conversationHistory, { CONVERSATION_CONFIG, getConversationHistory } from '../../../api/conversationHistory';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getWeeklyGoals } from '../../../api/exercises/goals';
+import GoalActionMessage from './components/GoalActionMessage';
+import { supabase } from '../../../config/supabase';
 
 // Debug logging
 console.debug('[AICoachScreen] Initializing screen');
@@ -30,24 +33,37 @@ const HAPTIC_FEEDBACK = {
   ERROR: Haptics.NotificationFeedbackType.Error,
 };
 
-const Message = ({ content, isUser, tokenInfo }) => (
-  <View style={[
-    styles.messageBubble,
-    isUser ? styles.userMessage : styles.aiMessage
-  ]}>
-    <Text style={[
-      styles.messageText,
-      isUser ? styles.userMessageText : styles.aiMessageText
+const Message = ({ content, isUser, tokenInfo, goals, onGoalAdded }) => {
+  if (!isUser && goals) {
+    return (
+      <GoalActionMessage
+        message={content}
+        goals={goals}
+        onGoalAdded={onGoalAdded}
+        tokenInfo={tokenInfo}
+      />
+    );
+  }
+
+  return (
+    <View style={[
+      styles.messageBubble,
+      isUser ? styles.userMessage : styles.aiMessage
     ]}>
-      {content}
-    </Text>
-    {tokenInfo && !isUser && (
-      <Text style={styles.tokenUsageText}>
-        {`${tokenInfo.used} tokens used`}
+      <Text style={[
+        styles.messageText,
+        isUser ? styles.userMessageText : styles.aiMessageText
+      ]}>
+        {content}
       </Text>
-    )}
-  </View>
-);
+      {tokenInfo && !isUser && (
+        <Text style={styles.tokenUsageText}>
+          {`${tokenInfo.used} tokens used`}
+        </Text>
+      )}
+    </View>
+  );
+};
 
 const CreditDisplay = ({ credits, onTopUp }) => (
   <View style={styles.creditContainer}>
@@ -67,6 +83,8 @@ const AICoachScreen = ({ navigation }) => {
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [loadingError, setLoadingError] = useState(false);
+  const [weeklyGoals, setWeeklyGoals] = useState([]);
+  const [isLoadingGoals, setIsLoadingGoals] = useState(false);
   
   // Refs
   const flatListRef = useRef(null);
@@ -353,9 +371,22 @@ const AICoachScreen = ({ navigation }) => {
       // Get AI response
       try {
         console.debug('[AICoachScreen] Sending message to coach API');
-        const response = await chatWithCoach(currentMessage);
+        
+        // Check if we need to refresh goals before sending
+        if (weeklyGoals.length === 0) {
+          await loadWeeklyGoals();
+        }
+        
+        // Pass the current goals to the API
+        const response = await chatWithCoach(currentMessage, {}, weeklyGoals);
         
         if (response?.data?.response) {
+          // Check if this is early in the conversation and if we should show the goal UI
+          const isEarlyConversation = messages.length <= 3;
+          const hasNoGoals = weeklyGoals.length === 0;
+          const messageHasGoalPrompt = currentMessage.toLowerCase().includes('goal') || 
+                                     response.data.response.toLowerCase().includes('goal');
+          
           // Use the response directly from the coach
           const aiMessage = {
             id: (Date.now() + 1).toString(),
@@ -364,7 +395,17 @@ const AICoachScreen = ({ navigation }) => {
             tokenInfo: {
               used: response.tokenInfo?.used || 0,
               remaining: response.tokenInfo?.remaining || 0
-            }
+            },
+            // Show goals UI in specific cases:
+            // 1. Early in conversation with no goals
+            // 2. User mentioned goals in their message
+            // 3. AI mentioned goals in their response
+            ...(
+              (isEarlyConversation && hasNoGoals) || 
+              (hasNoGoals && messageHasGoalPrompt) 
+                ? { goals: [] } 
+                : {}
+            )
           };
           
           setMessages(prev => [...prev, aiMessage]);
@@ -551,6 +592,34 @@ const AICoachScreen = ({ navigation }) => {
     );
   };
 
+  // Load user's weekly goals
+  const loadWeeklyGoals = async () => {
+    try {
+      setIsLoadingGoals(true);
+      console.debug('[AICoachScreen] Loading weekly goals');
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const goals = await getWeeklyGoals(user.id);
+      console.debug(`[AICoachScreen] Loaded ${goals.length} weekly goals`);
+      
+      setWeeklyGoals(goals);
+      return goals;
+    } catch (error) {
+      console.error('[AICoachScreen] Error loading weekly goals:', error);
+      return [];
+    } finally {
+      setIsLoadingGoals(false);
+    }
+  };
+
+  // Function to handle when a goal is added
+  const handleGoalAdded = async () => {
+    await loadWeeklyGoals();
+    // You could add a celebratory message here if you want
+  };
+
   return (
     <LinearGradient
       colors={[COLORS.background, '#f8f8f8']}
@@ -569,7 +638,9 @@ const AICoachScreen = ({ navigation }) => {
               <Text style={styles.loadingText}>
                 {loadingError 
                   ? "Failed to load conversation history" 
-                  : "Loading conversation history..."}
+                  : isLoadingGoals 
+                    ? "Checking your goals..." 
+                    : "Loading conversation history..."}
               </Text>
               {loadingError && (
                 <Button 
@@ -596,7 +667,12 @@ const AICoachScreen = ({ navigation }) => {
                 ref={flatListRef}
                 data={messages}
                 keyExtractor={item => item.id}
-                renderItem={({ item }) => <Message {...item} />}
+                renderItem={({ item }) => (
+                  <Message 
+                    {...item} 
+                    onGoalAdded={handleGoalAdded}
+                  />
+                )}
                 contentContainerStyle={styles.messageList}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
                 showsVerticalScrollIndicator={false}

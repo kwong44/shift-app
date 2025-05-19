@@ -191,9 +191,11 @@ serve(async (req) => {
 
     // Format user goals for the system prompt
     let formattedGoals = '\n\nThe user has not set any specific goals yet.';
-    
+    let hasGoals = false;
+
     if (userGoals && userGoals.length > 0) {
       try {
+        hasGoals = true;
         formattedGoals = `\n\nUser's current goals:\n${userGoals.map((goal, i) => 
           `${i+1}. ${goal.text || 'Unnamed goal'} (${goal.completed ? 'Completed' : 'Not completed'})`
         ).join('\n')}`;
@@ -217,9 +219,11 @@ serve(async (req) => {
 9. Remind them of times they've proven their excuses wrong before
 10. Make them question why they're resisting success
 
-Your responses should be direct, somewhat cold, and focused on exposing their self-deception. Don't accept excuses or show sympathy for rationalizations. Make them feel uncomfortable with their current behavior while reinforcing that they're capable of much more.${formattedGoals}
+Your responses should be direct, somewhat cold, and focused on exposing their self-deception. Don't accept excuses or show sympathy for rationalizations. Make them uncomfortable with their current behavior while reinforcing that they're capable of much more.${formattedGoals}
 
-If they haven't shared their goals yet, ask them about their goals and then begin systematically dismantling every excuse they make for not achieving them.`;
+${hasGoals ? 'Focus on the goals they have shared and push them to explain why they have not made more progress.' : 'If they have not shared their goals yet, ask them about their goals and then begin systematically dismantling every excuse they make for not achieving them.'}
+
+IMPORTANT: If this is early in your conversation and they share goals but have not formally added them to their goal list, encourage them to use the "+ Add a goal" feature to officially track their goals.`;
 
     // Prepare conversation messages using the past messages from the client
     // Convert from array of {role, content} objects for OpenAI

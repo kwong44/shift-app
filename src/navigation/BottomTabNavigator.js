@@ -114,7 +114,7 @@ const BottomTabNavigator = () => {
         <Portal>
           <FAB
             icon="chat"
-            label="Accountability Coach"
+            label="Samantha"
             style={{
               ...styles.fab,
               backgroundColor: COLORS.accent,

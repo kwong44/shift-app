@@ -271,7 +271,7 @@ const Navigation = () => {
               name="AICoachChat"
               component={AICoachScreen}
               options={{
-                title: 'AI Coach',
+                title: 'Samantha Placeholder',
                 headerShadowVisible: false,
                 headerStyle: {
                   backgroundColor: theme.colors.background,

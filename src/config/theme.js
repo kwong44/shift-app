@@ -4,6 +4,7 @@ import { MD3LightTheme } from 'react-native-paper';
 export const COLORS = {
   // Brand colors
   primary: '#5F52EE',       // Purple (main brand color)
+  primaryLight: '#E8DFFF',  // Light purple for add goal prompt
   secondary: '#6C63FF',     // Slightly lighter purple
   accent: '#FF5757',        // Coral/red accent (for fire icon)
   
