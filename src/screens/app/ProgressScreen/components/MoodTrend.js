@@ -3,7 +3,35 @@ import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
-import { getMoodIcon, getMoodColor } from '../helpers/moodHelpers';
+
+// Emotion data mapping
+const EMOTION_DATA = {
+  motivated: { 
+    icon: 'rocket-launch', 
+    color: '#4CAF50', 
+    description: 'Ready to take on challenges' 
+  },
+  grateful: { 
+    icon: 'heart', 
+    color: '#9C27B0', 
+    description: 'Appreciating life\'s gifts' 
+  },
+  calm: { 
+    icon: 'water', 
+    color: '#2196F3', 
+    description: 'Peaceful and centered' 
+  },
+  anxious: { 
+    icon: 'alert', 
+    color: '#FFC107', 
+    description: 'Feeling uncertain' 
+  },
+  overwhelmed: { 
+    icon: 'lightning-bolt', 
+    color: '#F44336', 
+    description: 'Dealing with too much' 
+  }
+};
 
 // Debug logger
 const debug = {
@@ -13,9 +41,17 @@ const debug = {
 };
 
 const MoodTrend = ({ trend }) => {
-  debug.log('Rendering mood trend:', { trend });
-  const moodColor = getMoodColor(trend);
-  const moodIcon = getMoodIcon(trend);
+  debug.log('Rendering emotion trend:', { trend });
+  
+  // Get emotion data or default
+  const emotionData = EMOTION_DATA[trend] || {
+    icon: 'help-circle-outline',
+    color: COLORS.textSecondary,
+    description: 'Tracking your emotions'
+  };
+  
+  debug.log('Using emotion data:', emotionData);
+  
   const formattedTrend = trend.charAt(0).toUpperCase() + trend.slice(1);
 
   return (
@@ -23,7 +59,7 @@ const MoodTrend = ({ trend }) => {
       style={[
         styles.contentCard,
         {
-          borderColor: `${COLORS.secondary}30`,
+          borderColor: `${emotionData.color}30`,
           shadowColor: COLORS.text,
           shadowOffset: {
             width: 0,
@@ -37,15 +73,18 @@ const MoodTrend = ({ trend }) => {
       mode="outlined"
     >
       <Card.Content>
-        <Text style={styles.contentCardTitle}>Mood Trend</Text>
-        <View style={styles.moodTrendContent}>
+        <Text style={styles.contentCardTitle}>Emotional Trend</Text>
+        <View style={styles.emotionTrendContent}>
           <MaterialCommunityIcons
-            name={moodIcon}
+            name={emotionData.icon}
             size={60}
-            color={moodColor}
+            color={emotionData.color}
           />
-          <Text style={[styles.moodTrendText, { color: moodColor }]}>
+          <Text style={[styles.emotionTrendText, { color: emotionData.color }]}>
             {formattedTrend}
+          </Text>
+          <Text style={styles.emotionDescription}>
+            {emotionData.description}
           </Text>
         </View>
       </Card.Content>
@@ -68,16 +107,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     color: COLORS.text,
   },
-  moodTrendContent: {
+  emotionTrendContent: {
     alignItems: 'center',
     paddingVertical: SPACING.md,
   },
-  moodTrendText: {
+  emotionTrendText: {
     fontFamily: FONT.family.heading,
     fontWeight: FONT.weight.semiBold,
     fontSize: FONT.size.xl,
     marginTop: SPACING.sm,
   },
+  emotionDescription: {
+    fontFamily: FONT.family.body,
+    fontSize: FONT.size.md,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+  }
 });
 
 export default MoodTrend;

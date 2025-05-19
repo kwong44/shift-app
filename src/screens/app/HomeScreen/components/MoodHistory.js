@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, Surface } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS } from '../../../../config/theme';
 
-const MoodHistory = ({ moodHistory }) => {
+const MoodHistory = ({ moodHistory, emotions }) => {
   // Debug log
-  console.debug('[MoodHistory] Processing dates for mood history');
+  console.debug('[MoodHistory] Processing mood history', moodHistory);
+  console.debug('[MoodHistory] Available emotions:', emotions);
 
   const getDayName = (dateString) => {
     try {
@@ -18,15 +20,49 @@ const MoodHistory = ({ moodHistory }) => {
     }
   };
 
+  // Find emotion data by ID
+  const findEmotionData = (moodType) => {
+    console.debug('[MoodHistory] Finding emotion for type:', moodType);
+    
+    // If no mood type, return default
+    if (!moodType) {
+      console.debug('[MoodHistory] No mood type found, using default');
+      return { 
+        id: 'unknown', 
+        color: '#EEEEEE', 
+        icon: 'help-circle',
+        label: 'Unknown'
+      };
+    }
+    
+    // Find matching emotion from the passed emotions array
+    const foundEmotion = emotions.find(e => e.id === moodType);
+    
+    if (foundEmotion) {
+      console.debug('[MoodHistory] Found matching emotion:', foundEmotion);
+      return foundEmotion;
+    } else {
+      console.debug('[MoodHistory] No matching emotion found for:', moodType);
+      // If we have color saved in the mood itself, use that
+      return { 
+        id: moodType, 
+        color: '#EEEEEE',
+        icon: 'help-circle',
+        label: moodType
+      };
+    }
+  };
+
   // Fill in missing days with empty states for the last 7 days
   const getLastSevenDays = () => {
+    console.debug('[MoodHistory] Building 7-day history array');
     const days = [];
     const today = new Date();
     
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString();
+      const dateStr = date.toISOString().split('T')[0]; // Just get YYYY-MM-DD
       
       // Find mood for this day
       const mood = moodHistory.find(m => {
@@ -34,9 +70,21 @@ const MoodHistory = ({ moodHistory }) => {
         return moodDate.toDateString() === date.toDateString();
       });
 
+      console.debug(`[MoodHistory] Day ${dateStr}:`, mood || 'No mood data');
+      
+      // Get emotion data from the mood type
+      const emotionData = mood ? findEmotionData(mood.mood_type) : null;
+      
+      // If mood exists but we couldn't find matching emotion, use saved color/icon
+      const moodColor = emotionData?.color || mood?.mood_color || '#EEEEEE';
+      const moodIcon = emotionData?.icon || 'help-circle';
+
       days.push({
         date: dateStr,
-        ...mood || { icon: '😶', mood_label: 'No data' }
+        dayName: getDayName(date),
+        mood: mood || null,
+        color: moodColor,
+        icon: moodIcon
       });
     }
 
@@ -48,11 +96,21 @@ const MoodHistory = ({ moodHistory }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Past Week</Text>
-      <View style={styles.historyContainer}>
+      
+      <View style={styles.gridContainer}>
         {weekData.map((day, index) => (
-          <View key={index} style={styles.dayContainer}>
-            <Text style={styles.emoji}>{day.mood_icon || day.icon}</Text>
-            <Text style={styles.day}>{getDayName(day.date)}</Text>
+          <View key={index} style={styles.dayBlock}>
+            <Surface style={[
+              styles.emotionIndicator, 
+              { backgroundColor: day.color }
+            ]}>
+              <MaterialCommunityIcons 
+                name={day.icon} 
+                size={20} 
+                color="#FFFFFF" 
+              />
+            </Surface>
+            <Text style={styles.dayName}>{day.dayName}</Text>
           </View>
         ))}
       </View>
@@ -73,21 +131,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     color: COLORS.text,
   },
-  historyContainer: {
+  gridContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dayContainer: {
+  dayBlock: {
     alignItems: 'center',
+    width: '13%', // ~100% / 7 days with a little margin
   },
-  emoji: {
-    fontSize: 24,
+  emotionIndicator: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: SPACING.xs,
+    elevation: 2,
   },
-  day: {
+  dayName: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
 });
 

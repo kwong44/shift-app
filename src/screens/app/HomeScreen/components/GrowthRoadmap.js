@@ -18,7 +18,7 @@ const GrowthRoadmap = ({
   streak, 
   currentMood, 
   onMoodPress,
-  MOODS,
+  emotions, // Updated from MOODS to emotions
   // New props for roadmap features
   currentPhase,
   focusAreas = [],
@@ -32,6 +32,12 @@ const GrowthRoadmap = ({
   const [newGoalText, setNewGoalText] = useState('');
   const [localWeeklyGoals, setLocalWeeklyGoals] = useState(weeklyGoals || []);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Debug current mood state
+  useEffect(() => {
+    debug.log(`Current mood updated: ${currentMood}`);
+    debug.log(`Available emotions: ${JSON.stringify(emotions?.map(e => e.id))}`);
+  }, [currentMood, emotions]);
 
   useEffect(() => {
     debug.log('Animating progress bar');
@@ -52,6 +58,15 @@ const GrowthRoadmap = ({
   const toggleSection = (section) => {
     debug.log(`Toggling section: ${section}`);
     setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  // Get current emotion display data
+  const getCurrentEmotion = () => {
+    if (!currentMood || !emotions) return null;
+    
+    const foundEmotion = emotions.find(e => e.id === currentMood);
+    debug.log(`Found emotion for ${currentMood}: ${JSON.stringify(foundEmotion)}`);
+    return foundEmotion;
   };
 
   const addWeeklyGoal = async () => {
@@ -260,6 +275,9 @@ const GrowthRoadmap = ({
     </TouchableRipple>
   );
 
+  // Get the current emotion object
+  const currentEmotionData = getCurrentEmotion();
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
@@ -279,12 +297,32 @@ const GrowthRoadmap = ({
             accessibilityHint="Opens mood selection dialog"
           >
             <View style={styles.moodContent}>
-              <Text style={styles.moodEmoji}>
-                {currentMood ? MOODS.find(m => m.id === currentMood)?.icon || '😊' : '😶'}
-              </Text>
-              <Text style={styles.moodLabel}>
-                {currentMood ? MOODS.find(m => m.id === currentMood)?.label : 'Add Mood'}
-              </Text>
+              {currentEmotionData ? (
+                <>
+                  <MaterialCommunityIcons 
+                    name={currentEmotionData.icon} 
+                    size={22} 
+                    color={currentEmotionData.color}
+                    style={styles.moodIcon}
+                  />
+                  <Text style={[
+                    styles.moodLabel,
+                    { color: currentEmotionData.color }
+                  ]}>
+                    {currentEmotionData.label}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialCommunityIcons 
+                    name="emoticon-happy-outline" 
+                    size={22} 
+                    color={COLORS.text}
+                    style={styles.moodIcon}
+                  />
+                  <Text style={styles.moodLabel}>Add Mood</Text>
+                </>
+              )}
             </View>
           </TouchableRipple>
         </View>
@@ -360,12 +398,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
   },
-  moodEmoji: {
-    fontSize: 22,
+  moodIcon: {
     marginRight: SPACING.xs,
   },
   moodLabel: {
-    color: COLORS.text,
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
   },
@@ -499,32 +535,33 @@ const styles = StyleSheet.create({
   },
   completedGoalText: {
     textDecorationLine: 'line-through',
-    opacity: 0.6,
+    opacity: 0.7,
+  },
+  removeGoalButton: {
+    margin: 0,
+    padding: 2,
   },
   addGoalContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.xs,
   },
   goalInput: {
     flex: 1,
-    height: 40,
+    paddingVertical: SPACING.xs,
     color: COLORS.text,
     fontSize: FONT.size.sm,
   },
-  removeGoalButton: {
-    margin: 0,
-    padding: 0,
-  },
   emptyGoalsText: {
-    color: 'rgba(0, 0, 0, 0.5)',
+    color: COLORS.textSecondary,
+    fontSize: FONT.size.sm,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: SPACING.sm,
-  }
+  },
 });
 
 export default GrowthRoadmap; 

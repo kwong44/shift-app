@@ -20,7 +20,7 @@ import {
   GrowthRoadmap, 
   DailyFocus,
   Insights,
-  MOODS 
+  EMOTIONS
 } from './components';
 import { chatWithCoach } from '../../../api/aiCoach';
 
@@ -123,40 +123,35 @@ const HomeScreen = ({ navigation }) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const { data: moodLog } = await supabase
-        .from('mood_logs')
-        .select('mood')
+      const { data: moodData } = await supabase
+        .from('moods')
+        .select('*')
         .eq('user_id', user.id)
         .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      if (!moodLog) {
+      console.debug('[HomeScreen] Daily mood check:', moodData);
+
+      if (!moodData) {
         setShowMoodModal(true);
       } else {
-        setCurrentMood(moodLog.mood);
+        setCurrentMood(moodData.mood_type);
       }
     } catch (error) {
-      console.error('Error checking mood:', error);
+      console.error('[HomeScreen] Error checking mood:', error);
     }
   };
 
-  const handleMoodSelect = async (mood) => {
+  const handleMoodSelect = async (emotion) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await supabase
-        .from('mood_logs')
-        .insert({
-          user_id: user.id,
-          mood: mood.id
-        });
-
-      setCurrentMood(mood.id);
+      console.debug('[HomeScreen] Selected emotion:', emotion);
+      setCurrentMood(emotion.id);
       setShowMoodModal(false);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error logging mood:', error);
+      console.error('[HomeScreen] Error handling emotion selection:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -341,7 +336,7 @@ const HomeScreen = ({ navigation }) => {
             streak={streak}
             currentMood={currentMood}
             onMoodPress={() => setShowMoodModal(true)}
-            MOODS={MOODS}
+            emotions={EMOTIONS}
             currentPhase={currentPhase}
             focusAreas={focusAreas}
             weeklyGoals={weeklyGoals}

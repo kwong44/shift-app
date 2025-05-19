@@ -6,13 +6,15 @@ import * as Haptics from 'expo-haptics';
 import { saveMood, getWeekMoodHistory } from '../../../../api/mood';
 import MoodHistory from './MoodHistory';
 import { useUser } from '../../../../hooks/useUser'; // You'll need to create this hook
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const MOODS = [
-  { id: 'great', icon: '😊', label: 'Great' },
-  { id: 'good', icon: '🙂', label: 'Good' },
-  { id: 'okay', icon: '😐', label: 'Okay' },
-  { id: 'low', icon: '😕', label: 'Low' },
-  { id: 'bad', icon: '😢', label: 'Bad' }
+// Define emotions with their associated colors and icons
+const EMOTIONS = [
+  { id: 'motivated', label: 'Motivated', color: '#4CAF50', icon: 'rocket-launch' },
+  { id: 'grateful', label: 'Grateful', color: '#9C27B0', icon: 'heart' },
+  { id: 'calm', label: 'Calm', color: '#2196F3', icon: 'water' },
+  { id: 'anxious', label: 'Anxious', color: '#FFC107', icon: 'alert' },
+  { id: 'overwhelmed', label: 'Overwhelmed', color: '#F44336', icon: 'lightning-bolt' }
 ];
 
 const MoodModal = ({ visible, onDismiss, onMoodSelect }) => {
@@ -22,6 +24,7 @@ const MoodModal = ({ visible, onDismiss, onMoodSelect }) => {
 
   // Debug log
   console.debug('[MoodModal] Rendering with user:', user?.id);
+  console.debug('[MoodModal] Defined emotions:', EMOTIONS);
 
   useEffect(() => {
     if (visible && user) {
@@ -42,20 +45,22 @@ const MoodModal = ({ visible, onDismiss, onMoodSelect }) => {
     }
   };
 
-  const handleMoodSelect = async (mood) => {
+  const handleMoodSelect = async (emotion) => {
     try {
       await Haptics.selectionAsync();
       
-      // Save mood to database
-      await saveMood(user.id, mood);
+      console.debug('[MoodModal] Saving emotion:', emotion);
+      
+      // Save mood to database with emotion data
+      await saveMood(user.id, emotion);
       
       // Refresh mood history
       await fetchMoodHistory();
       
       // Notify parent component
-      onMoodSelect(mood);
+      onMoodSelect(emotion);
     } catch (error) {
-      console.error('[MoodModal] Error saving mood:', error);
+      console.error('[MoodModal] Error saving emotion:', error);
     }
   };
 
@@ -71,17 +76,30 @@ const MoodModal = ({ visible, onDismiss, onMoodSelect }) => {
       >
         <Title style={styles.moodTitle}>How are you feeling today?</Title>
         <View style={styles.moodGrid}>
-          {MOODS.map((mood) => (
+          {EMOTIONS.map((emotion) => (
             <TouchableRipple
-              key={mood.id}
-              onPress={() => handleMoodSelect(mood)}
-              style={styles.moodSelectItem}
-              accessibilityLabel={`Select mood: ${mood.label}`}
-              accessibilityHint={`Sets your current mood to ${mood.label}`}
+              key={emotion.id}
+              onPress={() => handleMoodSelect(emotion)}
+              style={[
+                styles.emotionSelectItem,
+                { backgroundColor: `${emotion.color}20` } // Lighter version of the color
+              ]}
+              accessibilityLabel={`Select emotion: ${emotion.label}`}
+              accessibilityHint={`Sets your current emotion to ${emotion.label}`}
             >
-              <View style={styles.moodSelectContent}>
-                <Text style={styles.moodSelectEmoji}>{mood.icon}</Text>
-                <Text style={styles.moodSelectLabel}>{mood.label}</Text>
+              <View style={styles.emotionSelectContent}>
+                <MaterialCommunityIcons 
+                  name={emotion.icon} 
+                  size={28} 
+                  color={emotion.color} 
+                  style={styles.emotionIcon}
+                />
+                <Text style={[
+                  styles.emotionSelectLabel,
+                  { color: emotion.color }
+                ]}>
+                  {emotion.label}
+                </Text>
               </View>
             </TouchableRipple>
           ))}
@@ -89,7 +107,7 @@ const MoodModal = ({ visible, onDismiss, onMoodSelect }) => {
         
         {/* Add mood history component */}
         {!loading && moodHistory.length > 0 && (
-          <MoodHistory moodHistory={moodHistory} />
+          <MoodHistory moodHistory={moodHistory} emotions={EMOTIONS} />
         )}
       </Modal>
     </Portal>
@@ -115,27 +133,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.lg,
   },
-  moodSelectItem: {
-    width: '18%',
-    aspectRatio: 1,
+  emotionSelectItem: {
+    width: '48%', // Changed from 18% to make it 2 columns instead of 5
+    aspectRatio: 2.5, // Changed from 1 to make items rectangular
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: COLORS.backgroundLight,
     marginBottom: SPACING.md,
   },
-  moodSelectContent: {
+  emotionSelectContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.xs,
+    justifyContent: 'center',
+    padding: SPACING.sm,
+    width: '100%',
   },
-  moodSelectEmoji: {
-    fontSize: 28,
-    marginBottom: SPACING.xs,
+  emotionIcon: {
+    marginRight: SPACING.xs,
   },
-  moodSelectLabel: {
-    fontSize: 12,
-    color: COLORS.text,
-    fontWeight: '500',
+  emotionSelectLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
