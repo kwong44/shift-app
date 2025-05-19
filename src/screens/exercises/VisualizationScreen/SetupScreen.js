@@ -145,7 +145,7 @@ const SetupScreen = ({ navigation }) => {
             label="Start Visualization"
             onPress={handleStart}
             icon="meditation"
-            backgroundColor={selectedType.color}
+            backgroundColor={COLORS.coralGradient.start}
           />
         </SetupScreenButtonContainer>
 
