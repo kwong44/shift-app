@@ -358,8 +358,6 @@ const GrowthRoadmap = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#F5F5F5', // Light gray background matching DashboardHeader
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
     marginBottom: SPACING.lg,
   },
   scrollContainer: {

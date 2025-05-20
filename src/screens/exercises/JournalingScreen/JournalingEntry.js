@@ -188,7 +188,7 @@ const JournalingEntry = ({ route, navigation }) => {
               labelStyle={styles.saveButtonLabel}
               style={styles.saveButton}
             >
-              Save
+              SAVE
             </Button>
           </Appbar.Header>
 
@@ -278,8 +278,9 @@ const styles = StyleSheet.create({
     marginRight: SPACING.xs,
   },
   saveButtonLabel: {
-    color: COLORS.primary,
+    color: COLORS.pinkGradient.start,
     fontWeight: FONT.weight.semiBold,
+    fontSize: FONT.size.md,
   },
   dialogContent: {
     alignItems: 'center',

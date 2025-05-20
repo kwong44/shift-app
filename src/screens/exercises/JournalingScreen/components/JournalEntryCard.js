@@ -8,7 +8,7 @@ const { height, width } = Dimensions.get('window');
 
 // Light gray color for journaling
 const JOURNAL_GRAY = '#7A7A7A';
-const JOURNAL_BACKGROUND = '#F0F0F0';
+const JOURNAL_BACKGROUND = '#F8F8F8';
 
 export const JournalEntryCard = ({ 
   promptData,
@@ -21,7 +21,7 @@ export const JournalEntryCard = ({
   onNextPrompt,
   onPreviousPrompt,
   promptsLength,
-  isFullScreen = false
+  hidePromptNavigation = false
 }) => {
   // Debug log only when important props change
   useEffect(() => {
@@ -29,55 +29,45 @@ export const JournalEntryCard = ({
       currentPrompt, 
       promptText,
       entryLength: entry?.length || 0,
-      isFullScreen 
+      hidePromptNavigation
     });
-  }, [currentPrompt, promptText, entry, isFullScreen]);
+  }, [currentPrompt, promptText, entry, hidePromptNavigation]);
 
   return (
     <View style={styles.container}>
       <View style={styles.promptContainer}>
-        <View style={styles.promptNavigation}>
-          <MaterialCommunityIcons
-            name="chevron-left"
-            size={28}
-            color={currentPrompt > 0 ? COLORS.text : 'rgba(0,0,0,0.2)'}
-            onPress={onPreviousPrompt}
-            style={[
-              styles.navIcon,
-              currentPrompt === 0 && styles.navIconDisabled
-            ]}
-          />
-          <Text style={styles.promptCounter}>
-            Prompt {currentPrompt + 1} of {promptsLength}
-          </Text>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={28}
-            color={currentPrompt < promptsLength - 1 ? COLORS.text : 'rgba(0,0,0,0.2)'}
-            onPress={onNextPrompt}
-            style={[
-              styles.navIcon,
-              currentPrompt === promptsLength - 1 && styles.navIconDisabled
-            ]}
-          />
-        </View>
+        {!hidePromptNavigation && (
+          <View style={styles.promptNavigation}>
+            <MaterialCommunityIcons
+              name="chevron-left"
+              size={28}
+              color={currentPrompt > 0 ? COLORS.backgroundLight.start : 'rgba(0,0,0,0.2)'}
+              onPress={onPreviousPrompt}
+              style={[
+                styles.navIcon,
+                currentPrompt === 0 && styles.navIconDisabled
+              ]}
+            />
+            <Text style={styles.promptCounter}>
+              Prompt {currentPrompt + 1} of {promptsLength}
+            </Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={28}
+              color={currentPrompt < promptsLength - 1 ? COLORS.backgroundLight.start : 'rgba(0,0,0,0.2)'}
+              onPress={onNextPrompt}
+              style={[
+                styles.navIcon,
+                currentPrompt === promptsLength - 1 && styles.navIconDisabled
+              ]}
+            />
+          </View>
+        )}
         
         <View style={styles.promptTextContainer}>
-          <MaterialCommunityIcons
-            name="format-quote-open"
-            size={20}
-            color={JOURNAL_GRAY}
-            style={styles.quoteIcon}
-          />
           <Text style={styles.promptText}>
             {promptText}
           </Text>
-          <MaterialCommunityIcons
-            name="format-quote-close"
-            size={20}
-            color={JOURNAL_GRAY}
-            style={[styles.quoteIcon, styles.quoteIconRight]}
-          />
         </View>
       </View>
 
@@ -90,14 +80,14 @@ export const JournalEntryCard = ({
           multiline
           autoFocus={true}
           showSoftInputOnFocus={true}
-          cursorColor={COLORS.textLight}
+          cursorColor={COLORS.pinkGradient.start}
           textAlignVertical="top"
           style={styles.journalInput}
           contentStyle={styles.journalInputContent}
           onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
           theme={{
             colors: {
-              primary: COLORS.textLight,
+              primary: COLORS.pinkGradient.start,
               text: COLORS.text,
               placeholder: COLORS.textLight,
               background: 'white',
@@ -117,13 +107,13 @@ const styles = StyleSheet.create({
   },
   promptContainer: {
     backgroundColor: JOURNAL_BACKGROUND,
-    paddingBottom: SPACING.sm,
+    paddingVertical: SPACING.xxs,
   },
   promptNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   promptCounter: {
     fontWeight: FONT.weight.medium,
@@ -138,28 +128,27 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   promptTextContainer: {
-    padding: SPACING.lg,
-    paddingTop: 0,
+    padding: SPACING.md,
     position: 'relative',
   },
   promptText: {
     fontSize: FONT.size.md,
     fontStyle: 'italic',
-    lineHeight: 24,
+    lineHeight: 18,
     textAlign: 'center',
     color: COLORS.text,
   },
   quoteIcon: {
     position: 'absolute',
-    top: 0,
+    top: SPACING.md,
     left: SPACING.lg,
-    opacity: 0.5,
+    opacity: 0.6,
   },
   quoteIconRight: {
     left: 'auto',
     right: SPACING.lg,
     top: 'auto',
-    bottom: 0,
+    bottom: SPACING.md,
   },
   inputContainer: {
     flex: 1,
@@ -169,13 +158,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     fontSize: FONT.size.md,
     flex: 1,
-    paddingTop: 0,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
+    minHeight: height * 0.5,
   },
   journalInputContent: {
     padding: SPACING.lg,
     paddingTop: SPACING.lg,
     color: COLORS.text,
+    lineHeight: 24,
   },
-}); 
+});

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 
 // Debug logging
@@ -17,32 +18,49 @@ export const PromptTypeSelector = ({
     onSelectPromptType(value);
   };
 
+  // Use pink gradient color for journaling
+  const journalingColor = COLORS.pinkGradient.start;
+
   return (
     <View style={styles.container}>
-      {promptTypes.map((type) => (
-        <Card
-          key={type.value}
-          style={[
-            styles.card,
-            selectedPromptType.value === type.value && styles.selectedCard
-          ]}
-          onPress={() => handleSelect(type.value)}
-        >
-          <Card.Content style={styles.cardContent}>
-            <View style={styles.headerRow}>
-              <Text style={styles.optionTitle}>
-                {type.label}
-              </Text>
-              <Text style={styles.optionHighlight}>
-                {type.duration}
-              </Text>
-            </View>
-            <Text style={styles.optionDescription} numberOfLines={2}>
-              {type.description}
-            </Text>
-          </Card.Content>
-        </Card>
-      ))}
+      {promptTypes.map((type) => {
+        const isSelected = selectedPromptType.value === type.value;
+        return (
+          <Card
+            key={type.value}
+            style={[
+              styles.card,
+              isSelected && styles.selectedCard
+            ]}
+            onPress={() => handleSelect(type.value)}
+          >
+            <Card.Content style={styles.cardContent}>
+              <View style={styles.contentWrapper}>
+                <View style={styles.headerRow}>
+                  <Text style={styles.optionTitle}>
+                    {type.label}
+                  </Text>
+                  <Text style={styles.optionHighlight}>
+                    {type.duration}
+                  </Text>
+                </View>
+                <Text style={styles.optionDescription} numberOfLines={2}>
+                  {type.description}
+                </Text>
+              </View>
+              
+              {isSelected && (
+                <MaterialCommunityIcons 
+                  name="check-circle" 
+                  size={22} 
+                  color={journalingColor} 
+                  style={styles.checkIcon}
+                />
+              )}
+            </Card.Content>
+          </Card>
+        );
+      })}
     </View>
   );
 };
@@ -63,6 +81,11 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     padding: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contentWrapper: {
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -84,5 +107,8 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
     color: COLORS.pinkGradient.start,
+  },
+  checkIcon: {
+    marginLeft: SPACING.sm,
   },
 }); 

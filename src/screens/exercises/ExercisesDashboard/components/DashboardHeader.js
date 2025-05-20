@@ -44,7 +44,7 @@ const DashboardHeader = ({ scrollY }) => {
 
   return (
     <LinearGradient
-      colors={[COLORS.primary + '20', COLORS.backgroundLight]}
+      colors={[COLORS.backgroundLight + '20', COLORS.backgroundLight]}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

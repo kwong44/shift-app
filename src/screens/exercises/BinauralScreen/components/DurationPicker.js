@@ -4,6 +4,9 @@ import { Button } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
 
+// Debug logging
+console.debug('DurationPicker mounted');
+
 const DURATION_OPTIONS = [
   { label: '5 min', value: 300 },
   { label: '10 min', value: 600 },
@@ -56,12 +59,12 @@ const styles = StyleSheet.create({
   },
   option: {
     borderRadius: RADIUS.md,
-    borderColor: COLORS.primary + '30',
+    borderColor: COLORS.indigoGradient.start + '30',
     backgroundColor: COLORS.background,
     ...SHADOWS.small,
   },
   optionSelected: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.indigoGradient.start,
   },
   buttonContent: {
     height: 40,
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
-    color: COLORS.primary,
+    color: COLORS.indigoGradient.start,
   },
   optionTextSelected: {
     color: COLORS.background,

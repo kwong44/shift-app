@@ -124,7 +124,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerArea: {
-    backgroundColor: COLORS.primary + '20', // Match header gradient start color
     zIndex: 1,
   },
   scrollContainer: {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import { FREQUENCIES } from '../constants';
 import * as Haptics from 'expo-haptics';
@@ -14,32 +15,46 @@ const FrequencySelector = ({ selectedFrequency, onSelectFrequency }) => {
     onSelectFrequency(value);
   };
 
+  // Use the indigo gradient color for binaural beats
+  const binauralColor = COLORS.indigoGradient.start;
+
   return (
     <View style={styles.container}>
-      {Object.entries(FREQUENCIES).map(([key, data]) => (
-        <Card
-          key={key}
-          style={[
-            styles.card,
-            selectedFrequency === key && styles.selectedCard
-          ]}
-          onPress={() => handleSelect(key)}
-        >
-          <Card.Content style={styles.cardContent}>
-            <View style={styles.headerRow}>
-              <Text style={styles.optionTitle}>
-                {data.name}
-              </Text>
-              <Text style={styles.optionFrequency}>
-                {data.frequency} Hz
-              </Text>
-            </View>
-            <Text style={styles.optionDescription}>
-              {data.description}
-            </Text>
-          </Card.Content>
-        </Card>
-      ))}
+      {Object.entries(FREQUENCIES).map(([key, data]) => {
+        const isSelected = selectedFrequency === key;
+        return (
+          <Card
+            key={key}
+            style={[
+              styles.card,
+              isSelected && styles.selectedCard
+            ]}
+            onPress={() => handleSelect(key)}
+          >
+            <Card.Content style={styles.cardContent}>
+              <View style={styles.contentWrapper}>
+                <View style={styles.headerRow}>
+                  <Text style={styles.optionTitle}>
+                    {data.name} <Text style={styles.optionFrequency}>{data.frequency} Hz</Text>
+                  </Text>
+                </View>
+                <Text style={styles.optionDescription}>
+                  {data.description}
+                </Text>
+              </View>
+              
+              {isSelected && (
+                <MaterialCommunityIcons 
+                  name="check-circle" 
+                  size={22} 
+                  color={binauralColor} 
+                  style={styles.checkIcon}
+                />
+              )}
+            </Card.Content>
+          </Card>
+        );
+      })}
     </View>
   );
 };
@@ -54,12 +69,17 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   selectedCard: {
-    backgroundColor: COLORS.primary + '08',
+    backgroundColor: `${COLORS.indigoGradient.start}08`,
     borderWidth: 1,
-    borderColor: COLORS.primary + '30',
+    borderColor: `${COLORS.indigoGradient.start}30`,
   },
   cardContent: {
     padding: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contentWrapper: {
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -78,9 +98,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   optionFrequency: {
-    color: COLORS.primary,
+    color: COLORS.indigoGradient.start,
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
+  },
+  checkIcon: {
+    marginLeft: SPACING.sm,
   },
 });
 

@@ -93,6 +93,7 @@ const SetupScreen = ({ navigation }) => {
             label="Start Session"
             onPress={handleStartSession}
             icon="headphones"
+            backgroundColor={COLORS.indigoGradient.start}
           />
         </SetupScreenButtonContainer>
       </SafeAreaView>

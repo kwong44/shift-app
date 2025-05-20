@@ -4,6 +4,7 @@ import { Text, IconButton, Chip } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Debug logging
 console.debug('PlayerCard mounted');
@@ -69,7 +70,12 @@ const PlayerCard = ({
   });
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[COLORS.indigoGradient.start, COLORS.indigoGradient.end]}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
       <View style={styles.waveformContainer}>
         <MaterialCommunityIcons 
           name={getWaveformIcon(waveform)} 
@@ -137,13 +143,12 @@ const PlayerCard = ({
           onPress={handlePlayPause}
         />
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
@@ -172,7 +177,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: SPACING.xs,
-    marginVertical: SPACING.xs,
+    marginVertical: SPACING.lg,
   },
   chip: {
     backgroundColor: 'rgba(255,255,255,0.15)',
