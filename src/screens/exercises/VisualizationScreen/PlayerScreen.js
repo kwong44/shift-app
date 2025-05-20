@@ -1,133 +1,112 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Snackbar, Text } from 'react-native-paper';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Snackbar, Text, Appbar } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
-import { createVisualization, completeVisualization } from '../../../api/exercises';
-import { useUser } from '../../../hooks/useUser';
 import CustomDialog from '../../../components/common/CustomDialog';
 
-// Import local components
-import Timer from '../../../components/exercises/Timer';
-import SessionCard from './components/SessionCard';
+// Import local components and hooks
+import PlayerCard from './components/PlayerCard';
+import { useVisualizationAudio } from './hooks/useVisualizationAudio';
 import { VISUALIZATION_TYPES } from './constants';
 
 // Debug logging
 console.debug('VisualizationPlayerScreen mounted');
 
 const PlayerScreen = ({ route, navigation }) => {
-  const [loading, setLoading] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [error, setError] = useState(null);
-  const [visualizationId, setVisualizationId] = useState(null);
-  const { user } = useUser();
-
-  const { visualizationType, affirmation, selectedEmotions, duration } = route.params;
+  // Destructure route params
+  const { visualizationType, duration } = route.params;
   const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
+  
+  // Use our custom hook for audio playback
+  const { 
+    isPlaying,
+    progress,
+    timeElapsed,
+    error,
+    loading,
+    handlePlayPause,
+    handleStop,
+    resetAudio,
+  } = useVisualizationAudio(selectedType, duration);
 
-  // Start visualization session when component mounts
-  React.useEffect(() => {
-    const startVisualization = async () => {
-      try {
-        const visualization = await createVisualization(user.id, {
-          type: visualizationType,
-          affirmation: affirmation.trim(),
-          emotions: selectedEmotions,
-          duration: duration,
-          completed: false
-        });
-        setVisualizationId(visualization.id);
-        console.debug('Visualization session started:', visualization.id);
-      } catch (error) {
-        console.error('Error starting visualization:', error);
-        setError(error.message);
-        setSnackbarVisible(true);
-      }
-    };
+  // Debug logging for props and state
+  console.debug('VisualizationPlayerScreen state:', {
+    visualizationType,
+    selectedTypeLabel: selectedType?.label,
+    isPlaying,
+    progress,
+    timeElapsed,
+    error,
+    loading
+  });
 
-    startVisualization();
-  }, []);
-
-  const handleComplete = async () => {
-    setLoading(true);
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      if (visualizationId) {
-        await completeVisualization(visualizationId);
-        console.debug('Visualization session completed successfully');
-      }
-
-      setShowDialog(true);
-    } catch (error) {
-      console.error('Error completing visualization session:', error);
-      setError(error.message);
-      setSnackbarVisible(true);
-    } finally {
-      setLoading(false);
+  // Auto-stop when complete
+  useEffect(() => {
+    if (progress >= 1) {
+      handleStop();
     }
-  };
+  }, [progress]);
 
-  const handleSessionCancel = async () => {
+  const handleBack = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    handleStop();
     navigation.goBack();
   };
 
-  const handleFinish = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowDialog(false);
-    navigation.navigate('ExercisesDashboard');
-  };
+  // Display loading indicator if loading
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={COLORS.coralGradient.start} />
+        <Text style={styles.loadingText}>Setting up your visualization...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[`${selectedType.color}30`, COLORS.background]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.7 }}
-        style={styles.gradient}
-      >
-        <Timer
-          duration={duration}
-          onComplete={handleComplete}
-          onCancel={handleSessionCancel}
-          color={selectedType.color}
-        />
-        
-        <SessionCard 
-          visualizationType={selectedType}
-          affirmation={affirmation}
-          selectedEmotions={selectedEmotions}
-        />
-      </LinearGradient>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.coralGradient.start} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <LinearGradient
+          colors={[COLORS.coralGradient.start, COLORS.coralGradient.end]}
+          style={styles.screenGradient}
+        >
+          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+            <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
+            <View>
+              <Text style={styles.appbarTitle}>Visualization</Text>
+              <Text style={styles.appbarSubtitle}>{selectedType.label}</Text>
+            </View>
+          </Appbar.Header>
 
-      <CustomDialog
-        visible={showDialog}
-        onDismiss={handleFinish}
-        title="Visualization Complete"
-        content="Excellent work! Regular visualization practice can help strengthen your mindset and bring you closer to your goals. Remember to carry this positive energy throughout your day."
-        icon="check-circle-outline"
-        confirmText="Done"
-        onConfirm={handleFinish}
-        iconColor={COLORS.primary}
-        iconBackgroundColor={`${COLORS.primary}15`}
-      />
+          <View style={styles.content}>
+            <PlayerCard
+              visualizationType={selectedType}
+              duration={duration}
+              isPlaying={isPlaying}
+              progress={progress}
+              timeElapsed={timeElapsed}
+              onPlayPause={handlePlayPause}
+              onStop={handleStop}
+            />
+          </View>
 
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        duration={3000}
-        style={styles.snackbar}
-        action={{
-          label: 'OK',
-          onPress: () => setSnackbarVisible(false),
-        }}
-      >
-        {error || 'An error occurred. Please try again.'}
-      </Snackbar>
+          <CustomDialog
+            visible={!!error}
+            onDismiss={resetAudio}
+            title="Error"
+            content={error}
+            confirmText="OK"
+            onConfirm={resetAudio}
+            icon="alert-circle"
+            iconColor={COLORS.error}
+            iconBackgroundColor="rgba(255,59,48,0.1)"
+          />
+        </LinearGradient>
+      </SafeAreaView>
     </View>
   );
 };
@@ -137,14 +116,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  gradient: {
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textLight,
+    fontSize: FONT.size.md,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  screenGradient: {
+    flex: 1,
+  },
+  appbar: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+  },
+  appbarTitle: {
+    color: COLORS.textOnColor,
+    fontWeight: FONT.weight.bold,
+    fontSize: FONT.size.lg,
+  },
+  appbarSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: FONT.weight.medium,
+  },
+  content: {
     flex: 1,
     justifyContent: 'center',
-    padding: SPACING.lg,
-  },
-  dialogGradient: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    padding: SPACING.md,
   },
   dialogTitle: {
     textAlign: 'center',
@@ -155,17 +158,6 @@ const styles = StyleSheet.create({
   dialogContent: {
     alignItems: 'center',
     gap: SPACING.md,
-  },
-  dialogIcon: {
-    marginBottom: SPACING.sm,
-  },
-  dialogText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    lineHeight: 22,
-  },
-  dialogButton: {
-    marginTop: SPACING.md,
   },
   snackbar: {
     bottom: SPACING.md,

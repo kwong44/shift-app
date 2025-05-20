@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
   Appbar,
-  Card,
   IconButton,
   Snackbar
 } from 'react-native-paper';
@@ -13,9 +12,7 @@ import * as Haptics from 'expo-haptics';
 
 // Import local components and constants
 import VisualizationTypeSelector from './components/VisualizationTypeSelector';
-import AffirmationInput from './components/AffirmationInput';
-import EmotionPicker from '../../../components/exercises/EmotionPicker';
-import { VISUALIZATION_TYPES, SESSION_DURATION, getAffirmationPlaceholder } from './constants';
+import { VISUALIZATION_TYPES, SESSION_DURATION } from './constants';
 import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
@@ -24,9 +21,6 @@ console.debug('VisualizationSetupScreen mounted');
 
 const SetupScreen = ({ navigation }) => {
   const [visualizationType, setVisualizationType] = useState('goals');
-  const [affirmation, setAffirmation] = useState('');
-  const [selectedEmotions, setSelectedEmotions] = useState([]);
-  const [textInputHeight, setTextInputHeight] = useState(120);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,37 +29,20 @@ const SetupScreen = ({ navigation }) => {
   
   // Debug logging for state changes
   console.debug('VisualizationSetupScreen state:', {
-    visualizationType,
-    affirmationLength: affirmation.length,
-    selectedEmotions
+    visualizationType
   });
 
   const handleStart = async () => {
-    if (!affirmation.trim()) {
-      setError('Please enter an affirmation');
-      setSnackbarVisible(true);
-      return;
-    }
-    if (selectedEmotions.length === 0) {
-      setError('Please select at least one emotion');
-      setSnackbarVisible(true);
-      return;
-    }
-    
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     // Debug logging for navigation
     console.debug('Starting visualization session:', {
       type: visualizationType,
-      affirmationLength: affirmation.trim().length,
-      emotionsCount: selectedEmotions.length,
       duration: SESSION_DURATION
     });
 
     navigation.navigate('VisualizationPlayer', {
       visualizationType,
-      affirmation: affirmation.trim(),
-      selectedEmotions,
       duration: SESSION_DURATION
     });
   };
@@ -108,36 +85,13 @@ const SetupScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.sectionTitle}>Choose Your Focus</Text>
+          <Text style={styles.sectionTitle}>Choose Your Visualization</Text>
           
           <VisualizationTypeSelector 
             visualizationTypes={VISUALIZATION_TYPES}
             selectedType={selectedType}
             onSelectType={handleTypeChange}
           />
-
-          <Text style={styles.sectionTitle}>Your Affirmation</Text>
-          
-          <AffirmationInput 
-            affirmation={affirmation}
-            setAffirmation={setAffirmation}
-            placeholder={getAffirmationPlaceholder(visualizationType)}
-            textInputHeight={textInputHeight}
-            setTextInputHeight={setTextInputHeight}
-          />
-
-          <Text style={styles.sectionTitle}>Emotions to Cultivate</Text>
-          
-          <Card style={styles.emotionsCard} elevation={3}>
-            <Card.Content>
-              <EmotionPicker
-                selectedEmotions={selectedEmotions}
-                onSelectEmotion={setSelectedEmotions}
-                maxSelections={3}
-                helperText="Select up to 3 emotions you want to embody"
-              />
-            </Card.Content>
-          </Card>
         </ScrollView>
 
         <SetupScreenButtonContainer>
@@ -203,11 +157,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
-  },
-  emotionsCard: {
-    marginBottom: SPACING.xl,
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.medium,
   },
   snackbar: {
     bottom: SPACING.md,

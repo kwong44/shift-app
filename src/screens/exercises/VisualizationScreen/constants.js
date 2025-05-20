@@ -9,12 +9,28 @@ export const VISUALIZATION_TYPES = [
     gradient: ['#4C63B6', '#3F51B5']
   },
   { 
+    value: 'ideal_life', 
+    label: 'Ideal Life', 
+    description: 'Envision your perfect future and lifestyle',
+    icon: 'home-heart',
+    color: '#FF7675',
+    gradient: ['#FF7675', '#FF5D5D']
+  },
+  { 
     value: 'confidence', 
     label: 'Self-Confidence', 
     description: 'Build confidence and positive self-image',
     icon: 'account-star',
     color: '#7D8CC4',
     gradient: ['#7D8CC4', '#5C6BC0']
+  },
+  { 
+    value: 'contentment', 
+    label: 'Contentment', 
+    description: 'Embrace gratitude and present moment awareness',
+    icon: 'heart-pulse',
+    color: '#00B894',
+    gradient: ['#00B894', '#00A383']
   },
   { 
     value: 'calm', 
@@ -36,6 +52,10 @@ export const getAffirmationPlaceholder = (visualizationType) => {
       return 'E.g., I am capable, confident, and worthy of success';
     case 'calm':
       return 'E.g., I am calm, centered, and at peace with myself';
+    case 'ideal_life':
+      return 'E.g., I am creating my dream life filled with purpose, joy, and abundance';
+    case 'contentment':
+      return 'E.g., I am grateful for all that I have and find joy in the present moment';
     default:
       return 'Enter your positive affirmation';
   }

@@ -8,7 +8,7 @@ import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme
 const SessionCard = ({ 
   visualizationType, 
   affirmation, 
-  selectedEmotions
+  selectedEmotions = []
 }) => {
   // Debug log
   console.debug('SessionCard rendered', { 
@@ -50,17 +50,19 @@ const SessionCard = ({
             />
           </View>
           
-          <View style={styles.emotionsRow}>
-            {selectedEmotions.map(emotion => (
-              <Chip 
-                key={emotion} 
-                style={[styles.emotionChip, { borderColor: visualizationType.color + '30' }]}
-                textStyle={[styles.emotionChipText, { color: visualizationType.color }]}
-              >
-                {emotion}
-              </Chip>
-            ))}
-          </View>
+          {selectedEmotions.length > 0 && (
+            <View style={styles.emotionsRow}>
+              {selectedEmotions.map(emotion => (
+                <Chip 
+                  key={emotion} 
+                  style={[styles.emotionChip, { borderColor: visualizationType.color + '30' }]}
+                  textStyle={[styles.emotionChipText, { color: visualizationType.color }]}
+                >
+                  {emotion}
+                </Chip>
+              ))}
+            </View>
+          )}
         </Card.Content>
       </LinearGradient>
     </Card>
