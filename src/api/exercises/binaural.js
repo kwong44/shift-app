@@ -34,20 +34,29 @@ export const startBinauralSession = async (userId, audioUrl, duration, purpose) 
 /**
  * Complete a binaural beats session
  * @param {string} sessionId - The session ID
+ * @param {number} actualDurationInSeconds - The actual duration the user listened in seconds.
  * @returns {Promise} - The updated session
  */
-export const completeBinauralSession = async (sessionId) => {
+export const completeBinauralSession = async (sessionId, actualDurationInSeconds) => {
   try {
-    console.debug('[completeBinauralSession] Completing session:', { sessionId });
+    console.debug('[completeBinauralSession] Completing session:', { sessionId, actualDurationInSeconds });
     
+    const updatePayload = {
+      completed: true,
+      completed_at: new Date().toISOString(),
+      actual_duration_seconds: actualDurationInSeconds,
+      // The 'duration' column still stores the intended duration in minutes.
+    };
+
     const { data, error } = await supabase
       .from('binaural_sessions')
-      .update({ completed: true })
+      .update(updatePayload)
       .eq('id', sessionId)
       .select()
       .single();
 
     if (error) throw error;
+    console.debug('[completeBinauralSession] Session completed successfully:', data);
     return data;
   } catch (error) {
     console.error('Error completing binaural session:', error.message);

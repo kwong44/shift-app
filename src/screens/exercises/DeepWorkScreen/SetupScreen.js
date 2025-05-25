@@ -6,7 +6,8 @@ import {
   Appbar,
   Card,
   IconButton,
-  Snackbar
+  Snackbar,
+  ActivityIndicator
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
@@ -18,46 +19,88 @@ import { SESSION_DURATIONS } from './constants';
 import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
+// Import API and hooks
+import { startDeepWorkSession } from '../../../api/exercises/deepWork';
+import { useUser } from '../../../hooks/useUser';
+
 // Debug logging
-console.debug('DeepWorkSetupScreen mounted');
+console.debug('[DeepWorkSetupScreen] Mounted');
 
 const SetupScreen = ({ navigation }) => {
+  const { user } = useUser();
   const [selectedDuration, setSelectedDuration] = useState(1500);
   const [taskDescription, setTaskDescription] = useState('');
   const [textInputHeight, setTextInputHeight] = useState(80);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [error, setError] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get the selected duration data
   const selectedDurationData = SESSION_DURATIONS.find(d => d.value === selectedDuration);
   
   // Debug logging for state changes
-  console.debug('DeepWorkSetupScreen state:', {
+  console.debug('[DeepWorkSetupScreen] State:', {
     selectedDuration,
-    taskLength: taskDescription.length
+    taskLength: taskDescription.length,
+    userId: user?.id
   });
 
   const handleStart = async () => {
-    if (!taskDescription.trim()) {
-      setError('Please describe your task');
+    if (!user) {
+      console.error('[DeepWorkSetupScreen] User not found, cannot start session.');
+      setSnackbarMessage('User not identified. Please restart the app.');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    const trimmedTask = taskDescription.trim();
+    if (!trimmedTask) {
+      setSnackbarMessage('Please describe your task for the deep work session.');
       setSnackbarVisible(true);
       return;
     }
     
-    // Provide haptic feedback
+    setIsLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Debug logging for navigation
-    console.debug('Starting deep work session:', {
-      taskLength: taskDescription.trim().length,
-      duration: selectedDuration
-    });
+    const durationInSeconds = selectedDuration;
+    const durationInMinutes = Math.floor(durationInSeconds / 60);
 
-    navigation.navigate('DeepWorkPlayer', {
-      taskDescription: taskDescription.trim(),
-      duration: selectedDuration,
-      durationData: selectedDurationData
-    });
+    try {
+      console.debug('[DeepWorkSetupScreen] Attempting to start deep work session with:', {
+        userId: user.id,
+        taskId: null,
+        duration: durationInMinutes,
+        taskDescription: trimmedTask,
+      });
+
+      const session = await startDeepWorkSession(
+        user.id,
+        null,
+        durationInMinutes
+      );
+
+      if (session && session.id) {
+        console.debug('[DeepWorkSetupScreen] Deep work session started successfully in DB:', session);
+        navigation.navigate('DeepWorkPlayer', {
+          sessionId: session.id,
+          taskDescription: trimmedTask,
+          duration: durationInSeconds,
+          durationData: selectedDurationData,
+          startTime: session.start_time
+        });
+      } else {
+        console.error('[DeepWorkSetupScreen] Failed to start deep work session or session ID missing from API response.');
+        setSnackbarMessage('Could not start session. Please try again.');
+        setSnackbarVisible(true);
+      }
+    } catch (error) {
+      console.error('[DeepWorkSetupScreen] Error starting deep work session:', error.message);
+      setSnackbarMessage(`Error: ${error.message}`);
+      setSnackbarVisible(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -119,6 +162,8 @@ const SetupScreen = ({ navigation }) => {
             onPress={handleStart}
             icon="clock-start"
             backgroundColor={COLORS.blueGradient.start}
+            disabled={isLoading}
+            loading={isLoading}
           />
         </SetupScreenButtonContainer>
 
@@ -132,7 +177,7 @@ const SetupScreen = ({ navigation }) => {
             onPress: () => setSnackbarVisible(false),
           }}
         >
-          {error}
+          {snackbarMessage}
         </Snackbar>
       </SafeAreaView>
     </View>
@@ -166,7 +211,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: SPACING.xl + 80, // Extra padding for button
+    paddingBottom: SPACING.xl + 80,
   },
   sectionTitle: {
     fontSize: FONT.size.md,

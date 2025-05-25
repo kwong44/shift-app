@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, SafeAreaView, RefreshControl } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { supabase } from '../../../config/supabase';
 import { SPACING, COLORS } from '../../../config/theme';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../../../hooks/useUser';
+import { getProgressSummary } from '../../../api/progress';
 
 // Import components
 import ProfileTabHeader from './components/ProfileTabHeader';
@@ -33,8 +35,8 @@ const debug = {
   }
 };
 
-const ProfileScreen = () => {
-  debug.log('Component mounted');
+const ProgressScreen = () => {
+  const { user } = useUser();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
@@ -51,6 +53,59 @@ const ProfileScreen = () => {
     exerciseBreakdown: {},
     weeklyProgress: []
   });
+  const [progressData, setProgressData] = useState({
+    focusTimeMinutes: 0,
+    mindfulMinutes: 0,
+    totalExercisesCompleted: 0,
+    activeDays: 0,
+  });
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  console.debug('[ProgressScreen] Initializing. User:', user?.id);
+
+  const fetchSummaryData = useCallback(async () => {
+    if (!user?.id) {
+      console.debug('[ProgressScreen] No user ID, skipping fetch.');
+      setLoading(false); // Stop loading if no user
+      // Optionally set progressData to 0 or keep as is, depends on desired behavior before login
+      setProgressData({ focusTimeMinutes: 0, mindfulMinutes: 0, totalExercisesCompleted: 0, activeDays: 0 });
+      return;
+    }
+
+    console.debug(`[ProgressScreen] Fetching summary data for user: ${user.id}`);
+    setError(null); // Reset error before new fetch
+    // Do not set loading to true if it's a refresh, refreshing state handles UI
+    if (!refreshing) {
+        setLoading(true);
+    }
+
+    try {
+      const summary = await getProgressSummary(user.id);
+      console.debug('[ProgressScreen] Summary data received:', summary);
+      setProgressData(summary);
+    } catch (err) {
+      console.error('[ProgressScreen] Error fetching progress summary:', err.message);
+      setError('Failed to load progress. Please try again.');
+      // Set to 0 on error as per requirement
+      setProgressData({ focusTimeMinutes: 0, mindfulMinutes: 0, totalExercisesCompleted: 0, activeDays: 0 });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.id, refreshing]);
+
+  useEffect(() => {
+    fetchSummaryData();
+  }, [fetchSummaryData]); // fetchSummaryData is memoized with useCallback
+
+  const onRefresh = useCallback(() => {
+    console.debug('[ProgressScreen] Refresh initiated.');
+    setRefreshing(true);
+    // fetchSummaryData will be called due to 'refreshing' changing, 
+    // or call it directly if you prefer explicit control after setting refreshing true.
+    // await fetchSummaryData(); // Not strictly needed if refreshing is in fetchSummaryData deps
+  }, []);
 
   useEffect(() => {
     debug.log(`useEffect triggered: Loading ${activeTab} data`);
@@ -175,7 +230,7 @@ const ProfileScreen = () => {
     }
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -196,6 +251,7 @@ const ProfileScreen = () => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]}/>}
       >
         {activeTab === 'profile' ? (
           <ProfileInfo 
@@ -209,30 +265,24 @@ const ProfileScreen = () => {
             {/* Key Stats Overview Grid */}
             <View style={styles.statsGrid}>
               <StatCard
-                title="Weekly Streak"
-                value={`${stats.weeklyStreak}`}
-                icon="fire"
-                color={COLORS.orange}
-                unit="weeks"
-              />
-              <StatCard
-                title="Total Exercises"
-                value={`${stats.totalExercises}`}
-                icon="dumbbell"
-                color={COLORS.purple}
-                unit="completed"
-              />
-              <StatCard
                 title="Focus Time"
-                value={`${stats.focusTime}m`}
-                icon="brain"
-                color={COLORS.blue}
+                value={progressData.focusTimeMinutes}
+                unit="mins"
               />
               <StatCard
                 title="Mindful Minutes"
-                value={`${stats.mindfulMinutes}m`}
-                icon="meditation"
-                color={COLORS.teal}
+                value={progressData.mindfulMinutes}
+                unit="mins"
+              />
+              <StatCard
+                title="Total Exercises"
+                value={progressData.totalExercisesCompleted}
+                unit="completed"
+              />
+              <StatCard
+                title="Active Days"
+                value={progressData.activeDays}
+                unit="days"
               />
             </View>
 
@@ -279,6 +329,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     color: COLORS.primary,
   },
+  statUnit: {
+    fontSize: 16, // Slightly smaller for the unit
+    fontWeight: 'normal',
+    color: COLORS.textSecondary, // Corrected from text nhẹ
+  },
+  statTitle: {
+    // ... existing code ...
+  },
 });
 
-export default ProfileScreen; 
+export default ProgressScreen; 

@@ -5,7 +5,8 @@ import {
   Text, 
   Appbar,
   IconButton,
-  Snackbar
+  Snackbar,
+  ActivityIndicator
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
@@ -16,35 +17,81 @@ import { VISUALIZATION_TYPES, SESSION_DURATION } from './constants';
 import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
+// Import API and hooks
+import { createVisualization } from '../../../api/exercises/visualization';
+import { useUser } from '../../../hooks/useUser';
+
 // Debug logging
-console.debug('VisualizationSetupScreen mounted');
+console.debug('[VisualizationSetupScreen] Mounted');
 
 const SetupScreen = ({ navigation }) => {
+  const { user } = useUser();
   const [visualizationType, setVisualizationType] = useState('goals');
   const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [error, setError] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get the selected visualization type data
-  const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
+  const selectedTypeData = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
   
   // Debug logging for state changes
-  console.debug('VisualizationSetupScreen state:', {
-    visualizationType
+  console.debug('[VisualizationSetupScreen] State:', {
+    visualizationType,
+    selectedTypeName: selectedTypeData?.label,
+    userId: user?.id
   });
 
   const handleStart = async () => {
+    if (!user) {
+      console.error('[VisualizationSetupScreen] User not found, cannot start session.');
+      setSnackbarMessage('User not identified. Please restart the app.');
+      setSnackbarVisible(true);
+      return;
+    }
+    if (!selectedTypeData) {
+        console.error('[VisualizationSetupScreen] Selected visualization type data not found.');
+        setSnackbarMessage('Invalid visualization type selected.');
+        setSnackbarVisible(true);
+        return;
+    }
+
+    setIsLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Debug logging for navigation
-    console.debug('Starting visualization session:', {
-      type: visualizationType,
-      duration: SESSION_DURATION
-    });
+    // The content for the visualization can be its type/label or a more detailed description if available
+    // For now, using the label of the selected type as content.
+    const visualizationContent = selectedTypeData.label || visualizationType;
+    const durationInSeconds = SESSION_DURATION; // From constants, assumed to be in seconds
 
-    navigation.navigate('VisualizationPlayer', {
-      visualizationType,
-      duration: SESSION_DURATION
-    });
+    try {
+      console.debug('[VisualizationSetupScreen] Attempting to create visualization:', {
+        userId: user.id,
+        content: visualizationContent,
+      });
+
+      const createdViz = await createVisualization(user.id, visualizationContent);
+
+      if (createdViz && createdViz.id) {
+        console.debug('[VisualizationSetupScreen] Visualization created successfully in DB:', createdViz);
+        navigation.navigate('VisualizationPlayer', {
+          visualizationId: createdViz.id,
+          visualizationType, // Pass the type key
+          typeData: selectedTypeData, // Pass the full data object for the player
+          duration: durationInSeconds, // Pass duration in seconds for the timer
+          content: visualizationContent, // Pass the content that was saved
+        });
+      } else {
+        console.error('[VisualizationSetupScreen] Failed to create visualization or ID missing.');
+        setSnackbarMessage('Could not start visualization. Please try again.');
+        setSnackbarVisible(true);
+      }
+    } catch (error) {
+      console.error('[VisualizationSetupScreen] Error creating visualization:', error.message);
+      setSnackbarMessage(`Error: ${error.message}`);
+      setSnackbarVisible(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTypeChange = async (type) => {
@@ -89,7 +136,7 @@ const SetupScreen = ({ navigation }) => {
           
           <VisualizationTypeSelector 
             visualizationTypes={VISUALIZATION_TYPES}
-            selectedType={selectedType}
+            selectedType={selectedTypeData}
             onSelectType={handleTypeChange}
           />
         </ScrollView>
@@ -100,6 +147,8 @@ const SetupScreen = ({ navigation }) => {
             onPress={handleStart}
             icon="meditation"
             backgroundColor={COLORS.coralGradient.start}
+            disabled={isLoading}
+            loading={isLoading}
           />
         </SetupScreenButtonContainer>
 
@@ -113,7 +162,7 @@ const SetupScreen = ({ navigation }) => {
             onPress: () => setSnackbarVisible(false),
           }}
         >
-          {error}
+          {snackbarMessage}
         </Snackbar>
       </SafeAreaView>
     </View>

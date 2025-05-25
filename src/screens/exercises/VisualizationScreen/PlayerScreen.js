@@ -16,9 +16,10 @@ import { VISUALIZATION_TYPES } from './constants';
 console.debug('VisualizationPlayerScreen mounted');
 
 const PlayerScreen = ({ route, navigation }) => {
-  // Destructure route params
-  const { visualizationType, duration } = route.params;
-  const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
+  // Destructure route params - including visualizationId, typeData, and content
+  const { visualizationId, visualizationType, duration, typeData, content } = route.params;
+  // const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType); // typeData is now passed directly
+  const selectedType = typeData; // Use typeData directly from params
   
   // Use our custom hook for audio playback
   const { 
@@ -28,32 +29,43 @@ const PlayerScreen = ({ route, navigation }) => {
     error,
     loading,
     handlePlayPause,
-    handleStop,
+    handleStop, // This stop should now handle API call via the hook
     resetAudio,
-  } = useVisualizationAudio(selectedType, duration);
+  } = useVisualizationAudio(selectedType, duration, visualizationId); // Pass visualizationId to the hook
 
   // Debug logging for props and state
-  console.debug('VisualizationPlayerScreen state:', {
+  console.debug('[VisualizationPlayerScreen] State & Props:', {
+    visualizationId,
     visualizationType,
+    content, // Log the content being visualized
     selectedTypeLabel: selectedType?.label,
+    duration, // Planned duration
     isPlaying,
     progress,
-    timeElapsed,
+    timeElapsed, // Actual time elapsed from hook
     error,
-    loading
+    loading // Loading state from hook
   });
 
-  // Auto-stop when complete
+  // Auto-stop when complete (This might be redundant if hook's handleStop is robust)
+  // Consider if this useEffect is still needed or if the hook manages completion fully.
   useEffect(() => {
-    if (progress >= 1) {
-      handleStop();
+    if (progress >= 1 && !loading) { // Ensure not already in a loading state (e.g. from API call)
+      // handleStop(); // The hook's handleStop should be called by the timer or player events directly
+      // For now, let's assume the hook or PlayerCard's onStop will trigger the hook's handleStop.
+      console.debug('[VisualizationPlayerScreen] Progress reached 1. Hook should handle completion.');
     }
-  }, [progress]);
+  }, [progress, loading]); // Removed handleStop from dependencies to avoid re-triggering
 
   const handleBack = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    handleStop();
-    navigation.goBack();
+    // handleStop(); // Call the hook's handleStop which now includes API call
+    // The hook's handleStop should also manage navigation or signal completion for navigation.
+    // For now, let PlayerCard's onStop call the hook's handleStop, or if hook needs explicit call:
+    if (handleStop) {
+        await handleStop(); // Ensure it handles async nature if any
+    }
+    navigation.goBack(); // Navigation might occur after hook processes stop
   };
 
   // Display loading indicator if loading

@@ -13,7 +13,7 @@ import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../config/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { logMindfulnessCheckIn } from '../../../api/exercises';
+import { logMindfulnessSession } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
 
 // Import local components
@@ -30,13 +30,14 @@ const PlayerScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [error, setError] = useState(null);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [pulseAnim] = useState(new Animated.Value(1));
 
   // Debug logging for props
   console.debug('MindfulnessPlayerScreen props:', {
     type: mindfulnessType,
-    emotionsCount: selectedEmotions.length
+    emotionsCount: selectedEmotions.length,
+    userId: user?.id
   });
 
   // Pulse animation
@@ -61,44 +62,93 @@ const PlayerScreen = ({ navigation, route }) => {
     };
   }, [pulseAnim]);
 
-  const handleComplete = async () => {
+  const handleComplete = async (actualDurationSpent) => {
+    if (!user) {
+      console.error('MindfulnessPlayerScreen] User not found, cannot log session.');
+      setSnackbarMessage('User not identified. Cannot save session.');
+      setSnackbarVisible(true);
+      return;
+    }
     setLoading(true);
     try {
-      // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration: ${actualDurationSpent}s, Planned: ${typeData.duration}s`);
 
-      // Log mindfulness check-in
-      await logMindfulnessCheckIn(user.id, {
-        type: mindfulnessType,
-        duration: typeData.duration,
-        emotions: selectedEmotions,
+      const sessionLogData = {
+        duration_seconds: actualDurationSpent,
         completed: true,
-        timestamp: new Date().toISOString()
-      });
+        emotions: selectedEmotions,
+        fullResponse: {
+          type: mindfulnessType,
+          planned_duration_seconds: typeData.duration,
+          emotions_before: selectedEmotions,
+          guidance_type: typeData.guidance,
+          audio_url: typeData.audioUrl || null
+        }
+      };
 
-      console.debug('Mindfulness session saved successfully');
+      await logMindfulnessSession(user.id, sessionLogData);
+
+      console.debug('[MindfulnessPlayerScreen] Mindfulness session logged successfully (completed).');
       setShowDialog(true);
     } catch (error) {
-      console.error('Error saving mindfulness session:', error);
-      setError(error.message);
+      console.error('[MindfulnessPlayerScreen] Error logging completed mindfulness session:', error.message);
+      setSnackbarMessage(`Error: ${error.message}`);
       setSnackbarVisible(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSessionCancel = async () => {
-    // Provide haptic feedback
+  const handleSessionCancel = async (actualDurationSpent) => {
+    console.debug(`[MindfulnessPlayerScreen] Session cancelled by user. Actual duration: ${actualDurationSpent}s`);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (user && actualDurationSpent > 0) {
+      setLoading(true);
+      try {
+        const sessionLogData = {
+          duration_seconds: actualDurationSpent,
+          completed: false,
+          emotions: selectedEmotions,
+          fullResponse: {
+            type: mindfulnessType,
+            planned_duration_seconds: typeData.duration,
+            emotions_before: selectedEmotions,
+            cancelled_at_seconds: actualDurationSpent
+          }
+        };
+        await logMindfulnessSession(user.id, sessionLogData);
+        console.debug('[MindfulnessPlayerScreen] Mindfulness session logged successfully (cancelled).');
+      } catch (error) {
+        console.error('[MindfulnessPlayerScreen] Error logging cancelled mindfulness session:', error.message);
+        setSnackbarMessage(`Could not log cancelled session: ${error.message}`);
+        setSnackbarVisible(true);
+      } finally {
+        setLoading(false);
+      }
+    }
     navigation.goBack();
   };
 
   const handleFinish = async () => {
-    // Provide haptic feedback
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowDialog(false);
+    console.debug('[MindfulnessPlayerScreen] Navigating to ExercisesDashboard.');
     navigation.navigate('ExercisesDashboard');
   };
+
+  if (!user) {
+    return (
+      <View style={styles.container_loading}>
+        <Appbar.Header style={styles.appbar_transparent}>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Loading..." />
+        </Appbar.Header>
+        <Text style={styles.errorText}>User information not available. Please restart.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -110,7 +160,7 @@ const PlayerScreen = ({ navigation, route }) => {
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <Appbar.Header style={styles.appbar} statusBarHeight={0}>
             <Appbar.BackAction 
-              onPress={handleSessionCancel} 
+              onPress={() => handleSessionCancel(0)} 
               color={COLORS.background} 
             />
             <View>
@@ -178,7 +228,7 @@ const PlayerScreen = ({ navigation, route }) => {
             onPress: () => setSnackbarVisible(false),
           }}
         >
-          {error || 'An error occurred. Please try again.'}
+          {snackbarMessage || 'An error occurred. Please try again.'}
         </Snackbar>
       </LinearGradient>
     </View>
@@ -189,6 +239,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  container_loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
+  },
+  appbar_transparent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
+  },
+  errorText: {
+    marginTop: SPACING.md,
+    color: COLORS.error,
+    textAlign: 'center',
   },
   screenGradient: {
     flex: 1,

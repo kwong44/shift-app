@@ -30,23 +30,46 @@ export const createVisualization = async (userId, content) => {
 /**
  * Complete a visualization exercise
  * @param {string} visualizationId - The visualization ID
- * @returns {Promise} - The updated visualization
+ * @param {number} actualDurationInSeconds - The actual duration of the visualization in seconds.
+ * @returns {Promise<object>} - The updated visualization entry.
  */
-export const completeVisualization = async (visualizationId) => {
+export const completeVisualization = async (visualizationId, actualDurationInSeconds) => {
   try {
-    console.debug('[completeVisualization] Completing visualization:', { visualizationId });
+    // Validate inputs
+    if (!visualizationId) throw new Error('Visualization ID is required.');
+    if (actualDurationInSeconds === undefined || actualDurationInSeconds === null || actualDurationInSeconds < 0) {
+      // Allow 0 duration if it signifies an immediate completion without timed tracking, but generally expect positive.
+      // For now, let's assume 0 is a valid "completed instantly" or not-timed scenario.
+      // If it strictly must be > 0 for timed sessions, adjust this check.
+      console.warn('[completeVisualization] actualDurationInSeconds is undefined, null, or negative. Proceeding, but this might indicate an issue.', { actualDurationInSeconds });
+      // Consider throwing an error if duration is critical and must be positive:
+      // throw new Error('Valid actualDurationInSeconds is required.');
+    }
+
+    console.debug('[completeVisualization] Completing visualization:', { visualizationId, actualDurationInSeconds });
     
+    const updatePayload = {
+      completed: true,
+      completed_at: new Date().toISOString(),
+      duration_seconds: actualDurationInSeconds,
+    };
+
     const { data, error } = await supabase
       .from('visualizations')
-      .update({ completed: true })
+      .update(updatePayload)
       .eq('id', visualizationId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[completeVisualization] Database error:', error);
+      throw error;
+    }
+
+    console.debug('[completeVisualization] Visualization completed successfully:', data);
     return data;
   } catch (error) {
-    console.error('Error completing visualization:', error.message);
+    console.error('[completeVisualization] Error:', error.message);
     throw error;
   }
 };

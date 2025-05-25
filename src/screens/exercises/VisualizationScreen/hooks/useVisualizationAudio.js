@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
-import { createVisualization, completeVisualization } from '../../../../api/exercises';
-import { useUser } from '../../../../hooks/useUser';
+import { completeVisualization } from '../../../../api/exercises';
 
 // Audio placeholders for different visualization types
 // Will replace these with actual guided visualization audio files later
@@ -15,40 +14,45 @@ const VISUALIZATION_AUDIO = {
   placeholder: require('../../../../../assets/audio/silence.mp3'),
 };
 
-export const useVisualizationAudio = (selectedType, duration) => {
-  const { user } = useUser();
+export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) => {
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [error, setError] = useState(null);
-  const [visualizationId, setVisualizationId] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const visualizationIdRef = useRef(vizIdFromProps);
+  useEffect(() => {
+    visualizationIdRef.current = vizIdFromProps;
+  }, [vizIdFromProps]);
+
   // Debug logging
-  console.debug('useVisualizationAudio hook state:', {
+  console.debug('[useVisualizationAudio] Hook initialized/updated. Props & State:', {
+    selectedType: selectedType?.value,
+    duration,
+    visualizationId: visualizationIdRef.current,
     isPlaying,
     progress,
     timeElapsed,
     error,
-    selectedType: selectedType?.value,
-    visualizationId,
+    loading,
   });
 
   // Clean up audio resources when unmounting
   useEffect(() => {
     return () => {
       if (sound) {
-        console.debug('Cleaning up audio resources');
+        console.debug('[useVisualizationAudio] Cleaning up audio resources (unload).');
         sound.unloadAsync();
       }
     };
   }, [sound]);
 
-  // Progress tracking
+  // Progress tracking & auto-completion
   useEffect(() => {
     let interval;
-    if (isPlaying) {
+    if (isPlaying && duration > 0) {
       interval = setInterval(() => {
         setTimeElapsed(prev => {
           const newTime = prev + 1;
@@ -57,40 +61,32 @@ export const useVisualizationAudio = (selectedType, duration) => {
           setProgress(finalProgress);
           
           // Complete session when finished
-          if (finalProgress >= 1 && visualizationId) {
-            completeVisualization(visualizationId)
-              .then(() => console.debug('Visualization completed successfully'))
-              .catch(err => console.error('Error completing visualization:', err));
+          if (finalProgress >= 1 && visualizationIdRef.current) {
+            console.debug(`[useVisualizationAudio] Progress complete. Marking viz ${visualizationIdRef.current} complete. Duration: ${newTime}s`);
+            completeVisualization(visualizationIdRef.current, newTime)
+              .then(() => console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete via progress tracker.`))
+              .catch(err => console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} via progress:`, err.message));
           }
-          
           return newTime;
         });
       }, 1000);
     }
-    
     return () => clearInterval(interval);
-  }, [isPlaying, duration, visualizationId]);
+  }, [isPlaying, duration]);
 
   const loadAndPlaySound = async () => {
+    // Ensure visualizationId is present (passed from PlayerScreen, originating from SetupScreen)
+    if (!visualizationIdRef.current) {
+      console.error('[useVisualizationAudio] No visualizationId provided. Cannot load sound.');
+      setError('Visualization session ID is missing. Cannot start audio.');
+      setLoading(false); // Ensure loading is false if we bail early
+      return;
+    }
+    
+    setLoading(true); // For audio loading
+    setError(null); // Clear previous errors
     try {
-      // Skip if user is loading or null
-      if (!user) {
-        console.debug('User not available yet, skipping visualization creation');
-        setError('User data not available. Please try again.');
-        return;
-      }
-      
-      setLoading(true);
-      console.debug('Loading visualization audio:', selectedType.label);
-      
-      // Start a new visualization in the database
-      const visualization = await createVisualization(user.id, {
-        type: selectedType.value,
-        duration: duration / 60, // Convert seconds to minutes
-        completed: false
-      });
-      setVisualizationId(visualization.id);
-      console.debug('Visualization session started:', visualization.id);
+      console.debug(`[useVisualizationAudio] Loading audio for viz: ${visualizationIdRef.current}, Type: ${selectedType?.label}`);
       
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
@@ -138,48 +134,61 @@ export const useVisualizationAudio = (selectedType, duration) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     if (isPlaying) {
-      setIsPlaying(false);
+      console.debug(`[useVisualizationAudio] Pausing audio for viz: ${visualizationIdRef.current}`);
       if (sound) {
         await sound.pauseAsync();
       }
+      setIsPlaying(false); // Set playing state after pause attempt
     } else {
       if (sound) {
+        console.debug(`[useVisualizationAudio] Playing existing audio for viz: ${visualizationIdRef.current}`);
         await sound.playAsync();
         setIsPlaying(true);
       } else {
-        if (progress > 0) {
-          loadAndPlaySound();
-        } else {
-          setTimeElapsed(0);
-          loadAndPlaySound();
-        }
+        // Only load if not already playing and sound is null (i.e., fresh start or after stop)
+        console.debug(`[useVisualizationAudio] No sound object, calling loadAndPlaySound for viz: ${visualizationIdRef.current}`);
+        // Reset time/progress if starting fresh, PlayerScreen may also manage this if re-entering
+        setTimeElapsed(0);
+        setProgress(0);
+        await loadAndPlaySound(); // This will set isPlaying to true on success
       }
     }
   };
 
   const handleStop = async () => {
+    console.debug(`[useVisualizationAudio] handleStop called for viz: ${visualizationIdRef.current}`);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (sound) {
+      console.debug('[useVisualizationAudio] Unloading sound in handleStop.');
       await sound.unloadAsync();
       setSound(null);
     }
     setIsPlaying(false);
-    setProgress(0);
-    setTimeElapsed(0);
-    
-    // Complete the visualization if it exists
-    if (visualizationId) {
+    // Don't reset progress/timeElapsed here if PlayerScreen might want to show final state
+    // Let PlayerScreen decide to call resetAudio or navigate away.
+
+    // Complete the visualization if it exists and progress is not yet 1 (to avoid double calls)
+    if (visualizationIdRef.current && progress < 1) {
       try {
-        await completeVisualization(visualizationId);
-        console.debug('Visualization completed successfully');
+        setLoading(true); // Indicate activity for API call
+        console.debug(`[useVisualizationAudio] Marking viz ${visualizationIdRef.current} complete via handleStop. Duration: ${timeElapsed}s`);
+        await completeVisualization(visualizationIdRef.current, timeElapsed); // Pass actual time elapsed
+        console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete via handleStop.`);
+        setProgress(1); // Set progress to 1 to reflect completion
       } catch (err) {
-        console.error('Error completing visualization:', err);
+        console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} from handleStop:`, err.message);
+        setError(`Failed to complete visualization: ${err.message}`);
+      } finally {
+        setLoading(false);
       }
-      setVisualizationId(null);
+    } else if (visualizationIdRef.current && progress >= 1) {
+      console.debug(`[useVisualizationAudio] Viz ${visualizationIdRef.current} already at 100% or completed. Not calling API again from handleStop.`);
     }
+    // Do not setVisualizationId to null here, PlayerScreen controls its lifecycle.
   };
 
   const resetAudio = () => {
+    console.debug(`[useVisualizationAudio] resetAudio called for viz: ${visualizationIdRef.current}`);
     if (sound) {
       sound.unloadAsync();
       setSound(null);
@@ -188,8 +197,20 @@ export const useVisualizationAudio = (selectedType, duration) => {
     setProgress(0);
     setTimeElapsed(0);
     setError(null);
-    setVisualizationId(null);
+    console.debug('[useVisualizationAudio] Audio reset complete.');
   };
+
+  // Effect to automatically start playing when visualizationId is available from props
+  // and sound is not already set up (e.g., on initial mount with valid ID).
+  useEffect(() => {
+    if (visualizationIdRef.current && !sound && !isPlaying && progress === 0 && selectedType) {
+        console.debug(`[useVisualizationAudio] Auto-starting sound for new viz session: ${visualizationIdRef.current}`);
+        // Reset time and progress before starting a new sound session from fresh data
+        setTimeElapsed(0);
+        setProgress(0);
+        loadAndPlaySound(); 
+    }
+  }, [visualizationIdRef.current, selectedType]); // React to changes in ID or selectedType
 
   return {
     isPlaying,

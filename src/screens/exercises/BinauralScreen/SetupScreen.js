@@ -4,9 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
   Appbar,
-  Button,
-  Card,
-  IconButton
+  IconButton,
+  ActivityIndicator
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
@@ -18,22 +17,72 @@ import { FREQUENCIES } from './constants';
 import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
+// Import API and hooks
+import { startBinauralSession } from '../../../api/exercises/binaural';
+import { useUser } from '../../../hooks/useUser';
+
 // Debug logging
-console.debug('BinauralSetupScreen mounted');
+console.debug('[BinauralSetupScreen] Mounted');
 
 const SetupScreen = ({ navigation }) => {
+  const { user } = useUser();
   const [selectedFrequency, setSelectedFrequency] = useState('focus');
-  const [customDuration, setCustomDuration] = useState(300); // 5 minutes default
+  const [customDuration, setCustomDuration] = useState(300); // 5 minutes default in seconds
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
 
   const handleStartSession = async () => {
+    if (!user) {
+      console.error('[BinauralSetupScreen] User not found, cannot start session.');
+      // TODO: Show error to user
+      return;
+    }
+    setIsLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    const frequencyData = {
-      ...FREQUENCIES[selectedFrequency],
-      duration: customDuration,
-    };
-    
-    navigation.navigate('BinauralPlayer', { frequencyData });
+    const selectedFrequencyDetails = FREQUENCIES[selectedFrequency];
+    // The 'duration' in FREQUENCIES seems to be a default, we use customDuration from picker
+    const durationInSeconds = customDuration; 
+    const durationInMinutes = Math.floor(durationInSeconds / 60); // API might expect minutes
+
+    // TODO: Determine actual audioUrl based on selection or a fixed one for now
+    const audioUrlPlaceholder = selectedFrequencyDetails.audioUrl || 'placeholder_audio_url.mp3';
+    const purpose = selectedFrequencyDetails.name; // e.g., "Focus", "Relaxation"
+
+    try {
+      console.debug('[BinauralSetupScreen] Attempting to start session with:', {
+        userId: user.id,
+        audioUrl: audioUrlPlaceholder,
+        duration: durationInMinutes, // Sending duration in minutes as per original API design
+        purpose,
+      });
+
+      const session = await startBinauralSession(
+        user.id,
+        audioUrlPlaceholder,
+        durationInMinutes, 
+        purpose
+      );
+
+      if (session && session.id) {
+        console.debug('[BinauralSetupScreen] Session started successfully:', session);
+        const frequencyData = {
+          ...selectedFrequencyDetails,
+          duration: durationInSeconds, // Pass duration in seconds to PlayerScreen for timer
+          sessionId: session.id, // Pass the sessionId
+          purpose: purpose,
+          // audioUrl: session.audio_url, // Use the URL from the session if it's dynamic
+        };
+        navigation.navigate('BinauralPlayer', { frequencyData });
+      } else {
+        console.error('[BinauralSetupScreen] Failed to start session or session ID missing.');
+        // TODO: Show error to user
+      }
+    } catch (error) {
+      console.error('[BinauralSetupScreen] Error starting binaural session:', error);
+      // TODO: Show error to user (e.g., a snackbar or dialog)
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -94,6 +143,8 @@ const SetupScreen = ({ navigation }) => {
             onPress={handleStartSession}
             icon="headphones"
             backgroundColor={COLORS.indigoGradient.start}
+            disabled={isLoading} // Disable button when loading
+            loading={isLoading} // Show loading indicator on button
           />
         </SetupScreenButtonContainer>
       </SafeAreaView>
