@@ -268,21 +268,25 @@ const ProgressScreen = () => {
                 title="Focus Time"
                 value={progressData.focusTimeMinutes}
                 unit="mins"
+                icon="brain"
               />
               <StatCard
                 title="Mindful Minutes"
                 value={progressData.mindfulMinutes}
                 unit="mins"
+                icon="meditation"
               />
               <StatCard
                 title="Total Exercises"
                 value={progressData.totalExercisesCompleted}
                 unit="completed"
+                icon="dumbbell"
               />
               <StatCard
                 title="Active Days"
                 value={progressData.activeDays}
                 unit="days"
+                icon="calendar-check"
               />
             </View>
 

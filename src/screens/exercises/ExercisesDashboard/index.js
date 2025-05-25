@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { StyleSheet, Animated, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Snackbar } from 'react-native-paper';
+// import { Snackbar } from 'react-native-paper'; // Snackbar no longer needed
 import { COLORS, SPACING } from '../../../config/theme';
 import { DashboardHeader, ExerciseCard } from './components';
-import useExercises from './hooks/useExercises';
+// import useExercises from './hooks/useExercises'; // useExercises hook is not needed here
 
-// Constants
+// Constants for all available exercises
 const EXERCISES = [
   {
     id: 'journaling',
@@ -58,22 +58,17 @@ const EXERCISES = [
   }
 ];
 
-// Debug logging
-console.debug('ExercisesDashboard mounted');
+console.debug('[ExercisesDashboard] Mounted. Now displays a static list of all exercises.');
 
 const ExercisesDashboard = ({ navigation }) => {
   const [scrollY] = useState(new Animated.Value(0));
-  const { completedExercises, loading, error, refreshExercises } = useExercises();
+  // const { completedExercises, loading, error, refreshExercises } = useExercises(); // Removed
 
-  // Debug logging for state changes
-  console.debug('ExercisesDashboard state:', { 
-    completedCount: Object.keys(completedExercises).length,
-    loading,
-    error 
-  });
+  // Debug logging for state changes - simplified as no dynamic state from useExercises
+  console.debug('[ExercisesDashboard] State: Displaying static list.');
 
   const handleExercisePress = (exercise) => {
-    console.debug('Exercise pressed:', exercise.id);
+    console.debug('[ExercisesDashboard] Exercise pressed:', exercise.id, 'Navigating to:', exercise.route);
     navigation.navigate(exercise.route);
   };
 
@@ -89,7 +84,7 @@ const ExercisesDashboard = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: Platform.OS !== 'web' } // useNativeDriver true for non-web
         )}
         scrollEventThrottle={16}
       >
@@ -97,23 +92,25 @@ const ExercisesDashboard = ({ navigation }) => {
           <ExerciseCard
             key={exercise.id}
             exercise={exercise}
-            isCompleted={completedExercises[exercise.id]}
+            // isCompleted={completedExercises[exercise.id]} // Removed isCompleted prop
             onPress={handleExercisePress}
           />
         ))}
       </Animated.ScrollView>
 
+      {/* Snackbar removed as error handling from useExercises is no longer present 
       <Snackbar
         visible={!!error}
-        onDismiss={() => refreshExercises()}
+        onDismiss={() => {}}
         action={{
           label: 'Retry',
-          onPress: refreshExercises,
+          onPress: () => {},
         }}
         style={styles.snackbar}
       >
         {error || 'An error occurred. Please try again.'}
       </Snackbar>
+      */}
     </View>
   );
 };
@@ -125,6 +122,7 @@ const styles = StyleSheet.create({
   },
   headerArea: {
     zIndex: 1,
+    // backgroundColor: COLORS.background, // Ensure header background is solid if needed over scrolling content
   },
   scrollContainer: {
     flex: 1, 
@@ -133,11 +131,14 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
   },
   scrollContent: {
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.xl, // Ensure content doesn't hide behind tab bar if any
   },
+  /* Snackbar style removed as component is removed
   snackbar: {
     bottom: SPACING.md,
+    marginHorizontal: SPACING.md,
   },
+  */
 });
 
 export default ExercisesDashboard; 

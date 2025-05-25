@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Title, Text, TouchableRipple, IconButton, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
+import useDailyFocusCompletion from '../../../../hooks/useDailyFocusCompletion';
 
 const DAILY_EXERCISES = [
   {
@@ -45,8 +46,26 @@ const DAILY_EXERCISES = [
   }
 ];
 
+// Extract IDs from DAILY_EXERCISES to pass to the hook
+const dailyExerciseIdsToTrack = DAILY_EXERCISES.map(ex => ex.id);
+
 const DailyFocus = ({ onExercisePress }) => {
-  const handleExercisePress = async (exercise) => {
+  const { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus } = useDailyFocusCompletion(dailyExerciseIdsToTrack);
+
+  useEffect(() => {
+    if (completionError) {
+      console.warn('[DailyFocus] Error loading completion status:', completionError);
+    }
+  }, [completionError]);
+
+  console.debug('[DailyFocus] Rendering with completion status:', dailyCompletionStatus, 'Loading:', loadingCompletion);
+
+  const handleExercisePress = async (exercise, isCompleted) => {
+    if (isCompleted && exercise.id !== 'tasks') {
+      console.debug(`[DailyFocus] Exercise ${exercise.id} already completed today and not tasks. No action.`);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
     await Haptics.selectionAsync();
     onExercisePress(exercise.route);
   };
@@ -66,46 +85,61 @@ const DailyFocus = ({ onExercisePress }) => {
         </View>
         
         <View style={styles.exerciseList}>
-          {DAILY_EXERCISES.map((exercise) => (
-            <TouchableRipple
-              key={exercise.id}
-              onPress={() => handleExercisePress(exercise)}
-              style={styles.exerciseButton}
-              accessible={true}
-              accessibilityLabel={`Start ${exercise.title} exercise`}
-              accessibilityHint={`${exercise.duration} exercise to ${exercise.benefit}`}
-            >
-              <LinearGradient
-                colors={exercise.gradientColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.exerciseGradient}
+          {DAILY_EXERCISES.map((exercise) => {
+            const isCompleted = dailyCompletionStatus[exercise.id] || false;
+            const isDisabled = isCompleted && exercise.id !== 'tasks';
+
+            return (
+              <TouchableRipple
+                key={exercise.id}
+                onPress={() => handleExercisePress(exercise, isCompleted)}
+                style={[styles.exerciseButton, isDisabled && styles.disabledExerciseButton]}
+                disabled={isDisabled}
+                accessible={true}
+                accessibilityLabel={`Start ${exercise.title} exercise. ${isCompleted ? 'Completed today.' : 'Not yet completed.'}`}
+                accessibilityHint={`${exercise.duration} exercise to ${exercise.benefit}`}
               >
-                <View style={styles.exerciseItemContainer}>
-                  <View style={styles.exerciseIconContainer}>
-                    <MaterialCommunityIcons 
-                      name={exercise.icon} 
-                      size={24} 
-                      color={COLORS.textOnColor} 
+                <LinearGradient
+                  colors={isDisabled ? [COLORS.greyLight, COLORS.greyMedium] : exercise.gradientColors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.exerciseGradient}
+                >
+                  <View style={styles.exerciseItemContainer}>
+                    <View style={[styles.exerciseIconContainer, isDisabled && styles.disabledIconContainer]}>
+                      {isCompleted ? (
+                        <MaterialCommunityIcons 
+                          name="check-circle"
+                          size={28} 
+                          color={exercise.id === 'tasks' && isDisabled ? COLORS.textOnColor : COLORS.success}
+                        />
+                      ) : (
+                        <MaterialCommunityIcons 
+                          name={exercise.icon} 
+                          size={24} 
+                          color={COLORS.textOnColor} 
+                        />
+                      )}
+                    </View>
+                    <View style={styles.exerciseContent}>
+                      <Text style={[styles.exerciseTitle, isDisabled && styles.disabledText]}>{exercise.title}</Text>
+                      <Text style={[styles.exerciseDescription, isDisabled && styles.disabledText]}>
+                        {exercise.duration} • {exercise.benefit}
+                      </Text>
+                    </View>
+                    <IconButton 
+                      icon="chevron-right" 
+                      iconColor={isDisabled ? COLORS.greyDark : COLORS.textOnColor} 
+                      size={20}
+                      style={styles.exerciseArrow}
                     />
                   </View>
-                  <View style={styles.exerciseContent}>
-                    <Text style={styles.exerciseTitle}>{exercise.title}</Text>
-                    <Text style={styles.exerciseDescription}>
-                      {exercise.duration} • {exercise.benefit}
-                    </Text>
-                  </View>
-                  <IconButton 
-                    icon="chevron-right" 
-                    iconColor={COLORS.textOnColor} 
-                    size={20}
-                    style={styles.exerciseArrow}
-                  />
-                </View>
-              </LinearGradient>
-            </TouchableRipple>
-          ))}
+                </LinearGradient>
+              </TouchableRipple>
+            );
+          })}
         </View>
+        {loadingCompletion && <Text style={styles.loadingText}>Checking focus completion...</Text>}
       </Card.Content>
     </Card>
   );
@@ -147,6 +181,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: SPACING.md,
   },
+  disabledExerciseButton: {
+    // Optionally, add more specific styles if just opacity isn't enough
+  },
+  disabledIconContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  disabledText: {
+    color: COLORS.greyDark,
+    textDecorationLine: 'line-through',
+  },
   exerciseGradient: {
     borderRadius: RADIUS.lg,
   },
@@ -184,6 +228,12 @@ const styles = StyleSheet.create({
     height: 28,
     width: 28,
   },
+  loadingText: {
+    textAlign: 'center',
+    color: COLORS.textLight,
+    fontSize: FONT.size.sm,
+    paddingVertical: SPACING.sm,
+  }
 });
 
 export default DailyFocus; 

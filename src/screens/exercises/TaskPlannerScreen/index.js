@@ -109,19 +109,29 @@ const TaskPlannerScreen = ({ navigation }) => {
       // Provide haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const data = await createTask(
+      const insertedTask = await createTask(
         user.id,
         newTask.trim(),
         PRIORITY_LEVELS.findIndex(p => p.value === selectedPriority) + 1
       );
 
-      console.debug('Task added successfully', { taskId: data.id });
-      setTasks([data, ...tasks]);
-      setNewTask('');
-      setSelectedPriority('medium');
+      // Check if the task was actually created and returned
+      if (insertedTask && insertedTask.id) {
+        console.debug('Task added successfully', { taskId: insertedTask.id });
+        setTasks([insertedTask, ...tasks]);
+        setNewTask('');
+        setSelectedPriority('medium');
+      } else {
+        // This case handles if createTask returns null or an object without an id
+        console.error('Error adding task: createTask did not return a valid task object.', insertedTask);
+        setError('Failed to add task. Please try again.');
+        setSnackbarVisible(true);
+      }
     } catch (error) {
-      console.error('Error adding task:', error);
-      setError(error.message);
+      console.error('Error adding task catch block:', error.message, error);
+      // Ensure error.message is a string, or provide a default
+      const errorMessage = typeof error?.message === 'string' ? error.message : 'An unexpected error occurred.';
+      setError(errorMessage);
       setSnackbarVisible(true);
     } finally {
       setLoading(false);

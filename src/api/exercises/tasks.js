@@ -39,7 +39,10 @@ export const createTask = async (userId, description, priority, dueDate = null) 
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error creating task:', error.message);
+    console.error('Error creating task (within createTask API):', error);
+    console.error('Error message from createTask API:', error?.message);
+    console.error('Error details from createTask API:', error?.details);
+    console.error('Error code from createTask API:', error?.code);
     throw error;
   }
 };

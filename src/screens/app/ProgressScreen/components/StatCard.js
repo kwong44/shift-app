@@ -35,7 +35,7 @@ const StatCard = ({ title, value, icon, color, unit }) => {
         <MaterialCommunityIcons 
           name={icon} 
           size={28} 
-          color={COLORS.text} 
+          color={COLORS.primaryLight} 
           style={styles.icon}
         />
         <View style={styles.valueContainer}>
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   icon: {
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.sm
   },
   valueContainer: {
     flexDirection: 'row',
