@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Animated } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, IconButton, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -37,7 +37,7 @@ const ENHANCED_ICONS = {
   }
 };
 
-const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
+const ExerciseCard = ({ exercise, isCompleted, onPress, style, isFavorite, onToggleFavorite }) => {
   // Animation for card press
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   
@@ -68,6 +68,13 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
   const handlePress = async () => {
     await Haptics.selectionAsync();
     onPress(exercise);
+  };
+
+  const handleFavoritePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (onToggleFavorite) {
+      onToggleFavorite(exercise.id, isFavorite);
+    }
   };
 
   return (
@@ -130,6 +137,16 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style }) => {
                 {exercise.duration}
               </Text>
             </View>
+          </View>
+          <View style={styles.favoriteContainer}>
+            <IconButton
+              icon={isFavorite ? 'heart' : 'heart-outline'}
+              iconColor={isFavorite ? COLORS.accent : COLORS.white}
+              size={26}
+              onPress={handleFavoritePress}
+              style={styles.favoriteButton}
+              animated={true}
+            />
           </View>
         </View>
       </TouchableOpacity>
@@ -210,6 +227,12 @@ const styles = StyleSheet.create({
   duration: {
     fontSize: FONT.size.sm,
     color: COLORS.textLight,
+  },
+  favoriteContainer: {
+    marginLeft: SPACING.sm,
+  },
+  favoriteButton: {
+    marginLeft: SPACING.sm,
   },
 });
 

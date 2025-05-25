@@ -1,74 +1,101 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Card, Title, Text, TouchableRipple, IconButton, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
+import { useUser } from '../../../../hooks/useUser';
 import useDailyFocusCompletion from '../../../../hooks/useDailyFocusCompletion';
+import { getDailyFocusSuggestions } from '../../../../api/dailyFocus';
 
-const DAILY_EXERCISES = [
-  {
-    id: 'mindfulness',
-    title: 'Mindfulness',
-    icon: 'meditation',
-    duration: '5-10 min',
-    route: 'MindfulnessSetup',
-    benefit: 'Reduce stress and improve focus',
-    gradientColors: [COLORS.tealGradient.start, COLORS.tealGradient.end]
-  },
-  {
-    id: 'visualization',
-    title: 'Visualization',
-    icon: 'eye-outline',
-    duration: '5 min',
-    route: 'VisualizationSetup',
-    benefit: 'Strengthen your goal achievement mindset',
-    gradientColors: [COLORS.coralGradient.start, COLORS.coralGradient.end]
-  },
-  {
-    id: 'tasks',
-    title: 'Task Planning',
-    icon: 'checkbox-marked-outline',
-    duration: '10 min',
-    route: 'TaskPlanner',
-    benefit: 'Stay organized and productive',
-    gradientColors: [COLORS.purpleGradient.start, COLORS.purpleGradient.end]
-  },
-  {
-    id: 'deepwork',
-    title: 'Deep Work',
-    icon: 'timer-outline',
-    duration: '25-50 min',
-    route: 'DeepWorkSetup',
-    benefit: 'Focus intensely on important tasks',
-    gradientColors: [COLORS.blueGradient.start, COLORS.blueGradient.end]
-  }
-];
-
-// Extract IDs from DAILY_EXERCISES to pass to the hook
-const dailyExerciseIdsToTrack = DAILY_EXERCISES.map(ex => ex.id);
+console.debug('[DailyFocus] Component mounted/re-rendered.');
 
 const DailyFocus = ({ onExercisePress }) => {
-  const { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus } = useDailyFocusCompletion(dailyExerciseIdsToTrack);
+  const { user } = useUser();
+  const [suggestedExercises, setSuggestedExercises] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const [suggestionsError, setSuggestionsError] = useState(null);
+
+  const exerciseIdsToTrack = useMemo(() => {
+    return suggestedExercises.map(ex => ex.id);
+  }, [suggestedExercises]);
+
+  const { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus } = 
+    useDailyFocusCompletion(exerciseIdsToTrack);
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (user?.id) {
+        console.debug('[DailyFocus] User found, fetching suggestions for:', user.id);
+        setLoadingSuggestions(true);
+        setSuggestionsError(null);
+        try {
+          const suggestions = await getDailyFocusSuggestions(user.id, 3);
+          setSuggestedExercises(suggestions);
+          console.debug('[DailyFocus] Suggestions fetched:', suggestions.map(s => s.id));
+        } catch (err) {
+          console.error('[DailyFocus] Error fetching suggestions:', err);
+          setSuggestionsError('Failed to load daily focus suggestions.');
+          setSuggestedExercises([]);
+        } finally {
+          setLoadingSuggestions(false);
+        }
+      } else {
+        console.debug('[DailyFocus] No user, or user ID not available yet. Clearing suggestions.');
+        setSuggestedExercises([]);
+        setLoadingSuggestions(false);
+      }
+    };
+
+    fetchSuggestions();
+  }, [user]);
 
   useEffect(() => {
     if (completionError) {
-      console.warn('[DailyFocus] Error loading completion status:', completionError);
+      console.warn('[DailyFocus] Error loading completion status from hook:', completionError);
     }
   }, [completionError]);
 
-  console.debug('[DailyFocus] Rendering with completion status:', dailyCompletionStatus, 'Loading:', loadingCompletion);
+  console.debug('[DailyFocus] Rendering. Suggestions Count:', suggestedExercises.length, 'Loading Suggestions:', loadingSuggestions, 'Loading Completions:', loadingCompletion);
+  console.debug('[DailyFocus] Completion Status from hook:', dailyCompletionStatus);
 
   const handleExercisePress = async (exercise, isCompleted) => {
-    if (isCompleted && exercise.id !== 'tasks') {
-      console.debug(`[DailyFocus] Exercise ${exercise.id} already completed today and not tasks. No action.`);
+    if (isCompleted && exercise.id !== 'tasks_planner') {
+      console.debug(`[DailyFocus] Exercise ${exercise.id} already completed today and not tasks_planner. No action.`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
     await Haptics.selectionAsync();
-    onExercisePress(exercise.route);
+    onExercisePress(exercise.route, exercise.defaultSettings || {});
   };
+
+  if (loadingSuggestions) {
+    return (
+      <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingOrErrorText}>Loading your focus for today...</Text>
+      </Card>
+    );
+  }
+
+  if (suggestionsError) {
+    return (
+      <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={COLORS.error} />
+        <Text style={styles.loadingOrErrorText}>{suggestionsError}</Text>
+      </Card>
+    );
+  }
+
+  if (suggestedExercises.length === 0) {
+    return (
+      <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
+        <MaterialCommunityIcons name="coffee-outline" size={48} color={COLORS.textLight} />
+        <Text style={styles.loadingOrErrorText}>No focus exercises suggested for today. Perhaps take a break?</Text>
+      </Card>
+    );
+  }
 
   return (
     <Card style={styles.focusCard} elevation={2}>
@@ -79,15 +106,16 @@ const DailyFocus = ({ onExercisePress }) => {
             mode="flat"
             style={styles.focusChip}
             textStyle={styles.focusChipText}
+            icon="calendar-check-outline"
           >
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Chip>
         </View>
         
         <View style={styles.exerciseList}>
-          {DAILY_EXERCISES.map((exercise) => {
-            const isCompleted = dailyCompletionStatus[exercise.id] || false;
-            const isDisabled = isCompleted && exercise.id !== 'tasks';
+          {suggestedExercises.map((exercise) => {
+            const isCompleted = exercise.id ? (dailyCompletionStatus[exercise.id] || false) : false;
+            const isDisabled = isCompleted && exercise.id !== 'tasks_planner';
 
             return (
               <TouchableRipple
@@ -97,10 +125,10 @@ const DailyFocus = ({ onExercisePress }) => {
                 disabled={isDisabled}
                 accessible={true}
                 accessibilityLabel={`Start ${exercise.title} exercise. ${isCompleted ? 'Completed today.' : 'Not yet completed.'}`}
-                accessibilityHint={`${exercise.duration} exercise to ${exercise.benefit}`}
+                accessibilityHint={`${exercise.defaultDurationText || 'Varies'} exercise to ${exercise.description || 'improve well-being'}`}
               >
                 <LinearGradient
-                  colors={isDisabled ? [COLORS.greyLight, COLORS.greyMedium] : exercise.gradientColors}
+                  colors={isDisabled ? [COLORS.greyLight, COLORS.greyMedium] : (exercise.gradientColors || [COLORS.primary, COLORS.secondary])}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.exerciseGradient}
@@ -109,22 +137,22 @@ const DailyFocus = ({ onExercisePress }) => {
                     <View style={[styles.exerciseIconContainer, isDisabled && styles.disabledIconContainer]}>
                       {isCompleted ? (
                         <MaterialCommunityIcons 
-                          name="check-circle"
+                          name="check-circle" 
                           size={28} 
-                          color={exercise.id === 'tasks' && isDisabled ? COLORS.textOnColor : COLORS.success}
+                          color={(exercise.id === 'tasks_planner' && isDisabled) ? COLORS.textOnColor : COLORS.success}
                         />
                       ) : (
                         <MaterialCommunityIcons 
-                          name={exercise.icon} 
+                          name={exercise.icon || 'lightbulb-on-outline'} 
                           size={24} 
                           color={COLORS.textOnColor} 
                         />
                       )}
                     </View>
                     <View style={styles.exerciseContent}>
-                      <Text style={[styles.exerciseTitle, isDisabled && styles.disabledText]}>{exercise.title}</Text>
-                      <Text style={[styles.exerciseDescription, isDisabled && styles.disabledText]}>
-                        {exercise.duration} • {exercise.benefit}
+                      <Text style={[styles.exerciseTitle, isDisabled && styles.disabledText]}>{exercise.title || 'Unnamed Exercise'}</Text>
+                      <Text style={[styles.exerciseDescription, isDisabled && styles.disabledText]} numberOfLines={2}>
+                        {exercise.defaultDurationText || 'Varies'} • {exercise.description || 'Tap to start'}
                       </Text>
                     </View>
                     <IconButton 
@@ -132,6 +160,7 @@ const DailyFocus = ({ onExercisePress }) => {
                       iconColor={isDisabled ? COLORS.greyDark : COLORS.textOnColor} 
                       size={20}
                       style={styles.exerciseArrow}
+                      animated={true}
                     />
                   </View>
                 </LinearGradient>
@@ -139,7 +168,8 @@ const DailyFocus = ({ onExercisePress }) => {
             );
           })}
         </View>
-        {loadingCompletion && <Text style={styles.loadingText}>Checking focus completion...</Text>}
+        {(loadingCompletion && suggestedExercises.length > 0) && 
+          <Text style={styles.loadingOrErrorText}>Checking focus completion...</Text>}
       </Card.Content>
     </Card>
   );
@@ -152,6 +182,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     backgroundColor: COLORS.background,
     overflow: 'hidden',
+  },
+  centeredContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    minHeight: 200,
+  },
+  loadingOrErrorText: {
+    textAlign: 'center',
+    color: COLORS.textLight,
+    fontSize: FONT.size.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -227,12 +270,6 @@ const styles = StyleSheet.create({
     margin: 0,
     height: 28,
     width: 28,
-  },
-  loadingText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    fontSize: FONT.size.sm,
-    paddingVertical: SPACING.sm,
   }
 });
 

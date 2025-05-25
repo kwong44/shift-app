@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, Animated, View, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Animated, View, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import { Snackbar } from 'react-native-paper'; // Snackbar no longer needed
+import { Text } from 'react-native-paper';
 import { COLORS, SPACING } from '../../../config/theme';
 import { DashboardHeader, ExerciseCard } from './components';
-// import useExercises from './hooks/useExercises'; // useExercises hook is not needed here
+import { MASTER_EXERCISE_LIST } from '../../../constants/masterExerciseList';
+import { useUser } from '../../../hooks/useUser';
+import { getAllExercisePreferences, setExerciseFavorite } from '../../../api/profile';
 
 // Constants for all available exercises
 const EXERCISES = [
@@ -61,16 +63,108 @@ const EXERCISES = [
 console.debug('[ExercisesDashboard] Mounted. Now displays a static list of all exercises.');
 
 const ExercisesDashboard = ({ navigation }) => {
+  const { user } = useUser();
   const [scrollY] = useState(new Animated.Value(0));
-  // const { completedExercises, loading, error, refreshExercises } = useExercises(); // Removed
+  const [exercisePreferences, setExercisePreferences] = useState({});
+  const [loadingPreferences, setLoadingPreferences] = useState(true);
+  const [errorPreferences, setErrorPreferences] = useState(null);
 
-  // Debug logging for state changes - simplified as no dynamic state from useExercises
-  console.debug('[ExercisesDashboard] State: Displaying static list.');
+  console.debug('[ExercisesDashboard] Initializing. User:', user?.id, 'Loading Prefs:', loadingPreferences);
+
+  useEffect(() => {
+    const loadPreferences = async () => {
+      if (user?.id) {
+        console.debug('[ExercisesDashboard] User found, loading preferences for:', user.id);
+        setLoadingPreferences(true);
+        setErrorPreferences(null);
+        try {
+          const prefsArray = await getAllExercisePreferences(user.id);
+          const prefsObject = prefsArray.reduce((acc, pref) => {
+            acc[pref.exercise_id] = pref;
+            return acc;
+          }, {});
+          setExercisePreferences(prefsObject);
+          console.debug('[ExercisesDashboard] Preferences loaded:', prefsObject);
+        } catch (err) {
+          console.error('[ExercisesDashboard] Error loading preferences:', err);
+          setErrorPreferences('Failed to load exercise preferences.');
+        } finally {
+          setLoadingPreferences(false);
+        }
+      }
+    };
+    loadPreferences();
+  }, [user]);
 
   const handleExercisePress = (exercise) => {
     console.debug('[ExercisesDashboard] Exercise pressed:', exercise.id, 'Navigating to:', exercise.route);
-    navigation.navigate(exercise.route);
+    navigation.navigate(exercise.route, exercise.defaultSettings || {});
   };
+
+  const handleToggleFavorite = async (exerciseId, currentIsFavorite) => {
+    if (!user?.id) {
+      console.warn('[ExercisesDashboard] No user to toggle favorite for.');
+      return;
+    }
+    console.debug(`[ExercisesDashboard] Toggling favorite for ${exerciseId}. Current: ${currentIsFavorite}`);
+    try {
+      const newPreferences = {
+        ...exercisePreferences,
+        [exerciseId]: {
+          ...(exercisePreferences[exerciseId] || { exercise_id: exerciseId, user_id: user.id }),
+          is_favorite: !currentIsFavorite,
+          updated_at: new Date().toISOString(),
+        },
+      };
+      setExercisePreferences(newPreferences);
+
+      const updatedPref = await setExerciseFavorite(user.id, exerciseId, !currentIsFavorite);
+      if (updatedPref) {
+        setExercisePreferences(prev => ({
+          ...prev,
+          [exerciseId]: updatedPref,
+        }));
+        console.debug('[ExercisesDashboard] Favorite toggled successfully on server for:', exerciseId);
+      } else {
+        console.error('[ExercisesDashboard] Failed to toggle favorite on server. Reverting optimistic update.');
+        setExercisePreferences(prev => {
+          const revertedPrefs = { ...prev };
+          if (prev[exerciseId]) {
+            revertedPrefs[exerciseId].is_favorite = currentIsFavorite;
+          } else {
+            delete revertedPrefs[exerciseId];
+          }
+          return revertedPrefs;
+        });
+      }
+    } catch (error) {
+      console.error('[ExercisesDashboard] Error toggling favorite:', error);
+      setExercisePreferences(prev => {
+        const revertedPrefs = { ...prev };
+        if (prev[exerciseId]) {
+          revertedPrefs[exerciseId].is_favorite = currentIsFavorite;
+        }
+        return revertedPrefs;
+      });
+    }
+  };
+
+  if (loadingPreferences && !Object.keys(exercisePreferences).length) {
+    return (
+      <View style={styles.centeredMessageContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.messageText}>Loading exercises...</Text>
+      </View>
+    );
+  }
+
+  if (errorPreferences) {
+    return (
+      <View style={styles.centeredMessageContainer}>
+        <Text style={styles.messageText}>{errorPreferences}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -84,33 +178,24 @@ const ExercisesDashboard = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: Platform.OS !== 'web' } // useNativeDriver true for non-web
+          { useNativeDriver: Platform.OS !== 'web' }
         )}
         scrollEventThrottle={16}
       >
-        {EXERCISES.map(exercise => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            // isCompleted={completedExercises[exercise.id]} // Removed isCompleted prop
-            onPress={handleExercisePress}
-          />
-        ))}
+        {MASTER_EXERCISE_LIST.map(exercise => {
+          const preference = exercisePreferences[exercise.id];
+          const isFavorite = preference ? preference.is_favorite : false;
+          return (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              isFavorite={isFavorite}
+              onToggleFavorite={handleToggleFavorite}
+              onPress={handleExercisePress}
+            />
+          );
+        })}
       </Animated.ScrollView>
-
-      {/* Snackbar removed as error handling from useExercises is no longer present 
-      <Snackbar
-        visible={!!error}
-        onDismiss={() => {}}
-        action={{
-          label: 'Retry',
-          onPress: () => {},
-        }}
-        style={styles.snackbar}
-      >
-        {error || 'An error occurred. Please try again.'}
-      </Snackbar>
-      */}
     </View>
   );
 };
@@ -122,7 +207,6 @@ const styles = StyleSheet.create({
   },
   headerArea: {
     zIndex: 1,
-    // backgroundColor: COLORS.background, // Ensure header background is solid if needed over scrolling content
   },
   scrollContainer: {
     flex: 1, 
@@ -131,14 +215,19 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
   },
   scrollContent: {
-    paddingBottom: SPACING.xl, // Ensure content doesn't hide behind tab bar if any
+    paddingBottom: SPACING.xl,
   },
-  /* Snackbar style removed as component is removed
-  snackbar: {
-    bottom: SPACING.md,
-    marginHorizontal: SPACING.md,
+  centeredMessageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
   },
-  */
+  messageText: {
+    marginTop: SPACING.md,
+    fontSize: 16,
+    color: COLORS.textLight,
+  },
 });
 
 export default ExercisesDashboard; 
