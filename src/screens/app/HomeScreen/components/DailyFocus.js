@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Card, Title, Text, TouchableRipple, IconButton, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useIsFocused } from '@react-navigation/native';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '../../../../hooks/useUser';
@@ -13,6 +14,7 @@ console.debug('[DailyFocus] Component mounted/re-rendered.');
 
 const DailyFocus = ({ onExercisePress }) => {
   const { user } = useUser();
+  const isFocused = useIsFocused();
   const [suggestedExercises, setSuggestedExercises] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [suggestionsError, setSuggestionsError] = useState(null);
@@ -24,38 +26,50 @@ const DailyFocus = ({ onExercisePress }) => {
   const { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus } = 
     useDailyFocusCompletion(exerciseIdsToTrack);
 
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (user?.id) {
-        console.debug('[DailyFocus] User found, fetching suggestions for:', user.id);
-        setLoadingSuggestions(true);
-        setSuggestionsError(null);
-        try {
-          const suggestions = await getDailyFocusSuggestions(user.id, 3);
-          setSuggestedExercises(suggestions);
-          console.debug('[DailyFocus] Suggestions fetched:', suggestions.map(s => s.id));
-        } catch (err) {
-          console.error('[DailyFocus] Error fetching suggestions:', err);
-          setSuggestionsError('Failed to load daily focus suggestions.');
-          setSuggestedExercises([]);
-        } finally {
-          setLoadingSuggestions(false);
-        }
-      } else {
-        console.debug('[DailyFocus] No user, or user ID not available yet. Clearing suggestions.');
+  const fetchSuggestions = useCallback(async () => {
+    if (user?.id) {
+      console.debug('[DailyFocus] User found, fetching suggestions for:', user.id);
+      setLoadingSuggestions(true);
+      setSuggestionsError(null);
+      try {
+        const suggestions = await getDailyFocusSuggestions(user.id, 3);
+        setSuggestedExercises(suggestions);
+        console.debug('[DailyFocus] Suggestions fetched:', suggestions.map(s => s.id));
+      } catch (err) {
+        console.error('[DailyFocus] Error fetching suggestions:', err);
+        setSuggestionsError('Failed to load daily focus suggestions.');
         setSuggestedExercises([]);
+      } finally {
         setLoadingSuggestions(false);
       }
-    };
-
-    fetchSuggestions();
+    } else {
+      console.debug('[DailyFocus] No user, or user ID not available yet. Clearing suggestions.');
+      setSuggestedExercises([]);
+      setLoadingSuggestions(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    if (isFocused) {
+      console.debug('[DailyFocus] Screen is focused, calling fetchSuggestions.');
+      fetchSuggestions();
+    } else {
+      console.debug('[DailyFocus] Screen is NOT focused. Suggestions will not be fetched by focus trigger.');
+    }
+  }, [user, isFocused, fetchSuggestions]);
 
   useEffect(() => {
     if (completionError) {
       console.warn('[DailyFocus] Error loading completion status from hook:', completionError);
     }
   }, [completionError]);
+
+  useEffect(() => {
+    if (isFocused && suggestedExercises.length > 0) {
+        console.debug('[DailyFocus] Screen focused or suggestions changed, refreshing daily completion status.');
+        refreshDailyStatus();
+    }
+  }, [isFocused, suggestedExercises, refreshDailyStatus]);
 
   console.debug('[DailyFocus] Rendering. Suggestions Count:', suggestedExercises.length, 'Loading Suggestions:', loadingSuggestions, 'Loading Completions:', loadingCompletion);
   console.debug('[DailyFocus] Completion Status from hook:', dailyCompletionStatus);

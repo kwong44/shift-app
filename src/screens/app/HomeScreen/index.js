@@ -349,7 +349,10 @@ const HomeScreen = ({ navigation }) => {
           
           <View style={styles.componentWrapper}>
             <DailyFocus 
-              onExercisePress={(route) => navigation.navigate(route)} 
+              onExercisePress={(route, params) => {
+                console.debug(`[HomeScreen] Navigating from DailyFocus. Route: ${route}, Params:`, params);
+                navigation.navigate(route, params);
+              }} 
             />
           </View>
           

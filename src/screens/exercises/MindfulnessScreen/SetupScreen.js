@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -21,21 +21,35 @@ import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
 // Debug logging
-console.debug('MindfulnessSetupScreen mounted');
+console.debug('[MindfulnessSetupScreen] File loaded.');
 
-const SetupScreen = ({ navigation }) => {
-  const [mindfulnessType, setMindfulnessType] = useState('breath');
+const SetupScreen = ({ navigation, route }) => {
+  const params = route.params || {};
+
+  // Initialize state with values from params if available, otherwise defaults
+  const [mindfulnessType, setMindfulnessType] = useState(params.mindfulnessType || 'breath');
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [error, setError] = useState('');
 
-  // Get the selected mindfulness type data
-  const selectedType = MINDFULNESS_TYPES.find(type => type.value === mindfulnessType);
+  // Effect to log params and potentially update state if params change after initial load (optional)
+  useEffect(() => {
+    if (Object.keys(params).length > 0) {
+      console.debug('[MindfulnessSetupScreen] Received params on mount/update:', params);
+      if (params.mindfulnessType && params.mindfulnessType !== mindfulnessType) {
+         console.debug('[MindfulnessSetupScreen] Setting mindfulnessType from route params:', params.mindfulnessType);
+         setMindfulnessType(params.mindfulnessType);
+      }
+    }
+  }, [params]);
+
+  // Get the selected mindfulness type data (this will re-calculate when mindfulnessType changes)
+  const selectedType = MINDFULNESS_TYPES.find(type => type.value === mindfulnessType) || MINDFULNESS_TYPES[0];
   
-  // Debug logging for state changes
-  console.debug('MindfulnessSetupScreen state:', {
-    mindfulnessType,
-    selectedEmotions
+  console.debug('[MindfulnessSetupScreen] State:', {
+    initialParams: params,
+    currentMindfulnessType: mindfulnessType,
+    selectedEmotionsCount: selectedEmotions.length,
   });
 
   const handleStart = async () => {
@@ -45,20 +59,25 @@ const SetupScreen = ({ navigation }) => {
       return;
     }
     
-    // Provide haptic feedback
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Debug logging for navigation
-    console.debug('Starting mindfulness session:', {
-      type: mindfulnessType,
-      emotionsCount: selectedEmotions.length
-    });
+    if (!selectedType) {
+        console.error('[MindfulnessSetupScreen] selectedType is undefined. Cannot start.');
+        setError('Invalid mindfulness type selected.');
+        setSnackbarVisible(true);
+        return;
+    }
 
-    navigation.navigate('MindfulnessPlayer', {
-      mindfulnessType,
+    const playerParams = {
+      mindfulnessType: selectedType.value,
       selectedEmotions,
-      typeData: selectedType
-    });
+      typeData: {
+        ...selectedType,
+      },
+    };
+
+    console.debug('[MindfulnessSetupScreen] Starting mindfulness session. Navigating to MindfulnessPlayer with params:', playerParams);
+    navigation.navigate('MindfulnessPlayer', playerParams);
   };
 
   const handleTypeChange = (type) => {

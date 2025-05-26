@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -24,23 +24,40 @@ import { startDeepWorkSession } from '../../../api/exercises/deepWork';
 import { useUser } from '../../../hooks/useUser';
 
 // Debug logging
-console.debug('[DeepWorkSetupScreen] Mounted');
+console.debug('[DeepWorkSetupScreen] File loaded.');
 
-const SetupScreen = ({ navigation }) => {
+const SetupScreen = ({ navigation, route }) => {
+  const params = route.params || {};
   const { user } = useUser();
-  const [selectedDuration, setSelectedDuration] = useState(1500);
+
+  // Initialize selectedDuration from params.duration if available (in seconds), else default to 1500s (25min)
+  const [selectedDuration, setSelectedDuration] = useState(params.duration || 1500);
   const [taskDescription, setTaskDescription] = useState('');
   const [textInputHeight, setTextInputHeight] = useState(80);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Effect to log params and update duration if it changes
+  useEffect(() => {
+    if (Object.keys(params).length > 0) {
+      console.debug('[DeepWorkSetupScreen] Received params on mount/update:', params);
+      if (params.duration && params.duration !== selectedDuration) {
+        console.debug('[DeepWorkSetupScreen] Setting selectedDuration from route params (seconds):', params.duration);
+        setSelectedDuration(params.duration);
+      }
+      // Note: taskDescription is not set from params as it's expected to be entered by the user each time.
+      // If a default task description were part of defaultSettings, it could be set here.
+    }
+  }, [params]); // Rerun if params object changes
+
   // Get the selected duration data
   const selectedDurationData = SESSION_DURATIONS.find(d => d.value === selectedDuration);
   
   // Debug logging for state changes
   console.debug('[DeepWorkSetupScreen] State:', {
-    selectedDuration,
+    initialParams: params,
+    currentSelectedDurationSeconds: selectedDuration,
     taskLength: taskDescription.length,
     userId: user?.id
   });

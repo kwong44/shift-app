@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -22,21 +22,44 @@ import { createVisualization } from '../../../api/exercises/visualization';
 import { useUser } from '../../../hooks/useUser';
 
 // Debug logging
-console.debug('[VisualizationSetupScreen] Mounted');
+console.debug('[VisualizationSetupScreen] File loaded.');
 
-const SetupScreen = ({ navigation }) => {
+const SetupScreen = ({ navigation, route }) => {
+  const params = route.params || {};
   const { user } = useUser();
-  const [visualizationType, setVisualizationType] = useState('goals');
+
+  // Initialize state with values from params if available, otherwise defaults
+  const [visualizationType, setVisualizationType] = useState(params.visualizationType || 'goals');
+  const [sessionDuration, setSessionDuration] = useState(params.duration || SESSION_DURATION);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get the selected visualization type data
+  // Effect to log params and update state if they change after initial mount
+  useEffect(() => {
+    if (Object.keys(params).length > 0) {
+      console.debug('[VisualizationSetupScreen] Received params on mount/update:', params);
+      if (params.visualizationType && params.visualizationType !== visualizationType) {
+        console.debug('[VisualizationSetupScreen] Setting visualizationType from route params:', params.visualizationType);
+        setVisualizationType(params.visualizationType);
+      }
+      if (params.duration && params.duration !== sessionDuration) {
+        console.debug('[VisualizationSetupScreen] Setting sessionDuration from route params (seconds):', params.duration);
+        setSessionDuration(params.duration);
+      }
+      // Note: MASTER_EXERCISE_LIST defaultSettings for visualization currently includes type and duration.
+      // If it included other settings like a specific `affirmationText`, we could initialize state for that here too.
+    }
+  }, [params]); // Rerun if params object changes
+
+  // Get the selected visualization type data based on the current state
   const selectedTypeData = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
   
   // Debug logging for state changes
   console.debug('[VisualizationSetupScreen] State:', {
-    visualizationType,
+    initialParams: params,
+    currentVisualizationType: visualizationType,
+    currentSessionDurationSeconds: sessionDuration,
     selectedTypeName: selectedTypeData?.label,
     userId: user?.id
   });
@@ -58,10 +81,8 @@ const SetupScreen = ({ navigation }) => {
     setIsLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // The content for the visualization can be its type/label or a more detailed description if available
-    // For now, using the label of the selected type as content.
     const visualizationContent = selectedTypeData.label || visualizationType;
-    const durationInSeconds = SESSION_DURATION; // From constants, assumed to be in seconds
+    const durationInSeconds = sessionDuration;
 
     try {
       console.debug('[VisualizationSetupScreen] Attempting to create visualization:', {
@@ -75,10 +96,10 @@ const SetupScreen = ({ navigation }) => {
         console.debug('[VisualizationSetupScreen] Visualization created successfully in DB:', createdViz);
         navigation.navigate('VisualizationPlayer', {
           visualizationId: createdViz.id,
-          visualizationType, // Pass the type key
-          typeData: selectedTypeData, // Pass the full data object for the player
-          duration: durationInSeconds, // Pass duration in seconds for the timer
-          content: visualizationContent, // Pass the content that was saved
+          visualizationType,
+          typeData: selectedTypeData,
+          duration: durationInSeconds,
+          content: visualizationContent,
         });
       } else {
         console.error('[VisualizationSetupScreen] Failed to create visualization or ID missing.');

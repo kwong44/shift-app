@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -22,38 +22,75 @@ import { startBinauralSession } from '../../../api/exercises/binaural';
 import { useUser } from '../../../hooks/useUser';
 
 // Debug logging
-console.debug('[BinauralSetupScreen] Mounted');
+console.debug('[BinauralSetupScreen] File loaded.');
 
-const SetupScreen = ({ navigation }) => {
+const SetupScreen = ({ navigation, route }) => {
+  const params = route.params || {};
   const { user } = useUser();
-  const [selectedFrequency, setSelectedFrequency] = useState('focus');
-  const [customDuration, setCustomDuration] = useState(300); // 5 minutes default in seconds
-  const [isLoading, setIsLoading] = useState(false); // Added loading state
+
+  // Initialize state with values from params if available, otherwise defaults
+  // params.binauralType (from MASTER_EXERCISE_LIST) corresponds to selectedFrequency key here (e.g., 'focus', 'meditation')
+  const [selectedFrequency, setSelectedFrequency] = useState(params.binauralType || 'focus');
+  // params.duration (from MASTER_EXERCISE_LIST) is in seconds
+  const [customDuration, setCustomDuration] = useState(params.duration || 300); 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Effect to log params and update state if they change after initial mount
+  useEffect(() => {
+    if (Object.keys(params).length > 0) {
+      console.debug('[BinauralSetupScreen] Received params on mount/update:', params);
+      if (params.binauralType && params.binauralType !== selectedFrequency) {
+        console.debug('[BinauralSetupScreen] Setting selectedFrequency from route params:', params.binauralType);
+        setSelectedFrequency(params.binauralType);
+      }
+      if (params.duration && params.duration !== customDuration) {
+        console.debug('[BinauralSetupScreen] Setting customDuration from route params (seconds):', params.duration);
+        setCustomDuration(params.duration);
+      }
+      // Other params like name, frequency (numeric), baseFrequency, waveform, category from defaultSettings
+      // are used directly when constructing frequencyData for the player if not part of SetupScreen state.
+    }
+  }, [params]); // Rerun if params object changes
+
+  console.debug('[BinauralSetupScreen] State:', {
+    initialParams: params,
+    currentSelectedFrequencyKey: selectedFrequency,
+    currentCustomDurationSeconds: customDuration,
+  });
 
   const handleStartSession = async () => {
     if (!user) {
       console.error('[BinauralSetupScreen] User not found, cannot start session.');
-      // TODO: Show error to user
       return;
     }
     setIsLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    const selectedFrequencyDetails = FREQUENCIES[selectedFrequency];
-    // The 'duration' in FREQUENCIES seems to be a default, we use customDuration from picker
-    const durationInSeconds = customDuration; 
+    // Get the base details from FREQUENCIES constant using the state `selectedFrequency` (e.g., 'focus')
+    const baseFrequencyDetails = FREQUENCIES[selectedFrequency];
+    if (!baseFrequencyDetails) {
+        console.error('[BinauralSetupScreen] Invalid selectedFrequency key:', selectedFrequency);
+        setIsLoading(false);
+        // TODO: Show error to user
+        return;
+    }
+
+    // The duration for the API and PlayerScreen is customDuration (in seconds)
+    const durationInSeconds = customDuration;
     const durationInMinutes = Math.floor(durationInSeconds / 60); // API might expect minutes
 
-    // TODO: Determine actual audioUrl based on selection or a fixed one for now
-    const audioUrlPlaceholder = selectedFrequencyDetails.audioUrl || 'placeholder_audio_url.mp3';
-    const purpose = selectedFrequencyDetails.name; // e.g., "Focus", "Relaxation"
+    // Purpose can be derived from the name in defaultSettings or baseFrequencyDetails
+    const purpose = params.name || baseFrequencyDetails.name; 
+    // Audio URL might be part of params for specific pre-defined tracks, or a placeholder.
+    // For now, master list doesn't define specific audio files, so placeholder logic remains.
+    const audioUrlPlaceholder = params.audioUrl || baseFrequencyDetails.audioUrl || 'placeholder_audio_url.mp3';
 
     try {
       console.debug('[BinauralSetupScreen] Attempting to start session with:', {
         userId: user.id,
         audioUrl: audioUrlPlaceholder,
-        duration: durationInMinutes, // Sending duration in minutes as per original API design
-        purpose,
+        duration: durationInMinutes, 
+        purpose: purpose,
       });
 
       const session = await startBinauralSession(
@@ -65,14 +102,24 @@ const SetupScreen = ({ navigation }) => {
 
       if (session && session.id) {
         console.debug('[BinauralSetupScreen] Session started successfully:', session);
-        const frequencyData = {
-          ...selectedFrequencyDetails,
-          duration: durationInSeconds, // Pass duration in seconds to PlayerScreen for timer
-          sessionId: session.id, // Pass the sessionId
-          purpose: purpose,
-          // audioUrl: session.audio_url, // Use the URL from the session if it's dynamic
+        
+        // Construct frequencyData for the player.
+        // Prioritize specific values from params (defaultSettings) if they exist,
+        // otherwise use values from FREQUENCIES constant, and finally the state.
+        const frequencyDataForPlayer = {
+          name: purpose, // From params.name or FREQUENCIES[selectedFrequency].name
+          description: params.description || baseFrequencyDetails.description,
+          frequency: params.frequency || baseFrequencyDetails.frequency, // Numeric Hz
+          baseFrequency: params.baseFrequency || baseFrequencyDetails.baseFrequency, // Numeric Hz
+          waveform: params.waveform || baseFrequencyDetails.waveform,
+          category: params.category || baseFrequencyDetails.category,
+          duration: durationInSeconds, // This is from state (which could be from params.duration)
+          sessionId: session.id,
+          purpose: purpose, // Redundant with name, but keeping for now if player uses it
+          // audioUrl: session.audio_url, // Use this if API returns a specific processed URL
         };
-        navigation.navigate('BinauralPlayer', { frequencyData });
+        console.debug('[BinauralSetupScreen] Navigating to BinauralPlayer with frequencyData:', frequencyDataForPlayer);
+        navigation.navigate('BinauralPlayer', { frequencyData: frequencyDataForPlayer });
       } else {
         console.error('[BinauralSetupScreen] Failed to start session or session ID missing.');
         // TODO: Show error to user
