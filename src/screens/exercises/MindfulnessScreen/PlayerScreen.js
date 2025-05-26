@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
@@ -23,6 +23,8 @@ import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('MindfulnessPlayerScreen mounted');
+
+const { width, height } = Dimensions.get('window');
 
 const PlayerScreen = ({ navigation, route }) => {
   const { mindfulnessType, selectedEmotions, typeData, masterExerciseId, exerciseType, originRouteName } = route.params;
@@ -180,44 +182,59 @@ const PlayerScreen = ({ navigation, route }) => {
     );
   }
 
-  // Use the teal color for background and timer
-  const screenBackgroundColor = COLORS.tealGradient.start;
-  const timerColor = COLORS.tealGradient.start; // Same color for the timer
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+      
+      {/* Clean, focused gradient background */}
       <LinearGradient
-        colors={[screenBackgroundColor, screenBackgroundColor]} // Static teal background
+        colors={[
+          COLORS.tealGradient.start,
+          COLORS.tealGradient.end,
+        ]}
         style={styles.screenGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction 
-              onPress={() => handleSessionCancel(0)} // Pass 0 as duration if cancelled from appbar
-              color={COLORS.white} // Ensure icon is visible on teal
-            />
-            <View>
-              <Text style={styles.appbarTitle}>Mindfulness</Text>
-              <Text style={styles.appbarSubtitle}>{typeData.label}</Text>
-            </View>
-          </Appbar.Header>
+          {/* Minimal header */}
+          <View style={styles.headerContainer}>
+            <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+              <Appbar.BackAction 
+                onPress={() => handleSessionCancel(0)}
+                color="#FFFFFF"
+                style={styles.backButton}
+              />
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.appbarTitle}>Mindfulness</Text>
+                <Text style={styles.appbarSubtitle}>{typeData.label}</Text>
+              </View>
+            </Appbar.Header>
+          </View>
 
+          {/* Timer-focused content layout */}
           <View style={styles.content}>
-            <Timer
-              duration={typeData.duration} // This duration should be correctly set by SetupScreen
-              onComplete={handleComplete}
-              onCancel={handleSessionCancel}
-              color={timerColor} // Pass the static teal color to Timer
-            />
+            {/* Timer gets the majority of the space */}
+            <View style={styles.timerSection}>
+              <Timer
+                duration={typeData.duration}
+                onComplete={handleComplete}
+                onCancel={handleSessionCancel}
+                color={COLORS.tealGradient.start}
+              />
+            </View>
             
-            <SessionCard
-              selectedType={typeData}
-              selectedEmotions={selectedEmotions}
-            />
+            {/* Compact session info at bottom */}
+            <View style={styles.sessionCardSection}>
+              <SessionCard
+                selectedType={typeData}
+                selectedEmotions={selectedEmotions}
+              />
+            </View>
           </View>
         </SafeAreaView>
 
+        {/* Enhanced completion dialog */}
         <CustomDialog
           visible={showDialog}
           onDismiss={handleFinish}
@@ -226,10 +243,11 @@ const PlayerScreen = ({ navigation, route }) => {
           icon="check-circle-outline"
           confirmText="Done"
           onConfirm={handleFinish}
-          iconColor={COLORS.primary} // Keep dialog icon color as primary or change if needed
+          iconColor={COLORS.primary}
           iconBackgroundColor={`${COLORS.primary}15`}
         />
 
+        {/* Enhanced snackbar */}
         <Snackbar
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
@@ -238,6 +256,7 @@ const PlayerScreen = ({ navigation, route }) => {
           action={{
             label: 'OK',
             onPress: () => setSnackbarVisible(false),
+            textColor: '#FFFFFF',
           }}
         >
           {snackbarMessage || 'An error occurred. Please try again.'}
@@ -277,52 +296,53 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  headerContainer: {
+    // Removed background and border for cleaner look
+  },
   appbar: {
     backgroundColor: 'transparent',
     elevation: 0,
+    paddingHorizontal: SPACING.md,
+  },
+  backButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: RADIUS.round,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: SPACING.md,
   },
   appbarTitle: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
     color: 'rgba(255,255,255,0.85)',
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.medium,
+    marginTop: 2,
   },
   content: {
     flex: 1,
+    paddingHorizontal: SPACING.lg,
+  },
+  timerSection: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.lg,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.lg, // Reduced padding to give timer more space
+    paddingBottom: SPACING.md,
   },
-  dialogGradient: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-  },
-  dialogTitle: {
-    textAlign: 'center',
-    color: COLORS.text,
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-  },
-  dialogContent: {
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  dialogIcon: {
-    marginBottom: SPACING.sm,
-  },
-  dialogText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    lineHeight: 22,
-  },
-  dialogButton: {
-    marginTop: SPACING.md,
+  sessionCardSection: {
+    // Minimal space at bottom
+    paddingBottom: SPACING.lg,
   },
   snackbar: {
-    bottom: SPACING.md,
+    bottom: SPACING.lg,
+    marginHorizontal: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: RADIUS.md,
   },
 });
 

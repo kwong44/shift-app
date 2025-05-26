@@ -16,25 +16,28 @@ export const SessionCard = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Current Session</Text>
-      
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsText}>
-          {selectedType.instructions}
-        </Text>
-      </View>
-      
-      <View style={styles.emotionsRow}>
-        <Text style={styles.emotionsLabel}>Your emotions:</Text>
-        {selectedEmotions.map(emotion => (
-          <Chip 
-            key={emotion} 
-            style={styles.emotionChip}
-            textStyle={styles.emotionChipText}
-          >
-            {emotion}
-          </Chip>
-        ))}
+      {/* Minimal, subtle card design */}
+      <View style={styles.cardContent}>
+        {/* Compact instructions section */}
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionsText}>
+            {selectedType.instructions}
+          </Text>
+        </View>
+        
+        {/* Compact emotions section - only show if emotions exist */}
+        {selectedEmotions.length > 0 && (
+          <View style={styles.emotionsSection}>
+            <Text style={styles.emotionsLabel}>Your emotions: </Text>
+            <View style={styles.emotionsRow}>
+              {selectedEmotions.map((emotion, index) => (
+                <Text key={emotion} style={styles.emotionText}>
+                  {emotion}{index < selectedEmotions.length - 1 ? ', ' : ''}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -43,49 +46,46 @@ export const SessionCard = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginTop: SPACING.xl,
-    ...SHADOWS.large,
+    marginTop: SPACING.lg, // Reduced from xl
   },
-  title: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
+  cardContent: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   instructionsContainer: {
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.15)', // Much more subtle
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Very subtle border
   },
   instructionsText: {
     fontSize: FONT.size.sm,
-    color: COLORS.text,
-    lineHeight: 20,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 18, // Tighter line height
+    fontWeight: FONT.weight.regular,
+    textAlign: 'center',
+  },
+  emotionsSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    marginTop: SPACING.xs,
   },
   emotionsLabel: {
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.xs,
     fontWeight: FONT.weight.medium,
-    color: COLORS.textLight,
-    marginBottom: SPACING.xs,
-    marginRight: SPACING.sm,
+    color: 'rgba(255,255,255,0.7)',
   },
   emotionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
   },
-  emotionChip: {
-    margin: 3,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  emotionChipText: {
+  emotionText: {
     fontSize: FONT.size.xs,
     fontWeight: FONT.weight.medium,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.8)',
   },
 }); 

@@ -10,7 +10,7 @@ import {
   Dialog
 } from 'react-native-paper';
 import { SPACING, COLORS, SHADOWS, RADIUS } from '../../config/theme';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle, G, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import CustomDialog from '../common/CustomDialog';
@@ -50,10 +50,13 @@ const Timer = ({
   const animatedValue = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
   
-  // Use the provided color or default to the theme primary color
+  // Enhanced color scheme for better visibility
   const timerColor = color || theme.colors.primary;
-  const timerSecondaryColor = color ? `${color}80` : theme.colors.secondary;
+  const progressColor = '#FFFFFF'; // White progress ring for maximum contrast
+  const progressShadowColor = 'rgba(255,255,255,0.3)'; // Subtle white glow
+  const backgroundRingColor = 'rgba(255,255,255,0.2)'; // Semi-transparent white background ring
 
   const formatTime = useCallback((seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -62,33 +65,53 @@ const Timer = ({
   }, []);
 
   // Calculate size values for the SVG circle
-  const size = 220;
-  const strokeWidth = 12;
+  const size = 260; // Increased size for more prominence
+  const strokeWidth = 10; // Slightly thicker for better visibility
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Start the pulse animation for the active timer
+  // Enhanced pulse animation with glow effect
   useEffect(() => {
     if (isActive && !isPaused) {
+      // Pulse animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 1000,
+            toValue: 1.02,
+            duration: 2000,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 1000,
+            duration: 2000,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           })
         ])
       ).start();
+
+      // Glow animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 3000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 3000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          })
+        ])
+      ).start();
     } else {
       pulseAnim.setValue(1);
+      glowAnim.setValue(0);
     }
   }, [isActive, isPaused]);
 
@@ -140,7 +163,7 @@ const Timer = ({
     // Button press animation
     Animated.sequence([
       Animated.timing(buttonScale, {
-        toValue: 0.9,
+        toValue: 0.95,
         duration: 100,
         useNativeDriver: true
       }),
@@ -193,10 +216,10 @@ const Timer = ({
     outputRange: [circumference, 0]
   });
   
-  // Background opacity changes based on progress
-  const backgroundOpacity = animatedValue.interpolate({
+  // Glow intensity based on progress
+  const glowIntensity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.1, 0.2]
+    outputRange: [0.3, 0.8]
   });
 
   return (
@@ -210,16 +233,20 @@ const Timer = ({
             }
           ]}
         >
-          <LinearGradient
-            colors={[
-              timerColor + 'CC', // main color with opacity
-              timerSecondaryColor + '99' // secondary color with opacity
+          {/* Outer glow effect */}
+          <Animated.View 
+            style={[
+              styles.glowRing,
+              {
+                opacity: isActive && !isPaused ? glowIntensity : 0,
+                shadowOpacity: isActive && !isPaused ? glowIntensity : 0,
+              }
             ]}
-            style={styles.timerBackground}
-            start={{ x: 0.1, y: 0.1 }}
-            end={{ x: 0.9, y: 0.9 }}
-          >
-            <View style={[styles.innerCircle, { backgroundColor: '#fff' }]}>
+          />
+          
+          {/* Main timer background with glassmorphism effect */}
+          <View style={styles.timerBackground}>
+            <View style={[styles.innerCircle]}>
               <Text variant="displayMedium" style={styles.timeText}>
                 {formatTime(timeLeft)}
               </Text>
@@ -230,32 +257,40 @@ const Timer = ({
                 </Text>
               )}
             </View>
-          </LinearGradient>
+          </View>
           
+          {/* Enhanced SVG progress ring */}
           <View style={styles.svgContainer}>
             <Svg width={size} height={size}>
+              <Defs>
+                <RadialGradient id="progressGradient" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
+                  <Stop offset="100%" stopColor="rgba(255,255,255,0.7)" />
+                </RadialGradient>
+              </Defs>
               <G rotation="-90" origin={`${center}, ${center}`}>
-                {/* Background Circle */}
+                {/* Background Circle with subtle glow */}
                 <Circle
                   cx={center}
                   cy={center}
                   r={radius}
-                  stroke={timerColor + '30'}  // Very light version of the color
+                  stroke={backgroundRingColor}
                   strokeWidth={strokeWidth}
                   fill="transparent"
                 />
                 
-                {/* Progress Circle */}
+                {/* Progress Circle with enhanced styling */}
                 <AnimatedCircle
                   cx={center}
                   cy={center}
                   r={radius}
-                  stroke={timerColor}
+                  stroke="url(#progressGradient)"
                   strokeWidth={strokeWidth}
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
                   fill="transparent"
+                  filter="drop-shadow(0px 0px 8px rgba(255,255,255,0.4))"
                 />
               </G>
             </Svg>
@@ -270,36 +305,56 @@ const Timer = ({
               transform: [{ scale: buttonScale }]
             }}
           >
-            <Button
-              mode="contained"
-              onPress={handleStart}
-              style={[styles.button, { backgroundColor: timerColor }]}
-              icon="play"
-              labelStyle={styles.buttonLabel}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.15)']}
+              style={styles.startButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
             >
-              Start
-            </Button>
+              <Button
+                mode="contained"
+                onPress={handleStart}
+                style={styles.startButton}
+                icon="play"
+                labelStyle={styles.startButtonLabel}
+                buttonColor="transparent"
+                textColor="#FFFFFF"
+              >
+                Start
+              </Button>
+            </LinearGradient>
           </Animated.View>
         ) : (
           <View style={styles.activeControls}>
-            <IconButton
-              icon="stop"
-              mode="contained-tonal"
-              iconColor="#fff"
-              containerColor={COLORS.error + 'DD'}
-              size={24}
-              onPress={handleCancel}
-              style={styles.iconButton}
-            />
-            <IconButton
-              icon={isPaused ? "play" : "pause"}
-              mode="contained"
-              size={32}
-              containerColor={timerColor}
-              iconColor="#fff"
-              onPress={isPaused ? handleResume : handlePause}
-              style={styles.iconButton}
-            />
+            <View style={styles.controlButton}>
+              <LinearGradient
+                colors={['rgba(244, 67, 54, 0.9)', 'rgba(244, 67, 54, 0.7)']}
+                style={styles.iconButtonGradient}
+              >
+                <IconButton
+                  icon="stop"
+                  iconColor="#FFFFFF"
+                  size={24}
+                  onPress={handleCancel}
+                  style={styles.iconButton}
+                />
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.controlButton}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.2)']}
+                style={styles.iconButtonGradient}
+              >
+                <IconButton
+                  icon={isPaused ? "play" : "pause"}
+                  size={32}
+                  iconColor="#FFFFFF"
+                  onPress={isPaused ? handleResume : handlePause}
+                  style={styles.iconButton}
+                />
+              </LinearGradient>
+            </View>
           </View>
         )}
       </View>
@@ -328,62 +383,82 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const styles = StyleSheet.create({
   container: {
     padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
     alignItems: 'center',
   },
   timerContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   timerWrapper: {
-    width: 220,
-    height: 220,
+    width: 260,
+    height: 260,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  glowRing: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 25,
+    elevation: 15,
+  },
   timerBackground: {
     width: '100%',
     height: '100%',
-    borderRadius: 110,
+    borderRadius: 130,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.medium,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    ...SHADOWS.large,
   },
   innerCircle: {
-    width: '85%',
-    height: '85%',
+    width: '80%',
+    height: '80%',
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.small,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    ...SHADOWS.medium,
   },
   svgContainer: {
     position: 'absolute',
-    width: 220,
-    height: 220,
+    width: 260,
+    height: 260,
   },
   timeText: {
     fontVariant: ['tabular-nums'],
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 42,
   },
   labelText: {
     fontSize: 14,
     color: COLORS.textLight,
-    marginTop: 8,
+    marginTop: 4,
+    fontWeight: '500',
   },
   controls: {
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
   },
-  button: {
-    minWidth: 160,
+  startButtonGradient: {
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.medium,
+  },
+  startButton: {
+    minWidth: 180,
     paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.md,
-    ...SHADOWS.small,
+    borderRadius: RADIUS.lg,
+    elevation: 0,
   },
-  buttonLabel: {
+  startButtonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },
@@ -391,34 +466,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.md,
+    gap: SPACING.lg,
+  },
+  controlButton: {
+    borderRadius: RADIUS.round,
+    ...SHADOWS.medium,
+  },
+  iconButtonGradient: {
+    borderRadius: RADIUS.round,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconButton: {
     margin: 0,
-    ...SHADOWS.small,
-  },
-  dialog: {
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-  },
-  dialogGradient: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
-  },
-  dialogTitle: {
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
-  },
-  dialogText: {
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  dialogActions: {
-    justifyContent: 'space-around',
-    paddingHorizontal: SPACING.md,
-  },
-  dialogButton: {
-    minWidth: 130,
+    backgroundColor: 'transparent',
   },
 });
 
