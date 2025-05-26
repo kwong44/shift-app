@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../../config/theme';
 
@@ -15,83 +15,69 @@ export const FocusCard = ({
   });
 
   return (
-    <Card style={styles.card} elevation={3}>
-      <Card.Content>
-        <View style={styles.focusHeader}>
-          <View style={[styles.focusIconContainer, { backgroundColor: `${selectedDurationData.color}20` }]}>
-            <MaterialCommunityIcons name="target" size={24} color={selectedDurationData.color} />
-          </View>
-          <Text style={styles.focusLabel}>Your Focus Goal</Text>
+    <View style={styles.container}>
+      {/* Minimal, subtle card design */}
+      <View style={styles.cardContent}>
+        {/* Compact task description */}
+        <View style={styles.taskContainer}>
+          <Text style={styles.taskDescription}>
+            {taskDescription}
+          </Text>
         </View>
         
-        <Text style={styles.taskDescription}>
-          {taskDescription}
-        </Text>
-        
-        <View style={styles.durationTag}>
+        {/* Compact duration info */}
+        <View style={styles.durationSection}>
           <MaterialCommunityIcons 
             name={selectedDurationData.icon} 
-            size={16} 
-            color={COLORS.text}
+            size={14} 
+            color="rgba(255,255,255,0.8)"
             style={styles.durationIcon} 
           />
           <Text style={styles.durationText}>
-            {selectedDurationData.label} {selectedDurationData.description}
+            {selectedDurationData.label} • {selectedDurationData.description}
           </Text>
         </View>
-      </Card.Content>
-    </Card>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    marginTop: SPACING.xl,
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.medium,
+  container: {
+    width: '100%',
+    marginTop: SPACING.lg, // Reduced from xl
   },
-  focusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+  cardContent: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  focusIconContainer: {
-    width: 40,
-    height: 40,
+  taskContainer: {
+    backgroundColor: 'rgba(255,255,255,0.15)', // Much more subtle
     borderRadius: RADIUS.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.sm,
-    ...SHADOWS.small,
-  },
-  focusLabel: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Very subtle border
   },
   taskDescription: {
-    fontSize: FONT.size.md,
-    color: COLORS.text,
-    lineHeight: 24,
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.backgroundLight,
-    padding: SPACING.md,
-    borderRadius: RADIUS.sm,
+    fontSize: FONT.size.sm,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 18, // Tighter line height
+    fontWeight: FONT.weight.regular,
+    textAlign: 'center',
   },
-  durationTag: {
+  durationSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.backgroundLight,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.xl,
-    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    marginTop: SPACING.xs,
   },
   durationIcon: {
     marginRight: SPACING.xs,
   },
   durationText: {
-    fontSize: FONT.size.sm,
-    color: COLORS.text,
+    fontSize: FONT.size.xs,
+    fontWeight: FONT.weight.medium,
+    color: 'rgba(255,255,255,0.8)',
   },
 }); 

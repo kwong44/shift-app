@@ -304,10 +304,6 @@ const styles = StyleSheet.create({
     elevation: 0,
     paddingHorizontal: SPACING.md,
   },
-  backButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: RADIUS.round,
-  },
   headerTextContainer: {
     flex: 1,
     marginLeft: SPACING.md,

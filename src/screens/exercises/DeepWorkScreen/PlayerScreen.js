@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Portal, Dialog, Button, Snackbar, Text, Appbar } from 'react-native-paper';
+import { Portal, Dialog, Button, Snackbar, Text, Appbar, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
@@ -17,6 +17,8 @@ import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('DeepWorkPlayerScreen mounted');
+
+const { width, height } = Dimensions.get('window');
 
 export const PlayerScreen = ({ navigation, route }) => {
   const { 
@@ -157,65 +159,84 @@ export const PlayerScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={durationData.color} />
+      <StatusBar barStyle="light-content" />
+      
+      {/* Clean, focused blue gradient background */}
       <LinearGradient
-        colors={[`${durationData.color}30`, COLORS.background]}
+        colors={[
+          COLORS.blueGradient.start,
+          COLORS.blueGradient.end,
+        ]}
+        style={styles.screenGradient}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.7 }}
-        style={styles.content}
+        end={{ x: 1, y: 1 }}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction 
-              onPress={handleSessionCancel} 
-              color={durationData.color} 
-            />
-            <View>
-              <Text style={[styles.appbarTitle, { color: durationData.color }]}>Deep Work</Text>
-              <Text style={[styles.appbarSubtitle, { color: `${durationData.color}CC` }]}>
-                {durationData.description}
-              </Text>
+          {/* Minimal header */}
+          <View style={styles.headerContainer}>
+            <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+              <Appbar.BackAction 
+                onPress={() => handleSessionCancel(0)}
+                color="#FFFFFF"
+                style={styles.backButton}
+              />
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.appbarTitle}>Deep Work</Text>
+                <Text style={styles.appbarSubtitle}>{durationData.description}</Text>
+              </View>
+            </Appbar.Header>
+          </View>
+
+          {/* Timer-focused content layout */}
+          <View style={styles.content}>
+            {/* Timer gets the majority of the space */}
+            <View style={styles.timerSection}>
+              <Timer
+                duration={duration}
+                onComplete={handleComplete}
+                onCancel={handleSessionCancel}
+                color={COLORS.blueGradient.start}
+              />
             </View>
-          </Appbar.Header>
-
-          <Timer
-            duration={duration}
-            onComplete={handleComplete}
-            onCancel={handleSessionCancel}
-            color={durationData.color}
-          />
-          
-          <FocusCard 
-            taskDescription={taskDescription}
-            selectedDurationData={durationData}
-          />
+            
+            {/* Compact focus info at bottom */}
+            <View style={styles.focusCardSection}>
+              <FocusCard 
+                taskDescription={taskDescription}
+                selectedDurationData={durationData}
+              />
+            </View>
+          </View>
         </SafeAreaView>
+
+        {/* Enhanced completion dialog */}
+        <CustomDialog
+          visible={showDialog}
+          onDismiss={handleFinish}
+          title="Session Complete!"
+          content="Excellent work! You've successfully completed a focused deep work session. Regular deep work will help build your concentration and productivity."
+          icon="check-circle-outline"
+          confirmText="Done"
+          onConfirm={handleFinish}
+          iconColor={COLORS.primary}
+          iconBackgroundColor={`${COLORS.primary}15`}
+        />
+
+        {/* Enhanced snackbar */}
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={3000}
+          style={styles.snackbar}
+          action={{
+            label: 'OK',
+            onPress: () => setSnackbarVisible(false),
+            textColor: '#FFFFFF',
+          }}
+        >
+          {snackbarMessage || 'An error occurred. Please try again.'}
+        </Snackbar>
       </LinearGradient>
-
-      <CustomDialog
-        visible={showDialog}
-        onDismiss={handleFinish}
-        title="Session Complete!"
-        content="Excellent work! You've successfully completed a focused deep work session. Regular deep work will help build your concentration and productivity."
-        icon="check-circle-outline"
-        confirmText="Done"
-        onConfirm={handleFinish}
-        iconColor={COLORS.primary}
-        iconBackgroundColor={`${COLORS.primary}15`}
-      />
-
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        duration={3000}
-        style={styles.snackbar}
-        action={{
-          label: 'OK',
-          onPress: () => setSnackbarVisible(false),
-        }}
-      >
-        {snackbarMessage || 'An error occurred. Please try again.'}
-      </Snackbar>
     </View>
   );
 };
@@ -244,51 +265,54 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     textAlign: 'center',
   },
+  screenGradient: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    padding: SPACING.lg,
+  headerContainer: {
+    // Removed background and border for cleaner look
   },
   appbar: {
     backgroundColor: 'transparent',
     elevation: 0,
-    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: SPACING.md,
   },
   appbarTitle: {
+    color: '#FFFFFF',
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
-    fontSize: FONT.size.sm,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.medium,
+    marginTop: 2,
   },
-  dialogGradient: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+  content: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
   },
-  dialogTitle: {
-    textAlign: 'center',
-    color: COLORS.text,
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-  },
-  dialogContent: {
+  timerSection: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.md,
+    paddingTop: SPACING.lg, // Reduced padding to give timer more space
+    paddingBottom: SPACING.md,
   },
-  dialogIcon: {
-    marginBottom: SPACING.sm,
-  },
-  dialogText: {
-    textAlign: 'center',
-    color: COLORS.textLight,
-    lineHeight: 22,
-  },
-  dialogButton: {
-    marginTop: SPACING.md,
+  focusCardSection: {
+    // Minimal space at bottom
+    paddingBottom: SPACING.lg,
   },
   snackbar: {
-    bottom: SPACING.md,
+    bottom: SPACING.lg,
+    marginHorizontal: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: RADIUS.md,
   },
 }); 
