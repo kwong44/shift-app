@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Snackbar, Text, Appbar } from 'react-native-paper';
@@ -16,12 +16,26 @@ import { VISUALIZATION_TYPES } from './constants';
 console.debug('VisualizationPlayerScreen mounted');
 
 const PlayerScreen = ({ route, navigation }) => {
-  // Destructure route params - including visualizationId, typeData, and content
-  const { visualizationId, visualizationType, duration, typeData, content, masterExerciseId, exerciseType } = route.params;
-  // const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType); // typeData is now passed directly
-  const selectedType = typeData; // Use typeData directly from params
+  const { 
+    visualizationId, 
+    visualizationType, 
+    duration, 
+    typeData, 
+    content,
+    masterExerciseId,
+    exerciseType,
+    originRouteName
+  } = route.params;
+  const selectedType = typeData;
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   
-  // Use our custom hook for audio playback
+  const handleSessionCompletionNavigation = () => {
+    setShowCompletionDialog(false);
+    const targetRoute = originRouteName || 'ExercisesDashboard';
+    console.debug(`[VisualizationPlayerScreen] Navigating to ${targetRoute} after completion dialog.`);
+    navigation.navigate(targetRoute);
+  };
+
   const { 
     isPlaying,
     progress,
@@ -29,48 +43,49 @@ const PlayerScreen = ({ route, navigation }) => {
     error,
     loading,
     handlePlayPause,
-    handleStop, // This stop should now handle API call via the hook
+    handleStop,
     resetAudio,
-  } = useVisualizationAudio(selectedType, duration, visualizationId, masterExerciseId, exerciseType); // Pass visualizationId to the hook
+    isSessionComplete
+  } = useVisualizationAudio(
+    selectedType, 
+    duration, 
+    visualizationId, 
+    masterExerciseId, 
+    exerciseType,
+    () => setShowCompletionDialog(true)
+  );
 
-  // Debug logging for props and state
   console.debug('[VisualizationPlayerScreen] State & Props:', {
     visualizationId,
     visualizationType,
-    content, // Log the content being visualized
+    content,
     selectedTypeLabel: selectedType?.label,
-    duration, // Planned duration
-    masterExerciseId, // Log received masterExerciseId
-    exerciseType,     // Log received exerciseType
+    duration,
+    masterExerciseId,
+    exerciseType,
     isPlaying,
     progress,
-    timeElapsed, // Actual time elapsed from hook
+    timeElapsed,
     error,
-    loading // Loading state from hook
+    loading,
+    originRouteName,
+    isSessionComplete
   });
 
-  // Auto-stop when complete (This might be redundant if hook's handleStop is robust)
-  // Consider if this useEffect is still needed or if the hook manages completion fully.
   useEffect(() => {
-    if (progress >= 1 && !loading) { // Ensure not already in a loading state (e.g. from API call)
-      // handleStop(); // The hook's handleStop should be called by the timer or player events directly
-      // For now, let's assume the hook or PlayerCard's onStop will trigger the hook's handleStop.
-      console.debug('[VisualizationPlayerScreen] Progress reached 1. Hook should handle completion.');
+    if (isSessionComplete && !showCompletionDialog) {
+      console.debug('[VisualizationPlayerScreen] isSessionComplete is true, ensuring dialog is shown.');
     }
-  }, [progress, loading]); // Removed handleStop from dependencies to avoid re-triggering
+  }, [isSessionComplete, showCompletionDialog]);
 
   const handleBack = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // handleStop(); // Call the hook's handleStop which now includes API call
-    // The hook's handleStop should also manage navigation or signal completion for navigation.
-    // For now, let PlayerCard's onStop call the hook's handleStop, or if hook needs explicit call:
     if (handleStop) {
-        await handleStop(); // Ensure it handles async nature if any
+        await handleStop();
     }
-    navigation.goBack(); // Navigation might occur after hook processes stop
+    navigation.goBack();
   };
 
-  // Display loading indicator if loading
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -107,6 +122,17 @@ const PlayerScreen = ({ route, navigation }) => {
               onStop={handleStop}
             />
           </View>
+
+          <CustomDialog
+            visible={showCompletionDialog}
+            onDismiss={handleSessionCompletionNavigation}
+            title="Visualization Complete!"
+            content="You've successfully completed your visualization. Keep this feeling with you."
+            confirmText="Awesome!"
+            onConfirm={handleSessionCompletionNavigation}
+            icon="check-circle"
+            iconColor={COLORS.success}
+          />
 
           <CustomDialog
             visible={!!error}

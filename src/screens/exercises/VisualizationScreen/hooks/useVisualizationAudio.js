@@ -16,7 +16,7 @@ const VISUALIZATION_AUDIO = {
   placeholder: require('../../../../../assets/audio/silence.mp3'),
 };
 
-export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, masterExerciseId, exerciseType) => {
+export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, masterExerciseId, exerciseType, onSessionCompleteCallback) => {
   const { user } = useUser();
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,16 +24,19 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isSessionComplete, setIsSessionComplete] = useState(false);
 
   const visualizationIdRef = useRef(vizIdFromProps);
   const masterExerciseIdRef = useRef(masterExerciseId);
   const exerciseTypeRef = useRef(exerciseType);
+  const onSessionCompleteCallbackRef = useRef(onSessionCompleteCallback);
 
   useEffect(() => {
     visualizationIdRef.current = vizIdFromProps;
     masterExerciseIdRef.current = masterExerciseId;
     exerciseTypeRef.current = exerciseType;
-  }, [vizIdFromProps, masterExerciseId, exerciseType]);
+    onSessionCompleteCallbackRef.current = onSessionCompleteCallback;
+  }, [vizIdFromProps, masterExerciseId, exerciseType, onSessionCompleteCallback]);
 
   // Debug logging
   console.debug('[useVisualizationAudio] Hook initialized/updated. Props & State:', {
@@ -48,6 +51,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
     timeElapsed,
     error,
     loading,
+    isSessionComplete,
   });
 
   // Clean up audio resources when unmounting
@@ -63,7 +67,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
   // Progress tracking & auto-completion
   useEffect(() => {
     let interval;
-    if (isPlaying && duration > 0) {
+    if (isPlaying && duration > 0 && !isSessionComplete) {
       interval = setInterval(() => {
         setTimeElapsed(prev => {
           const newTime = prev + 1;
@@ -71,7 +75,8 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
           const finalProgress = newProgress > 1 ? 1 : newProgress;
           setProgress(finalProgress);
           
-          if (finalProgress >= 1 && visualizationIdRef.current && user?.id) {
+          if (finalProgress >= 1 && visualizationIdRef.current && user?.id && !isSessionComplete) {
+            setIsSessionComplete(true);
             console.debug(`[useVisualizationAudio] Progress complete. Marking viz ${visualizationIdRef.current} complete. Duration: ${newTime}s. Master ID: ${masterExerciseIdRef.current}`);
             completeVisualization(visualizationIdRef.current, newTime)
               .then(() => {
@@ -95,6 +100,10 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
                 } else {
                   console.warn('[useVisualizationAudio] No masterExerciseId for daily_exercise_logs from progress.');
                 }
+                if (onSessionCompleteCallbackRef.current) {
+                  console.debug('[useVisualizationAudio] Calling onSessionCompleteCallback from progress.');
+                  onSessionCompleteCallbackRef.current();
+                }
               })
               .catch(err => console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} via progress:`, err.message));
           }
@@ -103,7 +112,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, duration, user]);
+  }, [isPlaying, duration, user, isSessionComplete]);
 
   const loadAndPlaySound = async () => {
     // Ensure visualizationId is present (passed from PlayerScreen, originating from SetupScreen)
@@ -198,10 +207,10 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
     // Don't reset progress/timeElapsed here if PlayerScreen might want to show final state
     // Let PlayerScreen decide to call resetAudio or navigate away.
 
-    // Complete the visualization if it exists and progress is not yet 1 (to avoid double calls)
-    if (visualizationIdRef.current && progress < 1 && user?.id) {
+    if (visualizationIdRef.current && !isSessionComplete && user?.id) {
       try {
         setLoading(true);
+        setIsSessionComplete(true);
         console.debug(`[useVisualizationAudio] Marking viz ${visualizationIdRef.current} complete via handleStop. Duration: ${timeElapsed}s. Master ID: ${masterExerciseIdRef.current}`);
         await completeVisualization(visualizationIdRef.current, timeElapsed);
         console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete in visualizations table via handleStop.`);
@@ -225,14 +234,22 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
         } else {
           console.warn('[useVisualizationAudio] No masterExerciseId for daily_exercise_logs from handleStop.');
         }
+        if (onSessionCompleteCallbackRef.current) {
+          console.debug('[useVisualizationAudio] Calling onSessionCompleteCallback from handleStop.');
+          onSessionCompleteCallbackRef.current();
+        }
       } catch (err) {
         console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} from handleStop:`, err.message);
         setError(`Failed to complete visualization: ${err.message}`);
       } finally {
         setLoading(false);
       }
-    } else if (visualizationIdRef.current && progress >= 1) {
-      console.debug(`[useVisualizationAudio] Viz ${visualizationIdRef.current} already at 100% or completed. Not calling API again from handleStop.`);
+    } else if (visualizationIdRef.current && isSessionComplete) {
+      console.debug(`[useVisualizationAudio] Viz ${visualizationIdRef.current} already completed. Not calling API again from handleStop.`);
+      if (onSessionCompleteCallbackRef.current) {
+        console.debug('[useVisualizationAudio] Calling onSessionCompleteCallback from handleStop (already complete case).');
+        onSessionCompleteCallbackRef.current();
+      }
     }
     // Do not setVisualizationId to null here, PlayerScreen controls its lifecycle.
   };
@@ -247,6 +264,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
     setProgress(0);
     setTimeElapsed(0);
     setError(null);
+    setIsSessionComplete(false);
     console.debug('[useVisualizationAudio] Audio reset complete.');
   };
 
@@ -271,5 +289,6 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
     handlePlayPause,
     handleStop,
     resetAudio,
+    isSessionComplete,
   };
 }; 

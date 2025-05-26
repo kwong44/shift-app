@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, Animated } from 'react-native';
+import { StyleSheet, View, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
   Appbar,
-  Portal,
-  Dialog,
   Button,
   Snackbar
 } from 'react-native-paper';
@@ -27,13 +25,12 @@ import CustomDialog from '../../../components/common/CustomDialog';
 console.debug('MindfulnessPlayerScreen mounted');
 
 const PlayerScreen = ({ navigation, route }) => {
-  const { mindfulnessType, selectedEmotions, typeData, masterExerciseId, exerciseType } = route.params;
+  const { mindfulnessType, selectedEmotions, typeData, masterExerciseId, exerciseType, originRouteName } = route.params;
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [pulseAnim] = useState(new Animated.Value(1));
 
   // Debug logging for props
   console.debug('MindfulnessPlayerScreen props:', {
@@ -42,30 +39,9 @@ const PlayerScreen = ({ navigation, route }) => {
     userId: user?.id,
     masterExerciseId: masterExerciseId,
     exerciseType: exerciseType,
+    originRouteName: originRouteName,
     plannedDuration: typeData?.duration
   });
-
-  // Pulse animation
-  useEffect(() => {
-    const pulsate = Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 1.1,
-        duration: 1000,
-        useNativeDriver: true
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true
-      })
-    ]);
-    
-    Animated.loop(pulsate).start();
-    
-    return () => {
-      Animated.timing(pulseAnim).stop();
-    };
-  }, [pulseAnim]);
 
   const handleComplete = async (actualDurationSpent) => {
     if (!user) {
@@ -74,21 +50,24 @@ const PlayerScreen = ({ navigation, route }) => {
       setSnackbarVisible(true);
       return;
     }
+    // Ensure actualDurationSpent is a valid number, default to planned duration if undefined
+    const durationToLog = typeof actualDurationSpent === 'number' ? actualDurationSpent : typeData?.duration;
+    console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration received: ${actualDurationSpent}, Duration to log: ${durationToLog}s. Planned: ${typeData?.duration}s. Master ID: ${masterExerciseId}`);
+
     setLoading(true);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration: ${actualDurationSpent}s, Planned: ${typeData.duration}s. Master ID: ${masterExerciseId}`);
 
       const sessionLogData = {
-        duration_seconds: actualDurationSpent,
+        duration_seconds: durationToLog,
         completed: true,
         emotions: selectedEmotions,
         fullResponse: {
           type: mindfulnessType,
-          planned_duration_seconds: typeData.duration,
+          planned_duration_seconds: typeData?.duration,
           emotions_before: selectedEmotions,
-          guidance_type: typeData.guidance,
-          audio_url: typeData.audioUrl || null
+          guidance_type: typeData?.guidance,
+          audio_url: typeData?.audioUrl || null
         }
       };
 
@@ -100,13 +79,13 @@ const PlayerScreen = ({ navigation, route }) => {
           user_id: user.id,
           exercise_id: masterExerciseId,
           exercise_type: exerciseType || 'Mindfulness',
-          duration_seconds: actualDurationSpent,
+          duration_seconds: durationToLog,
           completed_at: new Date().toISOString(),
           source: 'MindfulnessPlayer',
           metadata: {
-            planned_duration_seconds: typeData.duration,
+            planned_duration_seconds: typeData?.duration,
             mindfulness_type: mindfulnessType,
-            emotions_before: selectedEmotions.length > 0 ? selectedEmotions : null,
+            emotions_before: selectedEmotions?.length > 0 ? selectedEmotions : null,
           }
         };
         console.debug('[MindfulnessPlayerScreen] Attempting to insert into daily_exercise_logs:', dailyLogEntry);
@@ -136,21 +115,24 @@ const PlayerScreen = ({ navigation, route }) => {
   };
 
   const handleSessionCancel = async (actualDurationSpent) => {
-    console.debug(`[MindfulnessPlayerScreen] Session cancelled by user. Actual duration: ${actualDurationSpent}s`);
+    // Ensure actualDurationSpent is a valid number, default to 0 if undefined
+    const durationToLog = typeof actualDurationSpent === 'number' ? actualDurationSpent : 0;
+    console.debug(`[MindfulnessPlayerScreen] Session cancelled by user. Actual duration received: ${actualDurationSpent}, Duration to log for cancelled session: ${durationToLog}s. Planned duration was ${typeData?.duration}s`);
+    
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (user && actualDurationSpent > 0) {
+    if (user && durationToLog > 0) { // Only log if user exists and some time was spent
       setLoading(true);
       try {
         const sessionLogData = {
-          duration_seconds: actualDurationSpent,
+          duration_seconds: durationToLog,
           completed: false,
           emotions: selectedEmotions,
           fullResponse: {
             type: mindfulnessType,
-            planned_duration_seconds: typeData.duration,
+            planned_duration_seconds: typeData?.duration,
             emotions_before: selectedEmotions,
-            cancelled_at_seconds: actualDurationSpent
+            cancelled_at_seconds: durationToLog
           }
         };
         await logMindfulnessSession(user.id, sessionLogData);
@@ -169,8 +151,9 @@ const PlayerScreen = ({ navigation, route }) => {
   const handleFinish = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowDialog(false);
-    console.debug('[MindfulnessPlayerScreen] Navigating to ExercisesDashboard.');
-    navigation.navigate('ExercisesDashboard');
+    const targetRoute = originRouteName || 'ExercisesDashboard';
+    console.debug(`[MindfulnessPlayerScreen] Navigating to ${targetRoute} after completion/dismissal.`);
+    navigation.navigate(targetRoute);
   };
 
   if (!user) {
@@ -185,18 +168,34 @@ const PlayerScreen = ({ navigation, route }) => {
     );
   }
 
+  if (!typeData) {
+    console.error("[MindfulnessPlayerScreen] typeData is undefined. Cannot render player.");
+    return (
+      <View style={styles.container_loading}>
+        <Appbar.Header style={styles.appbar_transparent}>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+        </Appbar.Header>
+        <Text style={styles.errorText}>Exercise data missing. Please go back and try again.</Text>
+      </View>
+    );
+  }
+
+  // Use the teal color for background and timer
+  const screenBackgroundColor = COLORS.tealGradient.start;
+  const timerColor = COLORS.tealGradient.start; // Same color for the timer
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={[typeData.color, typeData.colorSecondary]}
+        colors={[screenBackgroundColor, screenBackgroundColor]} // Static teal background
         style={styles.screenGradient}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <Appbar.Header style={styles.appbar} statusBarHeight={0}>
             <Appbar.BackAction 
-              onPress={() => handleSessionCancel(0)} 
-              color={COLORS.background} 
+              onPress={() => handleSessionCancel(0)} // Pass 0 as duration if cancelled from appbar
+              color={COLORS.white} // Ensure icon is visible on teal
             />
             <View>
               <Text style={styles.appbarTitle}>Mindfulness</Text>
@@ -205,33 +204,11 @@ const PlayerScreen = ({ navigation, route }) => {
           </Appbar.Header>
 
           <View style={styles.content}>
-            <Animated.View 
-              style={[
-                styles.waveCircle,
-                {
-                  backgroundColor: `${typeData.color}30`,
-                  transform: [{ scale: pulseAnim }]
-                }
-              ]}
-            >
-              <View style={styles.innerCircle}>
-                <MaterialCommunityIcons 
-                  name={typeData.icon} 
-                  size={48} 
-                  color={typeData.color}
-                />
-              </View>
-            </Animated.View>
-            
-            <Text style={styles.practiceTitle}>
-              {typeData.label}
-            </Text>
-            
             <Timer
-              duration={typeData.duration}
+              duration={typeData.duration} // This duration should be correctly set by SetupScreen
               onComplete={handleComplete}
               onCancel={handleSessionCancel}
-              color={typeData.color}
+              color={timerColor} // Pass the static teal color to Timer
             />
             
             <SessionCard
@@ -249,7 +226,7 @@ const PlayerScreen = ({ navigation, route }) => {
           icon="check-circle-outline"
           confirmText="Done"
           onConfirm={handleFinish}
-          iconColor={COLORS.primary}
+          iconColor={COLORS.primary} // Keep dialog icon color as primary or change if needed
           iconBackgroundColor={`${COLORS.primary}15`}
         />
 
@@ -305,42 +282,19 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   appbarTitle: {
-    color: COLORS.background,
+    color: COLORS.white,
     fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
   },
   appbarSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
     fontSize: FONT.size.sm,
   },
   content: {
     flex: 1,
     alignItems: 'center',
     padding: SPACING.lg,
-  },
-  waveCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  innerCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.medium,
-  },
-  practiceTitle: {
-    fontSize: FONT.size.xl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.background,
-    marginBottom: SPACING.xl,
-    textAlign: 'center',
+    paddingTop: SPACING.md,
   },
   dialogGradient: {
     borderRadius: RADIUS.lg,

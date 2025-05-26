@@ -27,7 +27,7 @@ console.debug('[BinauralSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
-  const { masterExerciseId } = params; // Extract masterExerciseId
+  const { masterExerciseId, originRouteName } = params; // Added originRouteName
   const { user } = useUser();
 
   // Initial state from masterExerciseId or params or defaults
@@ -47,6 +47,9 @@ const SetupScreen = ({ navigation, route }) => {
     console.debug('[BinauralSetupScreen] Received params on mount/update:', params);
     if (params.masterExerciseId) {
         console.debug('[BinauralSetupScreen] Master Exercise ID received:', params.masterExerciseId);
+    }
+    if (params.originRouteName) { // Log originRouteName
+        console.debug('[BinauralSetupScreen] Origin route name received:', params.originRouteName);
     }
     if (params.binauralType && params.binauralType !== selectedFrequency) {
       setSelectedFrequency(params.binauralType);
@@ -121,8 +124,9 @@ const SetupScreen = ({ navigation, route }) => {
           sessionId: session.id,
           masterExerciseId: masterExerciseId,
           exerciseType: exerciseTypeForPlayer,
+          originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[BinauralSetupScreen] Navigating to BinauralPlayer with frequencyData (including masterId/type):', frequencyDataForPlayer);
+        console.debug('[BinauralSetupScreen] Navigating to BinauralPlayer with frequencyData (including masterId/type/origin):', frequencyDataForPlayer);
         navigation.navigate('BinauralPlayer', { frequencyData: frequencyDataForPlayer });
       } else {
         console.error('[BinauralSetupScreen] Failed to start session or session ID missing.');

@@ -112,7 +112,8 @@ const Timer = ({
             clearInterval(interval);
             setIsActive(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            onComplete?.();
+            debug.log('Timer completed, calling onComplete with duration:', duration);
+            onComplete?.(duration);
             return 0;
           }
           
@@ -176,13 +177,14 @@ const Timer = ({
   };
 
   const confirmCancel = () => {
-    debug.log('Timer cancelled');
+    const timeSpent = duration - timeLeft;
+    debug.log('Timer cancelled, calling onCancel with timeSpent:', timeSpent);
     setIsActive(false);
     setIsPaused(false);
     setTimeLeft(duration);
     animatedValue.setValue(0);
     setShowCancelDialog(false);
-    onCancel?.();
+    onCancel?.(timeSpent);
   };
 
   // Calculate the stroke dash offset for the progress circle

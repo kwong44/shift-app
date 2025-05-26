@@ -21,7 +21,7 @@ console.debug('JournalingSetupScreen mounted');
 
 const JournalingSetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
-  const { masterExerciseId, exerciseType } = params;
+  const { masterExerciseId, exerciseType, originRouteName } = params;
 
   const [promptType, setPromptType] = useState('gratitude');
   const [selectedEmotions, setSelectedEmotions] = useState([]);
@@ -33,8 +33,9 @@ const JournalingSetupScreen = ({ navigation, route }) => {
     console.debug('[JournalingSetupScreen] Params received:', {
       masterExerciseId,
       exerciseType,
+      originRouteName,
     });
-  }, [masterExerciseId, exerciseType]);
+  }, [masterExerciseId, exerciseType, originRouteName, params]);
 
   const handlePromptTypeChange = (newType) => {
     if (newType !== promptType) {
@@ -45,12 +46,15 @@ const JournalingSetupScreen = ({ navigation, route }) => {
 
   const handleContinue = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate('JournalingEntry', {
+    const entryParams = {
       promptType,
       selectedEmotions,
       masterExerciseId,
-      exerciseType
-    });
+      exerciseType,
+      originRouteName
+    };
+    console.debug('[JournalingSetupScreen] Navigating to JournalingEntry with params:', entryParams);
+    navigation.navigate('JournalingEntry', entryParams);
   };
 
   return (

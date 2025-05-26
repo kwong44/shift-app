@@ -29,7 +29,7 @@ console.debug('[DeepWorkSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
-  const { masterExerciseId } = params; // Extract masterExerciseId
+  const { masterExerciseId, originRouteName } = params; // Added originRouteName
   const { user } = useUser();
 
   // Initial state from masterExerciseId or params or defaults
@@ -50,6 +50,9 @@ const SetupScreen = ({ navigation, route }) => {
     console.debug('[DeepWorkSetupScreen] Received params on mount/update:', params);
     if (params.masterExerciseId) {
         console.debug('[DeepWorkSetupScreen] Master Exercise ID received:', params.masterExerciseId);
+    }
+    if (params.originRouteName) { // Log originRouteName
+        console.debug('[DeepWorkSetupScreen] Origin route name received:', params.originRouteName);
     }
     if (params.duration && params.duration !== selectedDuration) {
       setSelectedDuration(params.duration);
@@ -113,8 +116,9 @@ const SetupScreen = ({ navigation, route }) => {
           // Pass masterExerciseId and exerciseType to PlayerScreen
           masterExerciseId: masterExerciseId,
           exerciseType: exerciseTypeForPlayer,
+          originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[DeepWorkSetupScreen] Navigating to DeepWorkPlayer with params (including masterId/type):', playerParams);
+        console.debug('[DeepWorkSetupScreen] Navigating to DeepWorkPlayer with params (including masterId/type/origin):', playerParams);
         navigation.navigate('DeepWorkPlayer', playerParams);
       } else {
         console.error('[DeepWorkSetupScreen] Failed to start deep work session or session ID missing from API response.');

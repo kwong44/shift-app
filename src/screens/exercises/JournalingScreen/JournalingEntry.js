@@ -30,7 +30,7 @@ const JOURNAL_GRAY = '#7A7A7A';
 const JOURNAL_BACKGROUND = '#F0F0F0';
 
 const JournalingEntry = ({ route, navigation }) => {
-  const { promptType, selectedEmotions, masterExerciseId, exerciseType } = route.params;
+  const { promptType, selectedEmotions, masterExerciseId, exerciseType, originRouteName } = route.params;
   const { user } = useUser();
   const [currentPrompt, setCurrentPrompt] = useState(0);
   const [entry, setEntry] = useState('');
@@ -55,9 +55,10 @@ const JournalingEntry = ({ route, navigation }) => {
       promptText: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
       selectedPromptType,
       entryLength: entry?.length || 0,
+      originRouteName,
       userId: user?.id
     });
-  }, [promptType, masterExerciseId, exerciseType, currentPrompt, selectedPromptType, entry, user]);
+  }, [promptType, masterExerciseId, exerciseType, originRouteName, currentPrompt, selectedPromptType, entry, user]);
 
   const handleSaveEntry = async () => {
     if (!entry.trim()) {
@@ -183,13 +184,17 @@ const JournalingEntry = ({ route, navigation }) => {
       setInsights(null);
       setError(null);
       
-      // Navigate after a small delay
+      const targetRoute = originRouteName || 'ExercisesDashboard';
+      console.debug(`[JournalingEntry] Navigating to ${targetRoute} after completion.`);
+      
       setTimeout(() => {
-        navigation.navigate('ExercisesDashboard');
+        navigation.navigate(targetRoute);
       }, 100);
     } catch (error) {
       console.error('[JournalingEntry] Error in handleFinish:', error);
-      navigation.navigate('ExercisesDashboard');
+      // Fallback navigation if error occurs during state clearing or haptics
+      const targetRoute = originRouteName || 'ExercisesDashboard';
+      navigation.navigate(targetRoute);
     }
   };
 

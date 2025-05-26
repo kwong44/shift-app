@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -25,50 +25,75 @@ import SetupScreenButtonContainer from '../../../components/common/SetupScreenBu
 // Debug logging
 console.debug('[MindfulnessSetupScreen] File loaded.');
 
+// Default type if nothing else is specified
+const DEFAULT_MINDFULNESS_TYPE_VALUE = 'breath';
+
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
-  const { masterExerciseId } = params;
+  const { masterExerciseId, originRouteName } = params;
   const { user } = useUser();
 
-  // Initial state determination
-  // If masterExerciseId is present, try to get initial settings from MASTER_EXERCISE_LIST
-  // This adds robustness if DailyFocus sends more specific initial settings beyond just type/duration.
-  const initialExerciseDetails = masterExerciseId ? getExerciseById(masterExerciseId) : null;
-  const defaultInitialType = initialExerciseDetails?.defaultSettings?.mindfulnessType || 'breath';
-  const defaultInitialDuration = initialExerciseDetails?.defaultSettings?.duration || SESSION_DURATION_SECONDS; 
+  // Get details if navigating from DailyFocus or similar
+  const initialExerciseDetails = useMemo(() => 
+    masterExerciseId ? getExerciseById(masterExerciseId) : null
+  , [masterExerciseId]);
 
-  const [currentMindfulnessType, setCurrentMindfulnessType] = useState(
-    params.mindfulnessType || defaultInitialType
-  );
-  const [sessionDuration, setSessionDuration] = useState(
-    params.duration || defaultInitialDuration
-  );
+  // Determine initial type
+  const initialTypeValue = params.mindfulnessType || initialExerciseDetails?.defaultSettings?.mindfulnessType || DEFAULT_MINDFULNESS_TYPE_VALUE;
+  
+  // Find the full object for the initial type from MINDFULNESS_TYPES
+  const initialTypeData = MINDFULNESS_TYPES.find(t => t.value === initialTypeValue) || MINDFULNESS_TYPES.find(t => t.value === DEFAULT_MINDFULNESS_TYPE_VALUE);
+
+  // Determine initial duration
+  const initialDuration = 
+    params.duration || 
+    initialExerciseDetails?.defaultSettings?.duration || 
+    initialTypeData?.duration || // Duration from the selected MINDFULNESS_TYPES object
+    300; // Fallback duration (5 mins)
+
+  const [currentMindfulnessType, setCurrentMindfulnessType] = useState(initialTypeValue);
+  const [sessionDuration, setSessionDuration] = useState(initialDuration);
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
+  // Effect to update state if masterExerciseId or specific params change after initial load
   useEffect(() => {
-    console.debug('[MindfulnessSetupScreen] Received params on mount/update:', params);
-    if (params.masterExerciseId) {
-        console.debug('[MindfulnessSetupScreen] Master Exercise ID received:', params.masterExerciseId);
+    console.debug('[MindfulnessSetupScreen] Params or masterExerciseId changed:', params);
+    if (masterExerciseId && initialExerciseDetails) {
+      const newType = initialExerciseDetails.defaultSettings?.mindfulnessType || DEFAULT_MINDFULNESS_TYPE_VALUE;
+      const newDuration = initialExerciseDetails.defaultSettings?.duration || MINDFULNESS_TYPES.find(t=>t.value === newType)?.duration || 300;
+      setCurrentMindfulnessType(newType);
+      setSessionDuration(newDuration);
+      console.debug(`[MindfulnessSetupScreen] Updated from masterExerciseId: type=${newType}, duration=${newDuration}`);
+    } else if (params.mindfulnessType || params.duration) {
+      // If no masterExerciseId, but specific params are given
+      const newTypeFromParam = params.mindfulnessType || currentMindfulnessType;
+      const typeDataFromParam = MINDFULNESS_TYPES.find(t => t.value === newTypeFromParam) || initialTypeData;
+      const newDurationFromParam = params.duration || typeDataFromParam?.duration || sessionDuration;
+      
+      setCurrentMindfulnessType(newTypeFromParam);
+      setSessionDuration(newDurationFromParam);
+      console.debug(`[MindfulnessSetupScreen] Updated from direct params: type=${newTypeFromParam}, duration=${newDurationFromParam}`);
     }
-    // Use params if explicitly passed, otherwise stick to defaults or master list derived defaults
-    if (params.mindfulnessType && params.mindfulnessType !== currentMindfulnessType) {
-      setCurrentMindfulnessType(params.mindfulnessType);
-    }
-    if (params.duration && params.duration !== sessionDuration) {
-      setSessionDuration(params.duration);
-    }
-  }, [params]);
+  }, [params.mindfulnessType, params.duration, masterExerciseId, initialExerciseDetails]); // Rerun if specific params or masterId changes
 
-  // Get the selected mindfulness type data (this will re-calculate when mindfulnessType changes)
-  const selectedType = MINDFULNESS_TYPES.find(type => type.value === currentMindfulnessType) || MINDFULNESS_TYPES[0];
+  // Memoize selectedTypeData to prevent re-finding it on every render
+  const selectedTypeData = useMemo(() => 
+    MINDFULNESS_TYPES.find(type => type.value === currentMindfulnessType) || initialTypeData
+  , [currentMindfulnessType, initialTypeData]);
   
-  console.debug('[MindfulnessSetupScreen] State:', {
-    initialParams: params,
-    currentMindfulnessType: currentMindfulnessType,
-    selectedEmotionsCount: selectedEmotions.length,
+  console.debug('[MindfulnessSetupScreen] Current state:', {
+    params,
+    masterExerciseId,
+    initialExerciseDetails: initialExerciseDetails ? {id: initialExerciseDetails.id, type: initialExerciseDetails.defaultSettings?.mindfulnessType, duration: initialExerciseDetails.defaultSettings?.duration} : null,
+    initialTypeValue,
+    initialDuration,
+    currentMindfulnessType,
+    sessionDuration, // This should now reflect the selected type's duration or master default
+    selectedTypeDataLabel: selectedTypeData?.label,
+    selectedTypeDataDuration: selectedTypeData?.duration,
   });
 
   const handleStart = async () => {
@@ -80,46 +105,53 @@ const SetupScreen = ({ navigation, route }) => {
     
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    const selectedTypeData = PRACTICE_TYPES[currentMindfulnessType];
     if (!selectedTypeData) {
-      console.error('[MindfulnessSetupScreen] Invalid mindfulness type selected:', currentMindfulnessType);
-      setSnackbarMessage('Invalid practice type selected.');
+      console.error('[MindfulnessSetupScreen] Critical: selectedTypeData is undefined.');
+      setSnackbarMessage('Invalid practice type selected. Please try again.');
       setSnackbarVisible(true);
       return;
     }
     
-    // Ensure masterExerciseId is passed to the player screen
-    // Also pass the exerciseType from the master list if available, or default to 'Mindfulness'
-    const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
-    const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Mindfulness';
+    // Ensure the sessionDuration from state is used for the player
+    // selectedTypeData from MINDFULNESS_TYPES already contains the correct duration, icon, colors etc for that type.
+    // We just override its duration with our state `sessionDuration` IF it was set by masterExerciseId or specific param.
+    const finalTypeDataForPlayer = {
+        ...selectedTypeData, // Base properties from MINDFULNESS_TYPES (icon, label, color, etc.)
+        duration: sessionDuration, // Crucially, use the sessionDuration from state
+    };
 
-    console.debug('[MindfulnessSetupScreen] Navigating to MindfulnessPlayer with params:', {
-        mindfulnessType: currentMindfulnessType,
+    const exerciseTypeForPlayer = masterExerciseId ? (getExerciseById(masterExerciseId)?.type || 'Mindfulness') : 'Mindfulness';
+
+    const playerParams = {
+        mindfulnessType: currentMindfulnessType, // The value string, e.g., 'breath'
         selectedEmotions,
-        typeData: {
-          ...selectedTypeData, // from PRACTICE_TYPES constant
-          duration: sessionDuration, // ensure updated duration is passed
-        },
-        masterExerciseId: masterExerciseId, // Pass it through
-        exerciseType: exerciseTypeForPlayer, // Pass the determined exercise type
-    });
+        typeData: finalTypeDataForPlayer, // Pass the rich object with correct duration
+        masterExerciseId: masterExerciseId, // Pass if available
+        exerciseType: exerciseTypeForPlayer,
+        originRouteName: originRouteName
+    };
 
-    navigation.navigate('MindfulnessPlayer', {
-      mindfulnessType: currentMindfulnessType,
-      selectedEmotions,
-      typeData: { 
-        ...selectedTypeData, 
-        duration: sessionDuration, 
-      },
-      masterExerciseId: masterExerciseId, // Crucial for logging in daily_exercise_logs
-      exerciseType: exerciseTypeForPlayer,
-    });
+    console.debug('[MindfulnessSetupScreen] Navigating to MindfulnessPlayer with params:', playerParams);
+    navigation.navigate('MindfulnessPlayer', playerParams);
   };
 
-  const handleTypeChange = (type) => {
-    // Provide haptic feedback
+  const handleTypeChange = (typeValue) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentMindfulnessType(type);
+    const newTypeData = MINDFULNESS_TYPES.find(t => t.value === typeValue);
+    if (newTypeData) {
+      setCurrentMindfulnessType(newTypeData.value);
+      // IMPORTANT: Update sessionDuration based on the new type, unless a masterExerciseId is dictating duration
+      if (!masterExerciseId) { 
+        setSessionDuration(newTypeData.duration);
+        console.debug(`[MindfulnessSetupScreen] Type changed to ${newTypeData.label}, duration updated to ${newTypeData.duration}s (no masterId).`);
+      } else {
+        // If masterExerciseId is present, duration is typically fixed by it. 
+        // However, if the type changes, we might want to reconsider. For now, masterId duration takes precedence.
+        console.debug(`[MindfulnessSetupScreen] Type changed to ${newTypeData.label}. Duration remains ${sessionDuration}s due to masterExerciseId.`);
+      }
+    } else {
+      console.warn('[MindfulnessSetupScreen] Could not find data for selected type value:', typeValue);
+    }
   };
 
   return (
@@ -159,8 +191,8 @@ const SetupScreen = ({ navigation, route }) => {
           
           <MindfulnessTypeSelector 
             mindfulnessTypes={MINDFULNESS_TYPES}
-            selectedType={selectedType}
-            onSelectType={handleTypeChange}
+            selectedType={selectedTypeData}
+            onSelectType={(typeValue) => handleTypeChange(typeValue)}
           />
           
           <Text style={styles.sectionTitle}>Current Emotional State</Text>

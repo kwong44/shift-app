@@ -74,6 +74,8 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style, isFavorite, onTog
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (onToggleFavorite) {
       onToggleFavorite(exercise.id, isFavorite);
+    } else {
+      console.debug('[ExerciseCard] onToggleFavorite not provided, favorite action skipped.');
     }
   };
 
@@ -138,16 +140,18 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style, isFavorite, onTog
               </Text>
             </View>
           </View>
-          <View style={styles.favoriteContainer}>
-            <IconButton
-              icon={isFavorite ? 'heart' : 'heart-outline'}
-              iconColor={isFavorite ? COLORS.accent : COLORS.white}
-              size={26}
-              onPress={handleFavoritePress}
-              style={styles.favoriteButton}
-              animated={true}
-            />
-          </View>
+          {onToggleFavorite && (
+            <View style={styles.favoriteContainer}>
+              <IconButton
+                icon={isFavorite ? 'heart' : 'heart-outline'}
+                iconColor={isFavorite ? COLORS.accent : COLORS.white}
+                size={26}
+                onPress={handleFavoritePress}
+                style={styles.favoriteButton}
+                animated={true}
+              />
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </Animated.View>

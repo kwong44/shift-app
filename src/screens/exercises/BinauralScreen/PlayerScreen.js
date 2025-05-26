@@ -26,7 +26,7 @@ console.debug('BinauralPlayerScreen mounted');
 
 const PlayerScreen = ({ navigation, route }) => {
   const { frequencyData } = route.params;
-  const { masterExerciseId, exerciseType, sessionId } = frequencyData;
+  const { masterExerciseId, exerciseType, sessionId, originRouteName } = frequencyData;
   const { user } = useUser();
   const [isCompleted, setIsCompleted] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -45,6 +45,7 @@ const PlayerScreen = ({ navigation, route }) => {
     masterExerciseId,
     exerciseType,
     sessionId,
+    originRouteName,
     isPlaying,
     progress,
     userId: user?.id
@@ -54,7 +55,7 @@ const PlayerScreen = ({ navigation, route }) => {
     if (progress >= 1 && !isCompleted && user?.id) {
       setIsCompleted(true);
       handleStop();
-      console.debug(`[BinauralPlayerScreen] Session ended. Progress: ${progress}. Master ID: ${masterExerciseId}`);
+      console.debug(`[BinauralPlayerScreen] Session ended. Progress: ${progress}. Master ID: ${masterExerciseId}. Origin: ${originRouteName}`);
 
       const plannedDurationSeconds = frequencyData.duration;
 
@@ -104,11 +105,13 @@ const PlayerScreen = ({ navigation, route }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowCompletionDialog(true);
     }
-  }, [progress, user, isCompleted, frequencyData, masterExerciseId, exerciseType, sessionId, handleStop]);
+  }, [progress, user, isCompleted, frequencyData, masterExerciseId, exerciseType, sessionId, originRouteName, handleStop]);
 
   const handleDialogFinish = () => {
     setShowCompletionDialog(false);
-    navigation.navigate('ExercisesDashboard');
+    const targetRoute = originRouteName || 'ExercisesDashboard';
+    console.debug(`[BinauralPlayerScreen] Navigating to ${targetRoute} after completion dialog.`);
+    navigation.navigate(targetRoute);
   }
 
   const handleBack = async () => {

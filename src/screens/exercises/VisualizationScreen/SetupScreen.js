@@ -27,7 +27,7 @@ console.debug('[VisualizationSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
-  const { masterExerciseId } = params; // Extract masterExerciseId
+  const { masterExerciseId, originRouteName } = params; // Added originRouteName
   const { user } = useUser();
 
   // Initial state from masterExerciseId or params or defaults
@@ -49,6 +49,9 @@ const SetupScreen = ({ navigation, route }) => {
     console.debug('[VisualizationSetupScreen] Received params on mount/update:', params);
     if (params.masterExerciseId) {
         console.debug('[VisualizationSetupScreen] Master Exercise ID received:', params.masterExerciseId);
+    }
+    if (params.originRouteName) { // Log originRouteName
+        console.debug('[VisualizationSetupScreen] Origin route name received:', params.originRouteName);
     }
     if (params.visualizationType && params.visualizationType !== visualizationType) {
       setVisualizationType(params.visualizationType);
@@ -115,8 +118,9 @@ const SetupScreen = ({ navigation, route }) => {
           // Pass masterExerciseId and exerciseType to PlayerScreen
           masterExerciseId: masterExerciseId,
           exerciseType: exerciseTypeForPlayer,
+          originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[VisualizationSetupScreen] Navigating to VisualizationPlayer with params (including masterId/type):', playerParams);
+        console.debug('[VisualizationSetupScreen] Navigating to VisualizationPlayer with params (including masterId/type/origin):', playerParams);
         navigation.navigate('VisualizationPlayer', playerParams);
       } else {
         console.error('[VisualizationSetupScreen] Failed to create visualization or ID missing.');

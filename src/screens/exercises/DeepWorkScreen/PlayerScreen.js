@@ -26,7 +26,8 @@ export const PlayerScreen = ({ navigation, route }) => {
     sessionId, 
     startTime, 
     masterExerciseId,
-    exerciseType
+    exerciseType,
+    originRouteName
   } = route.params;
   
   const { user } = useUser();
@@ -44,6 +45,7 @@ export const PlayerScreen = ({ navigation, route }) => {
     startTime,
     masterExerciseId,
     exerciseType,
+    originRouteName,
     userId: user?.id
   });
 
@@ -135,8 +137,9 @@ export const PlayerScreen = ({ navigation, route }) => {
   const handleFinish = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowDialog(false);
-    console.debug('DeepWorkPlayerScreen: Navigating to ExercisesDashboard after session completion dialog.');
-    navigation.navigate('ExercisesDashboard');
+    const targetRoute = originRouteName || 'ExercisesDashboard';
+    console.debug(`[DeepWorkPlayerScreen] Navigating to ${targetRoute} after session completion dialog.`);
+    navigation.navigate(targetRoute);
   };
 
   if (!sessionId) {

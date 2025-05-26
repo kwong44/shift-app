@@ -351,7 +351,7 @@ const HomeScreen = ({ navigation }) => {
             <DailyFocus 
               onExercisePress={(route, params) => {
                 console.debug(`[HomeScreen] Navigating from DailyFocus. Route: ${route}, Params:`, params);
-                navigation.navigate(route, params);
+                navigation.navigate(route, { ...params, originRouteName: 'Roadmap' });
               }} 
             />
           </View>
