@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { completeVisualization } from '../../../../api/exercises';
+import { useUser } from '../../../../hooks/useUser';
+import { supabase } from '../../../../config/supabase';
 
 // Audio placeholders for different visualization types
 // Will replace these with actual guided visualization audio files later
@@ -14,7 +16,8 @@ const VISUALIZATION_AUDIO = {
   placeholder: require('../../../../../assets/audio/silence.mp3'),
 };
 
-export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) => {
+export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, masterExerciseId, exerciseType) => {
+  const { user } = useUser();
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -23,15 +26,23 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) =>
   const [loading, setLoading] = useState(false);
 
   const visualizationIdRef = useRef(vizIdFromProps);
+  const masterExerciseIdRef = useRef(masterExerciseId);
+  const exerciseTypeRef = useRef(exerciseType);
+
   useEffect(() => {
     visualizationIdRef.current = vizIdFromProps;
-  }, [vizIdFromProps]);
+    masterExerciseIdRef.current = masterExerciseId;
+    exerciseTypeRef.current = exerciseType;
+  }, [vizIdFromProps, masterExerciseId, exerciseType]);
 
   // Debug logging
   console.debug('[useVisualizationAudio] Hook initialized/updated. Props & State:', {
     selectedType: selectedType?.value,
     duration,
     visualizationId: visualizationIdRef.current,
+    masterExerciseId: masterExerciseIdRef.current,
+    exerciseType: exerciseTypeRef.current,
+    userId: user?.id,
     isPlaying,
     progress,
     timeElapsed,
@@ -60,11 +71,31 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) =>
           const finalProgress = newProgress > 1 ? 1 : newProgress;
           setProgress(finalProgress);
           
-          // Complete session when finished
-          if (finalProgress >= 1 && visualizationIdRef.current) {
-            console.debug(`[useVisualizationAudio] Progress complete. Marking viz ${visualizationIdRef.current} complete. Duration: ${newTime}s`);
+          if (finalProgress >= 1 && visualizationIdRef.current && user?.id) {
+            console.debug(`[useVisualizationAudio] Progress complete. Marking viz ${visualizationIdRef.current} complete. Duration: ${newTime}s. Master ID: ${masterExerciseIdRef.current}`);
             completeVisualization(visualizationIdRef.current, newTime)
-              .then(() => console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete via progress tracker.`))
+              .then(() => {
+                console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete in visualizations table.`);
+                // Now log to daily_exercise_logs
+                if (masterExerciseIdRef.current) {
+                  const dailyLogEntry = {
+                    user_id: user.id,
+                    exercise_id: masterExerciseIdRef.current,
+                    exercise_type: exerciseTypeRef.current || 'Visualization',
+                    duration_seconds: newTime,
+                    completed_at: new Date().toISOString(),
+                    source: 'VisualizationPlayer_Progress',
+                    metadata: { /* ... relevant metadata ... */ }
+                  };
+                  supabase.from('daily_exercise_logs').insert(dailyLogEntry)
+                    .then(({ error: dailyErr }) => {
+                      if (dailyErr) console.error('[useVisualizationAudio] Error inserting to daily_exercise_logs from progress:', dailyErr.message);
+                      else console.debug('[useVisualizationAudio] Inserted to daily_exercise_logs from progress.');
+                    });
+                } else {
+                  console.warn('[useVisualizationAudio] No masterExerciseId for daily_exercise_logs from progress.');
+                }
+              })
               .catch(err => console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} via progress:`, err.message));
           }
           return newTime;
@@ -72,7 +103,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) =>
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, duration]);
+  }, [isPlaying, duration, user]);
 
   const loadAndPlaySound = async () => {
     // Ensure visualizationId is present (passed from PlayerScreen, originating from SetupScreen)
@@ -168,13 +199,32 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps) =>
     // Let PlayerScreen decide to call resetAudio or navigate away.
 
     // Complete the visualization if it exists and progress is not yet 1 (to avoid double calls)
-    if (visualizationIdRef.current && progress < 1) {
+    if (visualizationIdRef.current && progress < 1 && user?.id) {
       try {
-        setLoading(true); // Indicate activity for API call
-        console.debug(`[useVisualizationAudio] Marking viz ${visualizationIdRef.current} complete via handleStop. Duration: ${timeElapsed}s`);
-        await completeVisualization(visualizationIdRef.current, timeElapsed); // Pass actual time elapsed
-        console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete via handleStop.`);
-        setProgress(1); // Set progress to 1 to reflect completion
+        setLoading(true);
+        console.debug(`[useVisualizationAudio] Marking viz ${visualizationIdRef.current} complete via handleStop. Duration: ${timeElapsed}s. Master ID: ${masterExerciseIdRef.current}`);
+        await completeVisualization(visualizationIdRef.current, timeElapsed);
+        console.debug(`[useVisualizationAudio] Visualization ${visualizationIdRef.current} marked as complete in visualizations table via handleStop.`);
+        setProgress(1);
+        // Now log to daily_exercise_logs
+        if (masterExerciseIdRef.current) {
+          const dailyLogEntry = {
+            user_id: user.id,
+            exercise_id: masterExerciseIdRef.current,
+            exercise_type: exerciseTypeRef.current || 'Visualization',
+            duration_seconds: timeElapsed,
+            completed_at: new Date().toISOString(),
+            source: 'VisualizationPlayer_StopButton',
+            metadata: { /* ... relevant metadata ... */ }
+          };
+          supabase.from('daily_exercise_logs').insert(dailyLogEntry)
+            .then(({ error: dailyErr }) => {
+              if (dailyErr) console.error('[useVisualizationAudio] Error inserting to daily_exercise_logs from handleStop:', dailyErr.message);
+              else console.debug('[useVisualizationAudio] Inserted to daily_exercise_logs from handleStop.');
+            });
+        } else {
+          console.warn('[useVisualizationAudio] No masterExerciseId for daily_exercise_logs from handleStop.');
+        }
       } catch (err) {
         console.error(`[useVisualizationAudio] Error completing viz ${visualizationIdRef.current} from handleStop:`, err.message);
         setError(`Failed to complete visualization: ${err.message}`);

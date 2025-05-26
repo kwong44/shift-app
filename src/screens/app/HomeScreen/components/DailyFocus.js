@@ -81,7 +81,17 @@ const DailyFocus = ({ onExercisePress }) => {
       return;
     }
     await Haptics.selectionAsync();
-    onExercisePress(exercise.route, exercise.defaultSettings || {});
+    
+    // Prepare params, ensuring masterExerciseId is included
+    const navigationParams = {
+      ...(exercise.defaultSettings || {}),
+      masterExerciseId: exercise.id, // Add the master exercise ID here
+      // Optionally, pass exerciseType if Player screens can't easily derive it
+      // exerciseType: exercise.type 
+    };
+    
+    console.debug(`[DailyFocus] Calling onExercisePress. Route: ${exercise.route}, Params:`, navigationParams);
+    onExercisePress(exercise.route, navigationParams);
   };
 
   if (loadingSuggestions) {

@@ -12,6 +12,8 @@ import {
 import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../config/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useUser } from '../../../hooks/useUser';
+import { getExerciseById } from '../../../constants/masterExerciseList';
 
 // Import local components and constants
 import { MindfulnessTypeSelector } from './components/MindfulnessTypeSelector';
@@ -25,65 +27,99 @@ console.debug('[MindfulnessSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
+  const { masterExerciseId } = params;
+  const { user } = useUser();
 
-  // Initialize state with values from params if available, otherwise defaults
-  const [mindfulnessType, setMindfulnessType] = useState(params.mindfulnessType || 'breath');
+  // Initial state determination
+  // If masterExerciseId is present, try to get initial settings from MASTER_EXERCISE_LIST
+  // This adds robustness if DailyFocus sends more specific initial settings beyond just type/duration.
+  const initialExerciseDetails = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+  const defaultInitialType = initialExerciseDetails?.defaultSettings?.mindfulnessType || 'breath';
+  const defaultInitialDuration = initialExerciseDetails?.defaultSettings?.duration || SESSION_DURATION_SECONDS; 
+
+  const [currentMindfulnessType, setCurrentMindfulnessType] = useState(
+    params.mindfulnessType || defaultInitialType
+  );
+  const [sessionDuration, setSessionDuration] = useState(
+    params.duration || defaultInitialDuration
+  );
   const [selectedEmotions, setSelectedEmotions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [error, setError] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // Effect to log params and potentially update state if params change after initial load (optional)
   useEffect(() => {
-    if (Object.keys(params).length > 0) {
-      console.debug('[MindfulnessSetupScreen] Received params on mount/update:', params);
-      if (params.mindfulnessType && params.mindfulnessType !== mindfulnessType) {
-         console.debug('[MindfulnessSetupScreen] Setting mindfulnessType from route params:', params.mindfulnessType);
-         setMindfulnessType(params.mindfulnessType);
-      }
+    console.debug('[MindfulnessSetupScreen] Received params on mount/update:', params);
+    if (params.masterExerciseId) {
+        console.debug('[MindfulnessSetupScreen] Master Exercise ID received:', params.masterExerciseId);
+    }
+    // Use params if explicitly passed, otherwise stick to defaults or master list derived defaults
+    if (params.mindfulnessType && params.mindfulnessType !== currentMindfulnessType) {
+      setCurrentMindfulnessType(params.mindfulnessType);
+    }
+    if (params.duration && params.duration !== sessionDuration) {
+      setSessionDuration(params.duration);
     }
   }, [params]);
 
   // Get the selected mindfulness type data (this will re-calculate when mindfulnessType changes)
-  const selectedType = MINDFULNESS_TYPES.find(type => type.value === mindfulnessType) || MINDFULNESS_TYPES[0];
+  const selectedType = MINDFULNESS_TYPES.find(type => type.value === currentMindfulnessType) || MINDFULNESS_TYPES[0];
   
   console.debug('[MindfulnessSetupScreen] State:', {
     initialParams: params,
-    currentMindfulnessType: mindfulnessType,
+    currentMindfulnessType: currentMindfulnessType,
     selectedEmotionsCount: selectedEmotions.length,
   });
 
   const handleStart = async () => {
     if (selectedEmotions.length === 0) {
-      setError('Please select at least one emotion');
+      setSnackbarMessage('Please select at least one emotion');
       setSnackbarVisible(true);
       return;
     }
     
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    if (!selectedType) {
-        console.error('[MindfulnessSetupScreen] selectedType is undefined. Cannot start.');
-        setError('Invalid mindfulness type selected.');
-        setSnackbarVisible(true);
-        return;
+    const selectedTypeData = PRACTICE_TYPES[currentMindfulnessType];
+    if (!selectedTypeData) {
+      console.error('[MindfulnessSetupScreen] Invalid mindfulness type selected:', currentMindfulnessType);
+      setSnackbarMessage('Invalid practice type selected.');
+      setSnackbarVisible(true);
+      return;
     }
+    
+    // Ensure masterExerciseId is passed to the player screen
+    // Also pass the exerciseType from the master list if available, or default to 'Mindfulness'
+    const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+    const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Mindfulness';
 
-    const playerParams = {
-      mindfulnessType: selectedType.value,
+    console.debug('[MindfulnessSetupScreen] Navigating to MindfulnessPlayer with params:', {
+        mindfulnessType: currentMindfulnessType,
+        selectedEmotions,
+        typeData: {
+          ...selectedTypeData, // from PRACTICE_TYPES constant
+          duration: sessionDuration, // ensure updated duration is passed
+        },
+        masterExerciseId: masterExerciseId, // Pass it through
+        exerciseType: exerciseTypeForPlayer, // Pass the determined exercise type
+    });
+
+    navigation.navigate('MindfulnessPlayer', {
+      mindfulnessType: currentMindfulnessType,
       selectedEmotions,
-      typeData: {
-        ...selectedType,
+      typeData: { 
+        ...selectedTypeData, 
+        duration: sessionDuration, 
       },
-    };
-
-    console.debug('[MindfulnessSetupScreen] Starting mindfulness session. Navigating to MindfulnessPlayer with params:', playerParams);
-    navigation.navigate('MindfulnessPlayer', playerParams);
+      masterExerciseId: masterExerciseId, // Crucial for logging in daily_exercise_logs
+      exerciseType: exerciseTypeForPlayer,
+    });
   };
 
   const handleTypeChange = (type) => {
     // Provide haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMindfulnessType(type);
+    setCurrentMindfulnessType(type);
   };
 
   return (
@@ -160,7 +196,7 @@ const SetupScreen = ({ navigation, route }) => {
             onPress: () => setSnackbarVisible(false),
           }}
         >
-          {error}
+          {snackbarMessage}
         </Snackbar>
       </SafeAreaView>
     </View>

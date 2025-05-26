@@ -32,20 +32,33 @@ export const startDeepWorkSession = async (userId, taskId, duration) => {
 /**
  * End a deep work session
  * @param {string} sessionId - The session ID
+ * @param {number} actualDurationSpent - The actual duration of the session in seconds.
  * @returns {Promise} - The updated session
  */
-export const endDeepWorkSession = async (sessionId) => {
+export const endDeepWorkSession = async (sessionId, actualDurationSpent) => {
   try {
-    console.debug('[endDeepWorkSession] Ending session:', { sessionId });
+    console.debug('[endDeepWorkSession] Ending session:', { sessionId, actualDurationSpent });
     
+    const updates = {
+      end_time: new Date().toISOString(),
+    };
+
+    // Only add actual_duration_seconds if it's a valid number (and non-negative)
+    if (typeof actualDurationSpent === 'number' && actualDurationSpent >= 0) {
+      updates.actual_duration_seconds = actualDurationSpent;
+    } else {
+      console.warn(`[endDeepWorkSession] Invalid or missing actualDurationSpent for session ${sessionId}:`, actualDurationSpent);
+    }
+
     const { data, error } = await supabase
       .from('deep_work_sessions')
-      .update({ end_time: new Date().toISOString() })
+      .update(updates)
       .eq('id', sessionId)
       .select()
       .single();
 
     if (error) throw error;
+    console.debug('[endDeepWorkSession] Session ended and updated successfully:', data);
     return data;
   } catch (error) {
     console.error('Error ending deep work session:', error.message);

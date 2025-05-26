@@ -17,7 +17,7 @@ console.debug('VisualizationPlayerScreen mounted');
 
 const PlayerScreen = ({ route, navigation }) => {
   // Destructure route params - including visualizationId, typeData, and content
-  const { visualizationId, visualizationType, duration, typeData, content } = route.params;
+  const { visualizationId, visualizationType, duration, typeData, content, masterExerciseId, exerciseType } = route.params;
   // const selectedType = VISUALIZATION_TYPES.find(t => t.value === visualizationType); // typeData is now passed directly
   const selectedType = typeData; // Use typeData directly from params
   
@@ -31,7 +31,7 @@ const PlayerScreen = ({ route, navigation }) => {
     handlePlayPause,
     handleStop, // This stop should now handle API call via the hook
     resetAudio,
-  } = useVisualizationAudio(selectedType, duration, visualizationId); // Pass visualizationId to the hook
+  } = useVisualizationAudio(selectedType, duration, visualizationId, masterExerciseId, exerciseType); // Pass visualizationId to the hook
 
   // Debug logging for props and state
   console.debug('[VisualizationPlayerScreen] State & Props:', {
@@ -40,6 +40,8 @@ const PlayerScreen = ({ route, navigation }) => {
     content, // Log the content being visualized
     selectedTypeLabel: selectedType?.label,
     duration, // Planned duration
+    masterExerciseId, // Log received masterExerciseId
+    exerciseType,     // Log received exerciseType
     isPlaying,
     progress,
     timeElapsed, // Actual time elapsed from hook

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -13,6 +13,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import CustomDialog from '../../../components/common/CustomDialog';
+import { useUser } from '../../../hooks/useUser';
+import { supabase } from '../../../config/supabase';
+import { updateBinauralSession } from '../../../api/exercises/binaural';
 
 // Import local components and hooks
 import PlayerCard from './components/PlayerCard';
@@ -23,6 +26,10 @@ console.debug('BinauralPlayerScreen mounted');
 
 const PlayerScreen = ({ navigation, route }) => {
   const { frequencyData } = route.params;
+  const { masterExerciseId, exerciseType, sessionId } = frequencyData;
+  const { user } = useUser();
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const { 
     isPlaying,
     progress,
@@ -33,22 +40,76 @@ const PlayerScreen = ({ navigation, route }) => {
     resetAudio,
   } = useBinauralAudio(frequencyData);
 
-  // Debug logging for props and state
-  console.debug('BinauralPlayerScreen state:', {
+  console.debug('BinauralPlayerScreen props & state:', {
     frequencyData,
+    masterExerciseId,
+    exerciseType,
+    sessionId,
     isPlaying,
     progress,
-    timeElapsed,
-    error,
-    waveform: frequencyData.waveform,
-    frequencyCategory: frequencyData.category
+    userId: user?.id
   });
 
   useEffect(() => {
-    if (progress >= 1) {
+    if (progress >= 1 && !isCompleted && user?.id) {
+      setIsCompleted(true);
       handleStop();
+      console.debug(`[BinauralPlayerScreen] Session ended. Progress: ${progress}. Master ID: ${masterExerciseId}`);
+
+      const plannedDurationSeconds = frequencyData.duration;
+
+      if (sessionId) {
+        updateBinauralSession(sessionId, { 
+          completed: true, 
+          completed_at: new Date().toISOString(),
+          actual_duration_seconds: plannedDurationSeconds
+        })
+        .then(() => console.debug('[BinauralPlayerScreen] Binaural session updated as completed in binaural_sessions.'))
+        .catch(err => console.error('[BinauralPlayerScreen] Error updating binaural_sessions:', err.message));
+      } else {
+        console.warn('[BinauralPlayerScreen] No sessionId, cannot update binaural_sessions.');
+      }
+
+      if (masterExerciseId) {
+        const dailyLogEntry = {
+          user_id: user.id,
+          exercise_id: masterExerciseId,
+          exercise_type: exerciseType || 'Binaural Beats',
+          duration_seconds: plannedDurationSeconds,
+          completed_at: new Date().toISOString(), 
+          source: 'BinauralPlayer',
+          metadata: {
+            planned_duration_seconds: plannedDurationSeconds,
+            binaural_type: frequencyData.name,
+            frequency_hz: frequencyData.frequency,
+            base_frequency_hz: frequencyData.baseFrequency,
+            waveform: frequencyData.waveform,
+            category: frequencyData.category,
+          }
+        };
+        console.debug('[BinauralPlayerScreen] Attempting to insert into daily_exercise_logs:', dailyLogEntry);
+        supabase
+          .from('daily_exercise_logs')
+          .insert(dailyLogEntry)
+          .then(({ error: dailyLogError }) => {
+            if (dailyLogError) {
+              console.error('[BinauralPlayerScreen] Error inserting into daily_exercise_logs:', dailyLogError.message);
+            } else {
+              console.debug('[BinauralPlayerScreen] Successfully inserted into daily_exercise_logs.');
+            }
+          });
+      } else {
+        console.warn('[BinauralPlayerScreen] masterExerciseId not available, cannot log to daily_exercise_logs.');
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowCompletionDialog(true);
     }
-  }, [progress]);
+  }, [progress, user, isCompleted, frequencyData, masterExerciseId, exerciseType, sessionId, handleStop]);
+
+  const handleDialogFinish = () => {
+    setShowCompletionDialog(false);
+    navigation.navigate('ExercisesDashboard');
+  }
 
   const handleBack = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -86,7 +147,18 @@ const PlayerScreen = ({ navigation, route }) => {
           </View>
 
           <CustomDialog
-            visible={!!error}
+            visible={showCompletionDialog}
+            onDismiss={handleDialogFinish}
+            title="Session Complete"
+            content={`Well done! You've completed your ${frequencyData.name || 'Binaural Beats'} session.`}
+            confirmText="Great!"
+            onConfirm={handleDialogFinish}
+            icon="check-circle"
+            iconColor={COLORS.success}
+          />
+
+          <CustomDialog
+            visible={!!error && !showCompletionDialog}
             onDismiss={resetAudio}
             title="Error"
             content={error}

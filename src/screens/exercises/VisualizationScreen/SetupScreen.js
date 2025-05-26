@@ -20,37 +20,44 @@ import SetupScreenButtonContainer from '../../../components/common/SetupScreenBu
 // Import API and hooks
 import { createVisualization } from '../../../api/exercises/visualization';
 import { useUser } from '../../../hooks/useUser';
+import { getExerciseById } from '../../../constants/masterExerciseList'; // Import helper
 
 // Debug logging
 console.debug('[VisualizationSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
+  const { masterExerciseId } = params; // Extract masterExerciseId
   const { user } = useUser();
 
-  // Initialize state with values from params if available, otherwise defaults
-  const [visualizationType, setVisualizationType] = useState(params.visualizationType || 'goals');
-  const [sessionDuration, setSessionDuration] = useState(params.duration || SESSION_DURATION);
+  // Initial state from masterExerciseId or params or defaults
+  const initialExerciseDetails = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+  const defaultInitialVisualizationType = initialExerciseDetails?.defaultSettings?.visualizationType || 'goals';
+  const defaultInitialDuration = initialExerciseDetails?.defaultSettings?.duration || SESSION_DURATION; // SESSION_DURATION is from ./constants
+
+  const [visualizationType, setVisualizationType] = useState(
+    params.visualizationType || defaultInitialVisualizationType
+  );
+  const [sessionDuration, setSessionDuration] = useState(
+    params.duration || defaultInitialDuration
+  );
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Effect to log params and update state if they change after initial mount
   useEffect(() => {
-    if (Object.keys(params).length > 0) {
-      console.debug('[VisualizationSetupScreen] Received params on mount/update:', params);
-      if (params.visualizationType && params.visualizationType !== visualizationType) {
-        console.debug('[VisualizationSetupScreen] Setting visualizationType from route params:', params.visualizationType);
-        setVisualizationType(params.visualizationType);
-      }
-      if (params.duration && params.duration !== sessionDuration) {
-        console.debug('[VisualizationSetupScreen] Setting sessionDuration from route params (seconds):', params.duration);
-        setSessionDuration(params.duration);
-      }
-      // Note: MASTER_EXERCISE_LIST defaultSettings for visualization currently includes type and duration.
-      // If it included other settings like a specific `affirmationText`, we could initialize state for that here too.
+    console.debug('[VisualizationSetupScreen] Received params on mount/update:', params);
+    if (params.masterExerciseId) {
+        console.debug('[VisualizationSetupScreen] Master Exercise ID received:', params.masterExerciseId);
     }
-  }, [params]); // Rerun if params object changes
+    if (params.visualizationType && params.visualizationType !== visualizationType) {
+      setVisualizationType(params.visualizationType);
+    }
+    if (params.duration && params.duration !== sessionDuration) {
+      setSessionDuration(params.duration);
+    }
+    // Note: if MASTER_EXERCISE_LIST defaultSettings included affirmationText, it could be handled here.
+  }, [params]);
 
   // Get the selected visualization type data based on the current state
   const selectedTypeData = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
@@ -94,13 +101,23 @@ const SetupScreen = ({ navigation, route }) => {
 
       if (createdViz && createdViz.id) {
         console.debug('[VisualizationSetupScreen] Visualization created successfully in DB:', createdViz);
-        navigation.navigate('VisualizationPlayer', {
+        const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+        const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Visualization';
+
+        const playerParams = {
           visualizationId: createdViz.id,
           visualizationType,
-          typeData: selectedTypeData,
-          duration: durationInSeconds,
+          typeData: {
+            ...selectedTypeData, // from VISUALIZATION_TYPES constant
+            duration: durationInSeconds, // ensure updated duration from state is passed
+          },
           content: visualizationContent,
-        });
+          // Pass masterExerciseId and exerciseType to PlayerScreen
+          masterExerciseId: masterExerciseId,
+          exerciseType: exerciseTypeForPlayer,
+        };
+        console.debug('[VisualizationSetupScreen] Navigating to VisualizationPlayer with params (including masterId/type):', playerParams);
+        navigation.navigate('VisualizationPlayer', playerParams);
       } else {
         console.error('[VisualizationSetupScreen] Failed to create visualization or ID missing.');
         setSnackbarMessage('Could not start visualization. Please try again.');

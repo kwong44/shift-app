@@ -1,19 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../config/supabase'; // Assuming supabase config is at src/config/supabase.js
+import { supabase } from '../config/supabase';
 
-// Comprehensive configuration for ALL trackable exercises
-const ALL_EXERCISES_COMPLETION_CONFIG = {
-  mindfulness: { tableName: 'mindfulness_logs', dateColumn: 'completed_at', completedColumn: 'completed' },
-  visualization: { tableName: 'visualizations', dateColumn: 'completed_at', completedColumn: 'completed' },
-  tasks: { tableName: 'tasks', dateColumn: 'updated_at', completedColumn: 'completed' }, 
-  deepwork: { tableName: 'deep_work_sessions', dateColumn: 'end_time', completedColumn: null },
-  binaural: { tableName: 'binaural_sessions', dateColumn: 'completed_at', completedColumn: 'completed' },
-  journaling: { tableName: 'journal_entries', dateColumn: 'created_at', completedColumn: null }, // Completion implicit by creation today
-};
+console.debug('[useDailyFocusCompletion] Hook file loaded.');
 
 /**
- * Custom hook to check the completion status of a given list of exercises for the current day.
- * @param {string[]} exerciseIdsToTrack - An array of exercise IDs (e.g., ['mindfulness', 'tasks']) to track.
+ * Custom hook to check the completion status of a given list of exercises for the current day from the `daily_exercise_logs` table.
+ * @param {string[]} exerciseIdsToTrack - An array of exercise IDs (e.g., ['mindfulness_breath_5min', 'tasks_planner']) to track.
  * @returns {object} { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus }
  */
 const useDailyFocusCompletion = (exerciseIdsToTrack = []) => {
@@ -36,7 +28,7 @@ const useDailyFocusCompletion = (exerciseIdsToTrack = []) => {
 
     setLoading(true);
     setError(null);
-    console.debug(`[useDailyFocusCompletion] Fetching daily completion status for: ${stableExerciseIdsKey}`);
+    console.debug(`[useDailyFocusCompletion] Fetching daily completion status for: ${stableExerciseIdsKey} from daily_exercise_logs`);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -49,93 +41,72 @@ const useDailyFocusCompletion = (exerciseIdsToTrack = []) => {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+      
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
+      const tomorrowISO = tomorrow.toISOString();
 
-      const newCompletionStatus = {};
+      console.debug(`[useDailyFocusCompletion] Querying daily_exercise_logs for user ${user.id} between ${todayISO} and ${tomorrowISO}`);
 
-      for (const exerciseId of exerciseIdsToTrack) {
-        const config = ALL_EXERCISES_COMPLETION_CONFIG[exerciseId];
-        if (!config) {
-          console.warn(`[useDailyFocusCompletion] No configuration found for exerciseId: ${exerciseId}. Skipping.`);
-          newCompletionStatus[exerciseId] = false; // Default to false if unknown
-          continue;
-        }
+      const { data: completedLogs, error: dbError } = await supabase
+        .from('daily_exercise_logs')
+        .select('exercise_id') // Select only the exercise_id
+        .eq('user_id', user.id)
+        .gte('completed_at', todayISO)
+        .lt('completed_at', tomorrowISO);
 
-        console.debug(`[useDailyFocusCompletion] Querying ${config.tableName} for ${exerciseId}`);
-        
-        let query;
-        let count = 0; // Initialize count
-
-        if (exerciseId === 'tasks') {
-          // Try a simpler select for tasks as a diagnostic step / workaround
-          console.debug('[useDailyFocusCompletion] Using simplified select for tasks table.');
-          query = supabase
-            .from(config.tableName)
-            .select('id') // Simpler select
-            .eq('user_id', user.id)
-            .gte(config.dateColumn, today.toISOString())
-            .lt(config.dateColumn, tomorrow.toISOString());
-          if (config.completedColumn) {
-            query = query.eq(config.completedColumn, true);
-          }
-          const { data: taskLogs, error: taskDbError } = await query;
-          let dbError = taskDbError; // Assign to the outer scope dbError
-          if (taskLogs) {
-            count = taskLogs.length; // Get count from the length of the result
-          }
-        } else {
-          // Original efficient query for other tables
-          query = supabase
-            .from(config.tableName)
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .gte(config.dateColumn, today.toISOString())
-            .lt(config.dateColumn, tomorrow.toISOString());
-          if (config.completedColumn) {
-            query = query.eq(config.completedColumn, true);
-          }
-          const { error: otherDbError, count: otherCount } = await query;
-          dbError = otherDbError; // Assign to the outer scope dbError
-          count = otherCount;     // Assign to the outer scope count
-        }
-        
-        if (dbError) {
-          console.error(`[useDailyFocusCompletion] Error fetching from ${config.tableName} for ${exerciseId}:`, dbError.message);
-          newCompletionStatus[exerciseId] = false; 
-          // Optionally, set a general error state or collect individual errors
-          setError(prevError => prevError ? `${prevError}, ${dbError.message}` : dbError.message);
-          continue; 
-        }
-
-        if (count && count > 0) {
-          console.debug(`[useDailyFocusCompletion] ${exerciseId} completed today (count: ${count}).`);
-          newCompletionStatus[exerciseId] = true;
-        } else {
-          console.debug(`[useDailyFocusCompletion] ${exerciseId} not completed today.`);
-          newCompletionStatus[exerciseId] = false;
-        }
+      if (dbError) {
+        console.error('[useDailyFocusCompletion] Error fetching from daily_exercise_logs:', dbError.message);
+        setError(dbError.message);
+        // Initialize all tracked exercises to false on error
+        const errorStatus = {};
+        exerciseIdsToTrack.forEach(id => errorStatus[id] = false);
+        setDailyCompletionStatus(errorStatus);
+        setLoading(false);
+        return;
       }
 
-      console.debug('[useDailyFocusCompletion] Daily completion status fetched:', newCompletionStatus);
+      const completedTodaySet = new Set();
+      if (completedLogs) {
+        completedLogs.forEach(log => completedTodaySet.add(log.exercise_id));
+        console.debug('[useDailyFocusCompletion] Exercise IDs completed today from DB:', Array.from(completedTodaySet));
+      }
+
+      const newCompletionStatus = {};
+      exerciseIdsToTrack.forEach(exerciseId => {
+        newCompletionStatus[exerciseId] = completedTodaySet.has(exerciseId);
+      });
+
+      console.debug('[useDailyFocusCompletion] Daily completion status processed:', newCompletionStatus);
       setDailyCompletionStatus(newCompletionStatus);
+
     } catch (err) {
-      console.error('[useDailyFocusCompletion] General error:', err.message);
+      console.error('[useDailyFocusCompletion] General error in fetchCompletionStatus:', err.message);
       setError(err.message);
-      setDailyCompletionStatus({});
+       // Initialize all tracked exercises to false on general error
+      const generalErrorStatus = {};
+      exerciseIdsToTrack.forEach(id => generalErrorStatus[id] = false);
+      setDailyCompletionStatus(generalErrorStatus);
     } finally {
       setLoading(false);
     }
-  }, [stableExerciseIdsKey]); // Depend on the stable key of exercise IDs
+  }, [stableExerciseIdsKey, exerciseIdsToTrack]); // exerciseIdsToTrack added as it's used in error path
 
   useEffect(() => {
-    fetchCompletionStatus();
-  }, [fetchCompletionStatus]);
+    // Ensure fetchCompletionStatus is called only when exerciseIdsToTrack is not empty
+    // and user is available (implicit by fetchCompletionStatus internal check)
+    if (exerciseIdsToTrack.length > 0) {
+        fetchCompletionStatus();
+    }
+  }, [fetchCompletionStatus, exerciseIdsToTrack.length]); // re-run if the function or number of items to track changes
 
   const refreshDailyStatus = useCallback(() => {
     console.debug('[useDailyFocusCompletion] Manual refresh triggered.');
-    fetchCompletionStatus();
-  }, [fetchCompletionStatus]);
+    if (exerciseIdsToTrack.length > 0) {
+        fetchCompletionStatus();
+    }
+  }, [fetchCompletionStatus, exerciseIdsToTrack.length]);
 
   return {
     dailyCompletionStatus,

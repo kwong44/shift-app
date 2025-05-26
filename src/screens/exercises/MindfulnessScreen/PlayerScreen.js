@@ -15,6 +15,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { logMindfulnessSession } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
+import { supabase } from '../../../config/supabase';
+import { getExerciseById } from '../../../constants/masterExerciseList';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -25,7 +27,7 @@ import CustomDialog from '../../../components/common/CustomDialog';
 console.debug('MindfulnessPlayerScreen mounted');
 
 const PlayerScreen = ({ navigation, route }) => {
-  const { mindfulnessType, selectedEmotions, typeData } = route.params;
+  const { mindfulnessType, selectedEmotions, typeData, masterExerciseId, exerciseType } = route.params;
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -37,7 +39,10 @@ const PlayerScreen = ({ navigation, route }) => {
   console.debug('MindfulnessPlayerScreen props:', {
     type: mindfulnessType,
     emotionsCount: selectedEmotions.length,
-    userId: user?.id
+    userId: user?.id,
+    masterExerciseId: masterExerciseId,
+    exerciseType: exerciseType,
+    plannedDuration: typeData?.duration
   });
 
   // Pulse animation
@@ -72,7 +77,7 @@ const PlayerScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration: ${actualDurationSpent}s, Planned: ${typeData.duration}s`);
+      console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration: ${actualDurationSpent}s, Planned: ${typeData.duration}s. Master ID: ${masterExerciseId}`);
 
       const sessionLogData = {
         duration_seconds: actualDurationSpent,
@@ -88,8 +93,38 @@ const PlayerScreen = ({ navigation, route }) => {
       };
 
       await logMindfulnessSession(user.id, sessionLogData);
+      console.debug('[MindfulnessPlayerScreen] Mindfulness session logged successfully to mindfulness_logs.');
 
-      console.debug('[MindfulnessPlayerScreen] Mindfulness session logged successfully (completed).');
+      if (masterExerciseId) {
+        const dailyLogEntry = {
+          user_id: user.id,
+          exercise_id: masterExerciseId,
+          exercise_type: exerciseType || 'Mindfulness',
+          duration_seconds: actualDurationSpent,
+          completed_at: new Date().toISOString(),
+          source: 'MindfulnessPlayer',
+          metadata: {
+            planned_duration_seconds: typeData.duration,
+            mindfulness_type: mindfulnessType,
+            emotions_before: selectedEmotions.length > 0 ? selectedEmotions : null,
+          }
+        };
+        console.debug('[MindfulnessPlayerScreen] Attempting to insert into daily_exercise_logs:', dailyLogEntry);
+        const { error: dailyLogError } = await supabase
+          .from('daily_exercise_logs')
+          .insert(dailyLogEntry);
+
+        if (dailyLogError) {
+          console.error('[MindfulnessPlayerScreen] Error inserting into daily_exercise_logs:', dailyLogError.message);
+          setSnackbarMessage('Error saving to daily summary. Progress still saved.');
+          setSnackbarVisible(true);
+        } else {
+          console.debug('[MindfulnessPlayerScreen] Successfully inserted into daily_exercise_logs.');
+        }
+      } else {
+        console.warn('[MindfulnessPlayerScreen] masterExerciseId not available, cannot log to daily_exercise_logs.');
+      }
+
       setShowDialog(true);
     } catch (error) {
       console.error('[MindfulnessPlayerScreen] Error logging completed mindfulness session:', error.message);

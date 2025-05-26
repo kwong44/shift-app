@@ -17,6 +17,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { createTask, updateTask, deleteTask, getTasks } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
+import { supabase } from '../../../config/supabase';
+import { MASTER_EXERCISE_LIST } from '../../../constants/masterExerciseList';
 
 // Import local components and constants
 import { TaskInput } from './components/TaskInput';
@@ -26,6 +28,9 @@ import CustomDialog from '../../../components/common/CustomDialog';
 
 // Debug logging
 console.debug('TaskPlannerScreen mounted', { priorityLevelsCount: PRIORITY_LEVELS.length });
+
+// Find the generic task planner exercise details from the master list
+const TASK_PLANNER_EXERCISE = MASTER_EXERCISE_LIST.find(ex => ex.id === 'tasks_planner');
 
 const TaskPlannerScreen = ({ navigation }) => {
   const { user } = useUser();
@@ -154,6 +159,33 @@ const TaskPlannerScreen = ({ navigation }) => {
         // Set completed task ID for dialog
         setCompletedTaskId(taskId);
         setShowDialog(true);
+
+        // Log to daily_exercise_logs if a task is marked as complete
+        if (user?.id && TASK_PLANNER_EXERCISE) {
+          const dailyLogEntry = {
+            user_id: user.id,
+            exercise_id: TASK_PLANNER_EXERCISE.id, // e.g., 'tasks_planner'
+            exercise_type: TASK_PLANNER_EXERCISE.type, // e.g., 'Tasks'
+            duration_seconds: 0, // Tasks are not timed in this context for daily log
+            completed_at: new Date().toISOString(),
+            source: 'TaskPlannerScreen',
+            metadata: {
+              task_id: taskId,
+              task_description_length: tasks.find(t => t.id === taskId)?.description?.length || 0,
+              // We could add priority here if needed: tasks.find(t => t.id === taskId)?.priority
+            }
+          };
+          console.debug('[TaskPlannerScreen] Attempting to insert into daily_exercise_logs for completed task:', dailyLogEntry);
+          supabase.from('daily_exercise_logs').insert(dailyLogEntry)
+            .then(({ error: dailyErr }) => {
+              if (dailyErr) console.error('[TaskPlannerScreen] Error inserting task completion to daily_exercise_logs:', dailyErr.message);
+              else console.debug('[TaskPlannerScreen] Task completion inserted to daily_exercise_logs.');
+            });
+        } else {
+          console.warn('[TaskPlannerScreen] Cannot log task completion to daily_exercise_logs: User or TASK_PLANNER_EXERCISE details missing.', 
+            { userId: user?.id, taskPlannerExerciseId: TASK_PLANNER_EXERCISE?.id }
+          );
+        }
       }
       
       console.debug('Task updated successfully', { taskId, completed });

@@ -22,34 +22,40 @@ import SetupScreenButtonContainer from '../../../components/common/SetupScreenBu
 // Import API and hooks
 import { startDeepWorkSession } from '../../../api/exercises/deepWork';
 import { useUser } from '../../../hooks/useUser';
+import { getExerciseById } from '../../../constants/masterExerciseList'; // Import helper
 
 // Debug logging
 console.debug('[DeepWorkSetupScreen] File loaded.');
 
 const SetupScreen = ({ navigation, route }) => {
   const params = route.params || {};
+  const { masterExerciseId } = params; // Extract masterExerciseId
   const { user } = useUser();
 
-  // Initialize selectedDuration from params.duration if available (in seconds), else default to 1500s (25min)
-  const [selectedDuration, setSelectedDuration] = useState(params.duration || 1500);
+  // Initial state from masterExerciseId or params or defaults
+  const initialExerciseDetails = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+  // SESSION_DURATIONS is an array like [{label: '25 min', value: 1500}, ...], find default or use 1500
+  const defaultInitialDuration = initialExerciseDetails?.defaultSettings?.duration || 1500; 
+
+  const [selectedDuration, setSelectedDuration] = useState(
+    params.duration || defaultInitialDuration
+  );
   const [taskDescription, setTaskDescription] = useState('');
   const [textInputHeight, setTextInputHeight] = useState(80);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Effect to log params and update duration if it changes
   useEffect(() => {
-    if (Object.keys(params).length > 0) {
-      console.debug('[DeepWorkSetupScreen] Received params on mount/update:', params);
-      if (params.duration && params.duration !== selectedDuration) {
-        console.debug('[DeepWorkSetupScreen] Setting selectedDuration from route params (seconds):', params.duration);
-        setSelectedDuration(params.duration);
-      }
-      // Note: taskDescription is not set from params as it's expected to be entered by the user each time.
-      // If a default task description were part of defaultSettings, it could be set here.
+    console.debug('[DeepWorkSetupScreen] Received params on mount/update:', params);
+    if (params.masterExerciseId) {
+        console.debug('[DeepWorkSetupScreen] Master Exercise ID received:', params.masterExerciseId);
     }
-  }, [params]); // Rerun if params object changes
+    if (params.duration && params.duration !== selectedDuration) {
+      setSelectedDuration(params.duration);
+    }
+    // taskDescription is not set from params as it's always user-input for deep work.
+  }, [params]);
 
   // Get the selected duration data
   const selectedDurationData = SESSION_DURATIONS.find(d => d.value === selectedDuration);
@@ -91,21 +97,25 @@ const SetupScreen = ({ navigation, route }) => {
         taskDescription: trimmedTask,
       });
 
-      const session = await startDeepWorkSession(
-        user.id,
-        null,
-        durationInMinutes
-      );
+      const session = await startDeepWorkSession(user.id, null, durationInMinutes);
 
       if (session && session.id) {
         console.debug('[DeepWorkSetupScreen] Deep work session started successfully in DB:', session);
-        navigation.navigate('DeepWorkPlayer', {
+        const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+        const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Deep Work';
+
+        const playerParams = {
           sessionId: session.id,
           taskDescription: trimmedTask,
           duration: durationInSeconds,
-          durationData: selectedDurationData,
-          startTime: session.start_time
-        });
+          durationData: selectedDurationData, // This is from local SESSION_DURATIONS
+          startTime: session.start_time,
+          // Pass masterExerciseId and exerciseType to PlayerScreen
+          masterExerciseId: masterExerciseId,
+          exerciseType: exerciseTypeForPlayer,
+        };
+        console.debug('[DeepWorkSetupScreen] Navigating to DeepWorkPlayer with params (including masterId/type):', playerParams);
+        navigation.navigate('DeepWorkPlayer', playerParams);
       } else {
         console.error('[DeepWorkSetupScreen] Failed to start deep work session or session ID missing from API response.');
         setSnackbarMessage('Could not start session. Please try again.');

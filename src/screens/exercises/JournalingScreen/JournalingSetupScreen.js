@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -19,12 +19,22 @@ import SetupScreenButtonContainer from '../../../components/common/SetupScreenBu
 // Debug logging
 console.debug('JournalingSetupScreen mounted');
 
-const JournalingSetupScreen = ({ navigation }) => {
+const JournalingSetupScreen = ({ navigation, route }) => {
+  const params = route.params || {};
+  const { masterExerciseId, exerciseType } = params;
+
   const [promptType, setPromptType] = useState('gratitude');
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   
   // Get the selected prompt type data
   const selectedPromptType = PROMPT_TYPES.find(type => type.value === promptType);
+
+  useEffect(() => {
+    console.debug('[JournalingSetupScreen] Params received:', {
+      masterExerciseId,
+      exerciseType,
+    });
+  }, [masterExerciseId, exerciseType]);
 
   const handlePromptTypeChange = (newType) => {
     if (newType !== promptType) {
@@ -37,7 +47,9 @@ const JournalingSetupScreen = ({ navigation }) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate('JournalingEntry', {
       promptType,
-      selectedEmotions
+      selectedEmotions,
+      masterExerciseId,
+      exerciseType
     });
   };
 

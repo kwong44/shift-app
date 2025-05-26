@@ -7,6 +7,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
 import { endDeepWorkSession } from '../../../api/exercises';
+import { useUser } from '../../../hooks/useUser';
+import { supabase } from '../../../config/supabase';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -17,7 +19,17 @@ import CustomDialog from '../../../components/common/CustomDialog';
 console.debug('DeepWorkPlayerScreen mounted');
 
 export const PlayerScreen = ({ navigation, route }) => {
-  const { taskDescription, duration, durationData, sessionId, startTime } = route.params;
+  const { 
+    taskDescription, 
+    duration, 
+    durationData, 
+    sessionId, 
+    startTime, 
+    masterExerciseId,
+    exerciseType
+  } = route.params;
+  
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -30,6 +42,9 @@ export const PlayerScreen = ({ navigation, route }) => {
     durationLabel: durationData?.label,
     sessionId,
     startTime,
+    masterExerciseId,
+    exerciseType,
+    userId: user?.id
   });
 
   useEffect(() => {
@@ -47,13 +62,42 @@ export const PlayerScreen = ({ navigation, route }) => {
       setSnackbarVisible(true);
       return;
     }
+    if (!user?.id) {
+      console.error('DeepWorkPlayerScreen: handleComplete: No user ID available.');
+      setSnackbarMessage('Cannot complete session: User information missing.');
+      setSnackbarVisible(true);
+      return;
+    }
     setLoading(true);
     try {
-      console.debug(`DeepWorkPlayerScreen: Session timer completed. SessionId: ${sessionId}, Actual Duration: ${actualDurationSpent}s`);
+      console.debug(`DeepWorkPlayerScreen: Session timer completed. SessionId: ${sessionId}, Actual Duration: ${actualDurationSpent}s. Master ID: ${masterExerciseId}`);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      await endDeepWorkSession(sessionId);
+      await endDeepWorkSession(sessionId, actualDurationSpent);
       console.debug(`DeepWorkPlayerScreen: Deep work session ${sessionId} ended successfully in DB.`);
+
+      if (masterExerciseId) {
+        const dailyLogEntry = {
+          user_id: user.id,
+          exercise_id: masterExerciseId,
+          exercise_type: exerciseType || 'Deep Work',
+          duration_seconds: actualDurationSpent,
+          completed_at: new Date().toISOString(),
+          source: 'DeepWorkPlayer',
+          metadata: { 
+            task_description_length: taskDescription?.length || 0,
+            planned_duration_seconds: duration,
+          }
+        };
+        console.debug('[DeepWorkPlayerScreen] Attempting to insert into daily_exercise_logs:', dailyLogEntry);
+        supabase.from('daily_exercise_logs').insert(dailyLogEntry)
+          .then(({ error: dailyErr }) => {
+            if (dailyErr) console.error('[DeepWorkPlayerScreen] Error inserting to daily_exercise_logs:', dailyErr.message);
+            else console.debug('[DeepWorkPlayerScreen] Inserted to daily_exercise_logs.');
+          });
+      } else {
+        console.warn('[DeepWorkPlayerScreen] masterExerciseId not available, cannot log to daily_exercise_logs.');
+      }
 
       setShowDialog(true);
     } catch (error) {

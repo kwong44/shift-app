@@ -21,6 +21,7 @@ import { JournalEntryCard } from './components/JournalEntryCard';
 import { JOURNAL_PROMPTS, PROMPT_TYPES } from './constants';
 import { useUser } from '../../../hooks/useUser';
 import CustomDialog from '../../../components/common/CustomDialog';
+import { supabase } from '../../../config/supabase';
 
 const { height } = Dimensions.get('window');
 
@@ -29,7 +30,7 @@ const JOURNAL_GRAY = '#7A7A7A';
 const JOURNAL_BACKGROUND = '#F0F0F0';
 
 const JournalingEntry = ({ route, navigation }) => {
-  const { promptType, selectedEmotions } = route.params;
+  const { promptType, selectedEmotions, masterExerciseId, exerciseType } = route.params;
   const { user } = useUser();
   const [currentPrompt, setCurrentPrompt] = useState(0);
   const [entry, setEntry] = useState('');
@@ -48,16 +49,25 @@ const JournalingEntry = ({ route, navigation }) => {
   useEffect(() => {
     console.debug('[JournalingEntry] Props or state updated:', {
       promptType,
+      masterExerciseId,
+      exerciseType,
       currentPrompt,
       promptText: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
       selectedPromptType,
-      entryLength: entry?.length || 0 // Log length instead of full text
+      entryLength: entry?.length || 0,
+      userId: user?.id
     });
-  }, [promptType, currentPrompt, selectedPromptType, entry]);
+  }, [promptType, masterExerciseId, exerciseType, currentPrompt, selectedPromptType, entry, user]);
 
   const handleSaveEntry = async () => {
     if (!entry.trim()) {
       setError('Please write something in your journal');
+      setSnackbarVisible(true);
+      return;
+    }
+    if (!user?.id) {
+      console.error('[JournalingEntry] handleSaveEntry: No user ID available.');
+      setError('Cannot save entry: User information missing.');
       setSnackbarVisible(true);
       return;
     }
@@ -104,6 +114,34 @@ const JournalingEntry = ({ route, navigation }) => {
 
       console.debug('[JournalingEntry] Entry saved successfully:', { entryId: savedEntry.id });
       setInsights(journalInsights);
+      
+      // Log to daily_exercise_logs
+      if (masterExerciseId) {
+        const dailyLogEntry = {
+          user_id: user.id,
+          exercise_id: masterExerciseId,
+          exercise_type: exerciseType || 'Journaling',
+          duration_seconds: 0,
+          completed_at: new Date().toISOString(),
+          source: 'JournalingEntry',
+          metadata: {
+            prompt_type: promptType,
+            prompt_text: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
+            entry_length: entry.trim().length,
+            emotions_selected_count: selectedEmotions?.length || 0,
+            has_insights: !!journalInsights,
+            journal_entry_id: savedEntry.id
+          }
+        };
+        console.debug('[JournalingEntry] Attempting to insert into daily_exercise_logs:', dailyLogEntry);
+        supabase.from('daily_exercise_logs').insert(dailyLogEntry)
+          .then(({ error: dailyErr }) => {
+            if (dailyErr) console.error('[JournalingEntry] Error inserting to daily_exercise_logs:', dailyErr.message);
+            else console.debug('[JournalingEntry] Inserted to daily_exercise_logs.');
+          });
+      } else {
+        console.warn('[JournalingEntry] masterExerciseId not available, cannot log to daily_exercise_logs.');
+      }
       
       // Ensure all state updates are done before showing dialog
       setLoading(false);
