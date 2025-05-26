@@ -10,7 +10,7 @@ import {
   getTasks, 
   getJournalEntries,
   getRecentJournalInsights,
-  getWeeklyGoals
+  fetchAllUserWeeklyGoals
 } from '../../../api/exercises';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,23 +41,19 @@ const HomeScreen = ({ navigation }) => {
   const [journalDate, setJournalDate] = useState(null);
 
   // Transformed roadmap data for GrowthRoadmap component
-  const [focusAreas, setFocusAreas] = useState([]);
-  const [weeklyGoals, setWeeklyGoals] = useState([]);
-  const [currentPhase, setCurrentPhase] = useState(null);
-  const [nextMilestone, setNextMilestone] = useState('');
-  const [overallProgress, setOverallProgress] = useState(0);
+  const [allUserWeeklyGoals, setAllUserWeeklyGoals] = useState([]);
 
   useEffect(() => {
     loadUserData();
     checkDailyMood();
     refreshInsights();
-    fetchWeeklyGoals();
   }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      console.debug('[HomeScreen] Focus event: Refreshing data.');
+      loadUserData();
       refreshInsights();
-      fetchWeeklyGoals();
     });
 
     return unsubscribe;
@@ -66,47 +62,9 @@ const HomeScreen = ({ navigation }) => {
   // Transform roadmap data when it changes
   useEffect(() => {
     if (roadmap) {
-      // Transform focus areas
-      const transformedFocusAreas = roadmap.goals
-        ?.filter(goal => goal.type === 'focus_area')
-        ?.map(goal => ({
-          name: goal.description,
-          // Calculate progress based on status or other metrics
-          progress: goal.status === 'completed' ? 1 : 
-                   goal.status === 'in_progress' ? 0.5 : 0.1
-        })) || [];
-      setFocusAreas(transformedFocusAreas);
-      
-      // We no longer transform weekly goals from roadmap data
-      // as they will be user-inputted directly in the GrowthRoadmap component
-      
-      // Set current phase
-      const activePhase = roadmap.phases?.find(phase => phase.status === 'active');
-      setCurrentPhase(activePhase);
-      
-      // Find next milestone
-      const pendingMilestone = roadmap.milestones?.find(m => m.status === 'pending');
-      setNextMilestone(pendingMilestone?.description || 'Continue building habits');
-      
-      // Calculate overall progress
-      const progressValue = roadmap.progress?.completed_goals / roadmap.progress?.total_goals || 0;
-      setOverallProgress(progressValue);
+      console.debug('[HomeScreen] Roadmap data updated:', roadmap);
     }
   }, [roadmap]);
-
-  const fetchWeeklyGoals = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      console.debug('[HomeScreen] Fetching weekly goals');
-      const goals = await getWeeklyGoals(user.id);
-      setWeeklyGoals(goals);
-      console.debug(`[HomeScreen] Fetched ${goals?.length || 0} weekly goals`);
-    } catch (error) {
-      console.error('[HomeScreen] Error fetching weekly goals:', error);
-    }
-  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -220,35 +178,46 @@ const HomeScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
 
-      const [roadmapData, tasksData, visualizations, userData, streakData] = await Promise.all([
+      console.debug('[HomeScreen] Loading user data for:', user.id);
+
+      const [roadmapData, tasksData, visualizationsData, userData, streakData, allGoalsData] = await Promise.all([
         fetchRoadmap(user.id),
         getTasks(user.id),
         getVisualizations(user.id),
         supabase.from('users').select('name').eq('id', user.id).single(),
-        supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false })
+        supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+        fetchAllUserWeeklyGoals(user.id)
       ]);
 
+      console.debug('[HomeScreen] Raw roadmap data:', roadmapData);
       setRoadmap(roadmapData);
+      
+      console.debug('[HomeScreen] Raw allUserWeeklyGoals data:', allGoalsData);
+      setAllUserWeeklyGoals(allGoalsData || []);
+      
       setUserName(userData?.data?.name || '');
 
       const currentStreak = calculateStreak(streakData.data || []);
+      console.debug('[HomeScreen] Calculated streak:', currentStreak);
       setStreak(currentStreak);
 
       const completedTasks = (tasksData || []).filter(task => task.completed).length;
-      const totalActivities = (tasksData || []).length;
+      const completedVisualizations = (visualizationsData || []).filter(viz => viz.completed).length;
+      const totalActivitiesToday = (tasksData || []).length + (visualizationsData || []).length;
       let progress = 0;
-      
-      if (totalActivities > 0) {
-        progress = (completedTasks + (visualizations || []).length) / totalActivities;
+      if (totalActivitiesToday > 0) {
+        progress = (completedTasks + completedVisualizations) / totalActivitiesToday;
       }
       
       progress = Math.min(Math.max(Number(progress) || 0, 0), 1);
+      console.debug('[HomeScreen] Calculated daily progress:', progress);
       setDailyProgress(progress);
 
-      console.debug("[HomeScreen] Data loaded successfully");
+      console.debug("[HomeScreen] User data loaded successfully");
 
     } catch (error) {
       console.error('[HomeScreen] Error loading user data:', error);
@@ -276,33 +245,31 @@ const HomeScreen = ({ navigation }) => {
     return recommendations;
   };
 
-  const handleGoalUpdate = async (goalId, updates) => {
+  const handleRoadmapUpdate = async () => {
     try {
-      console.debug('Updating goal:', { goalId, updates });
-      
+      console.debug('[HomeScreen] handleRoadmapUpdate: Refreshing roadmap and weekly goals due to update from GrowthRoadmap.');
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found');
+      if (!user) {
+        console.warn('[HomeScreen] handleRoadmapUpdate: No user found to refresh data.');
+        return;
+      }
+      const roadmapData = await fetchRoadmap(user.id);
+      const allGoalsData = await fetchAllUserWeeklyGoals(user.id);
 
-      const { error } = await supabase
-        .from('goals')
-        .update(updates)
-        .eq('id', goalId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setRoadmap(prev => ({
-        ...prev,
-        goals: prev.goals.map(goal =>
-          goal.id === goalId ? { ...goal, ...updates } : goal
-        )
-      }));
-
+      console.debug('[HomeScreen] handleRoadmapUpdate: New roadmap data:', roadmapData);
+      setRoadmap(roadmapData);
+      console.debug('[HomeScreen] handleRoadmapUpdate: New allUserWeeklyGoals data:', allGoalsData);
+      setAllUserWeeklyGoals(allGoalsData || []);
+      
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.debug('[HomeScreen] handleRoadmapUpdate: Data refresh complete.');
     } catch (error) {
-      console.error('Error updating goal:', error);
+      console.error('[HomeScreen] handleRoadmapUpdate: Error refreshing data:', error);
+      setError('Failed to refresh roadmap data. Please try again.');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -337,12 +304,9 @@ const HomeScreen = ({ navigation }) => {
             currentMood={currentMood}
             onMoodPress={() => setShowMoodModal(true)}
             emotions={EMOTIONS}
-            currentPhase={currentPhase}
-            focusAreas={focusAreas}
-            weeklyGoals={weeklyGoals}
-            nextMilestone={nextMilestone}
-            overallProgress={overallProgress}
-            onUpdate={handleGoalUpdate}
+            roadmap={roadmap}
+            allUserWeeklyGoals={allUserWeeklyGoals}
+            onUpdateRoadmapData={handleRoadmapUpdate}
           />
 
           <Insights insights={insights} journalDate={journalDate} />

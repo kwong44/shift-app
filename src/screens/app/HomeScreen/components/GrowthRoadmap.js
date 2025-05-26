@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Animated, ScrollView, TextInput } from 'react-native';
+import { View, StyleSheet, Animated, ScrollView, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Text, TouchableRipple, ProgressBar, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
@@ -9,9 +9,15 @@ import { supabase } from '../../../../config/supabase';
 // Debug logger for tracking component lifecycle and user interactions
 const debug = {
   log: (message) => {
-    console.log(`[ProgressSection] ${message}`);
+    console.log(`[GrowthRoadmap] ${message}`);
   }
 };
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+  debug.log('LayoutAnimation enabled for Android.');
+}
 
 const GrowthRoadmap = ({ 
   dailyProgress, 
@@ -20,44 +26,48 @@ const GrowthRoadmap = ({
   onMoodPress,
   emotions, // Updated from MOODS to emotions
   // New props for roadmap features
-  currentPhase,
-  focusAreas = [],
-  weeklyGoals = [],
-  nextMilestone,
-  overallProgress,
-  onUpdate
+  roadmap, // New prop: the user's roadmap object from Supabase (contains LTAs, current phase)
+  allUserWeeklyGoals = [], // New prop: all weekly goals for the user
+  onUpdateRoadmapData, // New prop: callback to notify parent of data changes (e.g., after adding/updating WG)
 }) => {
   const [animatedProgress] = React.useState(new Animated.Value(0));
-  const [expandedSection, setExpandedSection] = useState(null);
-  const [newGoalText, setNewGoalText] = useState('');
-  const [localWeeklyGoals, setLocalWeeklyGoals] = useState(weeklyGoals || []);
+  const [expandedLtaId, setExpandedLtaId] = useState(null);
+  const [newGoalTexts, setNewGoalTexts] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   // Debug current mood state
   useEffect(() => {
     debug.log(`Current mood updated: ${currentMood}`);
-    debug.log(`Available emotions: ${JSON.stringify(emotions?.map(e => e.id))}`);
+    if (emotions) {
+        debug.log(`Available emotions: ${JSON.stringify(emotions.map(e => e.id))}`);
+    } else {
+        debug.log('Emotions not available yet.');
+    }
   }, [currentMood, emotions]);
 
   useEffect(() => {
-    debug.log('Animating progress bar');
+    debug.log(`Roadmap data: ${roadmap ? `Phase: ${roadmap.current_phase?.name}, LTAs: ${roadmap.goals?.length}` : 'No roadmap'}`);
+    debug.log(`All user weekly goals received: ${allUserWeeklyGoals.length}`);
+  }, [roadmap, allUserWeeklyGoals]);
+
+  useEffect(() => {
+    const progressToAnimate = dailyProgress || (roadmap?.progress?.total_goals ? (roadmap.progress.completed_goals / roadmap.progress.total_goals) : 0);
+    debug.log(`Animating overall progress bar to: ${progressToAnimate}`);
     Animated.timing(animatedProgress, {
-      toValue: dailyProgress || 0,
+      toValue: progressToAnimate,
       duration: 1000,
       useNativeDriver: false
     }).start();
-  }, [dailyProgress]);
+  }, [dailyProgress, roadmap]);
 
-  // Initialize local goals when props change
-  useEffect(() => {
-    if (weeklyGoals) {
-      setLocalWeeklyGoals(weeklyGoals);
-    }
-  }, [weeklyGoals]);
+  const toggleLtaSection = (ltaId) => {
+    debug.log(`Toggling LTA section: ${ltaId}`);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedLtaId(expandedLtaId === ltaId ? null : ltaId);
+  };
 
-  const toggleSection = (section) => {
-    debug.log(`Toggling section: ${section}`);
-    setExpandedSection(expandedSection === section ? null : section);
+  const handleNewGoalTextChange = (ltaId, text) => {
+    setNewGoalTexts(prev => ({ ...prev, [ltaId]: text }));
   };
 
   // Get current emotion display data
@@ -69,29 +79,27 @@ const GrowthRoadmap = ({
     return foundEmotion;
   };
 
-  const addWeeklyGoal = async () => {
-    if (newGoalText.trim() === '') return;
+  const addWeeklyGoal = async (ltaId) => {
+    const goalText = newGoalTexts[ltaId]?.trim();
+    if (!goalText || !roadmap || !roadmap.id) {
+      debug.log('Cannot add weekly goal: missing text, roadmap, or roadmap ID.');
+      return;
+    }
     
     try {
       setIsLoading(true);
+      debug.log(`Attempting to add weekly goal "${goalText}" for LTA ${ltaId} in roadmap ${roadmap.id}`);
       
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error('User not authenticated for adding weekly goal');
       
-      // Create goal in database
-      const newGoal = await createWeeklyGoal(user.id, newGoalText);
+      await createWeeklyGoal(user.id, roadmap.id, ltaId, goalText);
       
-      // Update local state
-      setLocalWeeklyGoals(prev => [...prev, newGoal]);
-      setNewGoalText('');
+      setNewGoalTexts(prev => ({ ...prev, [ltaId]: '' }));
       
-      // Expand the goals section when adding a new goal
-      if (expandedSection !== 'goals') {
-        setExpandedSection('goals');
-      }
-      
-      debug.log(`Added new weekly goal: ${newGoalText}`);
+      debug.log(`Successfully added weekly goal for LTA: ${ltaId}. Triggering data refresh.`);
+      if (onUpdateRoadmapData) onUpdateRoadmapData();
+
     } catch (error) {
       console.error('Failed to add weekly goal:', error);
     } finally {
@@ -102,24 +110,15 @@ const GrowthRoadmap = ({
   const toggleGoalCompletion = async (goalId, isCompleted) => {
     try {
       setIsLoading(true);
+      debug.log(`Toggling completion for weekly goal: ${goalId} to ${!isCompleted}`);
       
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error('User not authenticated for toggling goal');
       
-      // Update goal in database
       await updateWeeklyGoal(user.id, goalId, { completed: !isCompleted });
       
-      // Update local state
-      setLocalWeeklyGoals(prev => 
-        prev.map(goal => 
-          goal.id === goalId 
-            ? { ...goal, completed: !goal.completed } 
-            : goal
-        )
-      );
-      
-      debug.log(`Toggled completion for goal: ${goalId}`);
+      debug.log(`Successfully toggled weekly goal ${goalId}. Triggering data refresh.`);
+      if (onUpdateRoadmapData) onUpdateRoadmapData();
     } catch (error) {
       console.error('Failed to toggle goal completion:', error);
     } finally {
@@ -130,162 +129,153 @@ const GrowthRoadmap = ({
   const removeGoal = async (goalId) => {
     try {
       setIsLoading(true);
+      debug.log(`Removing weekly goal: ${goalId}`);
       
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error('User not authenticated for removing goal');
       
-      // Delete goal from database
       await deleteWeeklyGoal(user.id, goalId);
       
-      // Update local state
-      setLocalWeeklyGoals(prev => prev.filter(goal => goal.id !== goalId));
-      
-      debug.log(`Removed goal: ${goalId}`);
+      debug.log(`Successfully removed weekly goal ${goalId}. Triggering data refresh.`);
+      if (onUpdateRoadmapData) onUpdateRoadmapData();
     } catch (error) {
-      console.error('Failed to remove goal:', error);
+      console.error('Failed to remove weekly goal:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderPhaseIndicator = () => (
-    <TouchableRipple 
-      onPress={() => toggleSection('phase')}
-      style={styles.phaseContainer}
-    >
-      <View>
-        <View style={styles.phaseHeader}>
-          <MaterialCommunityIcons name="map-marker-path" size={24} color={COLORS.text} />
-          <Text style={styles.phaseTitle}>Current Phase: {currentPhase?.name || 'Getting Started'}</Text>
-        </View>
-        {expandedSection === 'phase' && (
-          <View style={styles.phaseDetails}>
-            <Text style={styles.phaseDescription}>{currentPhase?.description}</Text>
-            <View style={styles.nextMilestone}>
-              <MaterialCommunityIcons name="flag" size={16} color={COLORS.text} />
-              <Text style={styles.milestoneText}>Next: {nextMilestone}</Text>
-            </View>
-          </View>
-        )}
-      </View>
-    </TouchableRipple>
-  );
+  const renderPhaseIndicator = () => {
+    if (!roadmap || !roadmap.current_phase) {
+      debug.log('No roadmap or current phase data to render phase indicator.');
+      return <Text style={styles.infoText}>Loading roadmap phase...</Text>;
+    }
 
-  const renderFocusAreas = () => (
-    <TouchableRipple 
-      onPress={() => toggleSection('focus')}
-      style={styles.focusContainer}
-    >
-      <View>
-        <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="target" size={20} color={COLORS.text} />
-          <Text style={styles.sectionTitle}>Focus Areas</Text>
+    const pendingMilestones = roadmap.milestones?.filter(m => m.status === 'pending');
+    const nextConcreteMilestone = pendingMilestones?.length > 0 ? pendingMilestones[0].description : 'Continue making progress!';
+
+    return (
+    <View style={styles.phaseContainer}>
+      <View style={styles.phaseHeader}>
+        <MaterialCommunityIcons name="map-marker-path" size={24} color={COLORS.text} />
+        <Text style={styles.phaseTitle}>Current Phase: {roadmap.current_phase.name || 'Getting Started'}</Text>
+      </View>
+      <View style={styles.phaseDetails}>
+        <Text style={styles.phaseDescription}>{roadmap.current_phase.description}</Text>
+        <View style={styles.nextMilestone}>
+          <MaterialCommunityIcons name="flag" size={16} color={COLORS.text} />
+          <Text style={styles.milestoneText}>Next Up: {nextConcreteMilestone}</Text>
         </View>
-        {expandedSection === 'focus' && (
-          <View style={styles.focusGrid}>
-            {focusAreas.map((area, index) => (
-              <View key={index} style={styles.focusArea}>
-                <Text style={styles.focusLabel}>{area.name}</Text>
-                <ProgressBar 
-                  progress={area.progress} 
-                  color={COLORS.primary}
-                  style={styles.focusProgress} 
+      </View>
+    </View>
+    );
+  };
+
+  const renderLongTermAspirations = () => {
+    if (!roadmap || !roadmap.goals || roadmap.goals.length === 0) {
+      debug.log('No Long-Term Aspirations (LTAs) to render.');
+      return <Text style={styles.infoText}>Define your aspirations during onboarding!</Text>;
+    }
+
+    return roadmap.goals.map((lta) => {
+      const associatedWGs = allUserWeeklyGoals.filter(wg => wg.lta_id_ref === lta.id && wg.roadmap_id === roadmap.id);
+      const completedWGs = associatedWGs.filter(wg => wg.completed).length;
+      const ltaProgress = associatedWGs.length > 0 ? completedWGs / associatedWGs.length : 0;
+
+      debug.log(`Rendering LTA: ${lta.id} (${lta.description}). Progress: ${ltaProgress}. WGs: ${associatedWGs.length}`);
+
+      return (
+        <View key={lta.id} style={styles.ltaContainer}>
+          <TouchableRipple onPress={() => toggleLtaSection(lta.id)} style={styles.ltaHeaderTouchable}>
+            <View style={styles.ltaHeader}>
+              <MaterialCommunityIcons name="bullseye-arrow" size={20} color={COLORS.primary} />
+              <Text style={styles.ltaTitle}>{lta.description}</Text>
+              <MaterialCommunityIcons 
+                name={expandedLtaId === lta.id ? "chevron-up" : "chevron-down"} 
+                size={24} 
+                color={COLORS.text} 
+              />
+            </View>
+          </TouchableRipple>
+          <ProgressBar progress={ltaProgress} color={COLORS.accent} style={styles.ltaProgress} />
+
+          {expandedLtaId === lta.id && (
+            <View style={styles.ltaDetails}>
+              <View style={styles.addGoalContainer}>
+                <TextInput
+                  style={styles.goalInput}
+                  value={newGoalTexts[lta.id] || ''}
+                  onChangeText={(text) => handleNewGoalTextChange(lta.id, text)}
+                  placeholder="Add a new weekly goal for this aspiration..."
+                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                  editable={!isLoading}
                 />
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </TouchableRipple>
-  );
-
-  const renderWeeklyGoals = () => (
-    <TouchableRipple 
-      onPress={() => toggleSection('goals')}
-      style={styles.goalsContainer}
-    >
-      <View>
-        <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={COLORS.text} />
-          <Text style={styles.sectionTitle}>Weekly Goals</Text>
-        </View>
-        {expandedSection === 'goals' && (
-          <View style={styles.goalsList}>
-            {/* Input for adding new goals */}
-            <View style={styles.addGoalContainer}>
-              <TextInput
-                style={styles.goalInput}
-                value={newGoalText}
-                onChangeText={setNewGoalText}
-                placeholder="Add a new weekly goal..."
-                placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                editable={!isLoading}
-              />
-              <IconButton
-                icon="plus-circle"
-                size={24}
-                color={COLORS.primary}
-                onPress={addWeeklyGoal}
-                disabled={!newGoalText.trim() || isLoading}
-              />
-            </View>
-            
-            {/* List of goals */}
-            {localWeeklyGoals.map((goal) => (
-              <View key={goal.id} style={styles.goalItem}>
-                <TouchableRipple
-                  onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
-                  style={styles.goalCheckbox}
-                  disabled={isLoading}
-                >
-                  <MaterialCommunityIcons 
-                    name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
-                    size={16} 
-                    color={COLORS.text} 
-                  />
-                </TouchableRipple>
-                <Text 
-                  style={[
-                    styles.goalText, 
-                    goal.completed && styles.completedGoalText
-                  ]}
-                >
-                  {goal.text}
-                </Text>
                 <IconButton
-                  icon="close-circle"
-                  size={16}
-                  color="rgba(0, 0, 0, 0.5)"
-                  onPress={() => removeGoal(goal.id)}
-                  style={styles.removeGoalButton}
-                  disabled={isLoading}
+                  icon="plus-circle"
+                  size={24}
+                  color={COLORS.primary}
+                  onPress={() => addWeeklyGoal(lta.id)}
+                  disabled={!(newGoalTexts[lta.id]?.trim()) || isLoading}
                 />
               </View>
-            ))}
-            
-            {localWeeklyGoals.length === 0 && (
-              <Text style={styles.emptyGoalsText}>
-                No weekly goals yet. Add some above!
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-    </TouchableRipple>
-  );
+              
+              {associatedWGs.length > 0 ? associatedWGs.map((goal) => (
+                <View key={goal.id} style={styles.goalItem}>
+                  <TouchableRipple
+                    onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
+                    style={styles.goalCheckbox}
+                    disabled={isLoading}
+                  >
+                    <MaterialCommunityIcons 
+                      name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
+                      size={16} 
+                      color={COLORS.text} 
+                    />
+                  </TouchableRipple>
+                  <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
+                    {goal.text}
+                  </Text>
+                  <IconButton
+                    icon="close-circle"
+                    size={16}
+                    color="rgba(0, 0, 0, 0.5)"
+                    onPress={() => removeGoal(goal.id)}
+                    style={styles.removeGoalButton}
+                    disabled={isLoading}
+                  />
+                </View>
+              )) : (
+                <Text style={styles.emptyGoalsText}>Break down this aspiration into weekly goals!</Text>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    });
+  };
 
   // Get the current emotion object
   const currentEmotionData = getCurrentEmotion();
 
+  // Calculate overall progress for the main progress bar (example: based on LTAs)
+  const overallProgressValue = roadmap?.goals?.length > 0 
+    ? roadmap.goals.reduce((acc, lta) => {
+        const associatedWGs = allUserWeeklyGoals.filter(wg => wg.lta_id_ref === lta.id && wg.roadmap_id === roadmap.id);
+        const completedWGs = associatedWGs.filter(wg => wg.completed).length;
+        return acc + (associatedWGs.length > 0 ? (completedWGs / associatedWGs.length) : 0);
+      }, 0) / roadmap.goals.length
+    : 0;
+  
+  debug.log(`Calculated overall progress value for top bar: ${overallProgressValue}`);
+
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.headerContent}>
           <TouchableRipple style={styles.streakContainer}>
             <View style={styles.streakBadge}>
               <MaterialCommunityIcons name="fire" size={20} color={COLORS.accent} />
-              <Text style={styles.streakText}>{streak} day streak</Text>
+              <Text style={styles.streakText}>{streak || 0} day streak</Text>
             </View>
           </TouchableRipple>
           
@@ -328,7 +318,7 @@ const GrowthRoadmap = ({
         </View>
 
         <View style={styles.overallProgress}>
-          <Text style={styles.progressTitle}>Your Growth Roadmap</Text>
+          <Text style={styles.progressTitle}>Your Growth Roadmap Progress</Text>
           <View style={styles.progressBarContainer}>
             <Animated.View 
               style={[
@@ -343,13 +333,12 @@ const GrowthRoadmap = ({
             />
           </View>
           <View style={styles.progressCircle}>
-            <Text style={styles.progressCircleText}>{Math.round((overallProgress || 0) * 100)}%</Text>
+            <Text style={styles.progressCircleText}>{Math.round((dailyProgress || overallProgressValue || 0) * 100)}%</Text>
           </View>
         </View>
 
         {renderPhaseIndicator()}
-        {renderFocusAreas()}
-        {renderWeeklyGoals()}
+        {renderLongTermAspirations()}
       </ScrollView>
     </View>
   );
@@ -357,24 +346,33 @@ const GrowthRoadmap = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F5F5F5', // Light gray background matching DashboardHeader
+    backgroundColor: COLORS.background,
     marginBottom: SPACING.lg,
   },
   scrollContainer: {
-    maxHeight: 500,
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+  },
+  scrollContentContainer: {
+    paddingBottom: SPACING.xxl, 
+  },
+  infoText: {
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginVertical: SPACING.md,
+    fontSize: FONT.size.md,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+    paddingTop: SPACING.sm,
   },
   streakContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: RADIUS.md,
-    padding: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
   },
   streakBadge: {
     flexDirection: 'row',
@@ -384,13 +382,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: FONT.weight.medium,
     fontSize: FONT.size.sm,
-    marginLeft: 4,
+    marginLeft: SPACING.xxs,
   },
   moodButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: RADIUS.md,
-    padding: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
   },
   moodContent: {
     alignItems: 'center',
@@ -405,47 +403,49 @@ const styles = StyleSheet.create({
   },
   overallProgress: {
     position: 'relative',
-    marginVertical: SPACING.md,
+    marginVertical: SPACING.lg,
   },
   progressTitle: {
-    color: COLORS.text,
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.semiBold,
-    marginBottom: SPACING.xs,
+    color: COLORS.textHeader || COLORS.text,
+    fontSize: FONT.size.lg,
+    fontWeight: FONT.weight.bold,
+    marginBottom: SPACING.sm,
   },
   progressBarContainer: {
-    height: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 3,
-    marginRight: 46,
-    marginTop: SPACING.md,
+    height: 8,
+    backgroundColor: COLORS.mediumGray,
+    borderRadius: 4,
+    marginTop: SPACING.xs,
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
     backgroundColor: COLORS.primary,
   },
   progressCircle: {
     position: 'absolute',
     right: 0,
-    top: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryMuted,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
   },
   progressCircleText: {
-    color: COLORS.text,
+    color: COLORS.primary,
     fontWeight: FONT.weight.bold,
     fontSize: FONT.size.xs,
   },
   phaseContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    marginVertical: SPACING.sm,
+    marginVertical: SPACING.md,
   },
   phaseHeader: {
     flexDirection: 'row',
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   phaseTitle: {
     color: COLORS.text,
-    fontSize: FONT.size.md,
+    fontSize: FONT.size.lg,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
   },
@@ -461,9 +461,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   phaseDescription: {
-    color: COLORS.text,
+    color: COLORS.textSecondary,
     fontSize: FONT.size.sm,
     marginBottom: SPACING.sm,
+    lineHeight: FONT.size.sm * 1.5,
   },
   nextMilestone: {
     flexDirection: 'row',
@@ -471,59 +472,61 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     padding: SPACING.xs,
     borderRadius: RADIUS.sm,
+    marginTop: SPACING.sm,
   },
   milestoneText: {
     color: COLORS.text,
     fontSize: FONT.size.sm,
     marginLeft: SPACING.xs,
   },
-  focusContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: RADIUS.md,
+  ltaContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    marginVertical: SPACING.sm,
+    marginVertical: SPACING.md,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  sectionHeader: {
+  ltaHeaderTouchable: {
+    borderRadius: RADIUS.md,
+  },
+  ltaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
   },
-  sectionTitle: {
-    color: COLORS.text,
+  ltaTitle: {
+    color: COLORS.textHeader,
     fontSize: FONT.size.md,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
+    flex: 1,
   },
-  focusGrid: {
-    marginTop: SPACING.sm,
-  },
-  focusArea: {
-    marginVertical: SPACING.xs,
-  },
-  focusLabel: {
-    color: COLORS.text,
-    fontSize: FONT.size.sm,
-    marginBottom: SPACING.xxs,
-  },
-  focusProgress: {
-    height: 4,
-    borderRadius: 2,
-  },
-  goalsContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
+  ltaProgress: {
+    height: 6,
+    borderRadius: 3,
     marginVertical: SPACING.sm,
+    backgroundColor: COLORS.mediumGray,
   },
-  goalsList: {
-    marginTop: SPACING.sm,
+  ltaDetails: {
+    marginTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: SPACING.md,
   },
   goalItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: SPACING.xs,
+    paddingVertical: SPACING.xxs,
   },
   goalCheckbox: {
     padding: SPACING.xxs,
+    marginRight: SPACING.xs,
   },
   goalText: {
     color: COLORS.text,
@@ -533,7 +536,8 @@ const styles = StyleSheet.create({
   },
   completedGoalText: {
     textDecorationLine: 'line-through',
-    opacity: 0.7,
+    opacity: 0.6,
+    color: COLORS.textSecondary,
   },
   removeGoalButton: {
     margin: 0,
@@ -542,15 +546,16 @@ const styles = StyleSheet.create({
   addGoalContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.xs,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.backgroundInput,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
   },
   goalInput: {
     flex: 1,
-    paddingVertical: SPACING.xs,
-    color: COLORS.text,
+    paddingVertical: SPACING.sm,
+    color: COLORS.textInput,
     fontSize: FONT.size.sm,
   },
   emptyGoalsText: {
@@ -559,6 +564,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
 });
 

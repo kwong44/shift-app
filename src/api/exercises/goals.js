@@ -3,10 +3,12 @@ import { supabase } from '../../config/supabase';
 /**
  * Create a new weekly goal
  * @param {string} userId - User ID
+ * @param {string} roadmapId - ID of the roadmap this goal belongs to
+ * @param {string} ltaIdRef - Reference ID of the Long-Term Aspiration this goal is for
  * @param {string} text - Goal text content
  * @returns {Promise} - The created goal object
  */
-export const createWeeklyGoal = async (userId, text) => {
+export const createWeeklyGoal = async (userId, roadmapId, ltaIdRef, text) => {
   try {
     // Calculate the end of the current week (Sunday)
     const now = new Date();
@@ -17,7 +19,7 @@ export const createWeeklyGoal = async (userId, text) => {
     endOfWeek.setHours(23, 59, 59, 999);
 
     // Debug log
-    console.debug('[Goals API] Creating weekly goal', { userId, text, weekEnding: endOfWeek });
+    console.debug('[Goals API] Creating weekly goal', { userId, roadmapId, ltaIdRef, text, weekEnding: endOfWeek });
 
     const { data, error } = await supabase
       .from('weekly_goals')
@@ -25,7 +27,9 @@ export const createWeeklyGoal = async (userId, text) => {
         user_id: userId,
         text,
         completed: false,
-        week_ending: endOfWeek.toISOString()
+        week_ending: endOfWeek.toISOString(),
+        roadmap_id: roadmapId,
+        lta_id_ref: ltaIdRef
       })
       .select()
       .single();
@@ -147,6 +151,40 @@ export const getWeeklyGoals = async (userId) => {
     return data || [];
   } catch (error) {
     console.error('[Goals API] Error in getWeeklyGoals:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all weekly goals for a user, regardless of week.
+ * Includes roadmap_id and lta_id_ref for linking to LTAs.
+ * @param {string} userId - The user's ID
+ * @returns {Promise<Array>} - An array of all weekly goals for the user
+ */
+export const fetchAllUserWeeklyGoals = async (userId) => {
+  try {
+    if (!userId) {
+      console.debug('[Goals API] fetchAllUserWeeklyGoals: No user ID provided.');
+      return [];
+    }
+
+    console.debug('[Goals API] Fetching all weekly goals for user:', userId);
+
+    const { data, error } = await supabase
+      .from('weekly_goals')
+      .select('*') // Select all columns, including new ones
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }); // Or any preferred order
+
+    if (error) {
+      console.error('[Goals API] Error fetching all weekly goals:', error);
+      throw error;
+    }
+
+    console.debug('[Goals API] Successfully fetched all weekly goals:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('[Goals API] Error in fetchAllUserWeeklyGoals:', error.message);
     throw error;
   }
 }; 
