@@ -34,6 +34,14 @@ export const COLORS = {
   border: '#E0E0E0',        // Light gray for borders
   divider: '#F0F0F0',       // Subtle divider
   
+  // Additional UI colors
+  textSecondary: '#757575',    // Secondary text color
+  backgroundInput: '#F8F9FC',  // Input background
+  textInput: '#333333',        // Input text color
+  textHeader: '#1A1A1A',       // Darker header text
+  mediumGray: '#E0E0E0',       // Medium gray for progress bars
+  primaryMuted: '#F3F1FF',     // Very light purple
+  
   // Card Gradient Colors - Based on screenshot
   blueGradient: {
     start: '#5AC8FA',
@@ -195,6 +203,22 @@ export const BADGE_STYLES = {
     borderRadius: RADIUS.round,
     backgroundColor: COLORS.primary,
     color: COLORS.textOnColor,
+  },
+  streak: {
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.orange,
+    ...SHADOWS.small,
+  },
+  mood: {
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
   }
 };
 

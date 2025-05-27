@@ -14,7 +14,6 @@ import {
 } from '../../../api/exercises';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import AITestButton from '../../../components/common/AITestButton';
 import { 
   MoodModal, 
   GrowthRoadmap, 
@@ -290,7 +289,7 @@ const HomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={[COLORS.background, '#f5f5f5']}
+        colors={[COLORS.background, COLORS.background]}
         style={styles.gradient}
       >
         <ScrollView 
@@ -319,8 +318,6 @@ const HomeScreen = ({ navigation }) => {
               }} 
             />
           </View>
-          
-          <AITestButton />
         </ScrollView>
       </LinearGradient>
 

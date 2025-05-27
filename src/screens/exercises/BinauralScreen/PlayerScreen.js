@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
@@ -122,13 +122,14 @@ const PlayerScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.indigoGradient.start} />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <LinearGradient
-          colors={[COLORS.primary, COLORS.secondary]}
+          colors={[COLORS.indigoGradient.start, COLORS.indigoGradient.end]}
           style={styles.screenGradient}
         >
           <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction onPress={handleBack} color={COLORS.background} />
+            <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
             <View>
               <Text style={styles.appbarTitle}>Binaural Beats</Text>
               <Text style={styles.appbarSubtitle}>{frequencyData.name}</Text>
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   appbarTitle: {
-    color: COLORS.background,
+    color: COLORS.textOnColor,
     fontWeight: FONT.weight.bold,
     fontSize: FONT.size.lg,
   },

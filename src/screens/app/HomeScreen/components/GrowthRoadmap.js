@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Animated, ScrollView, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Text, TouchableRipple, ProgressBar, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
+import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import { createWeeklyGoal, updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
 import { supabase } from '../../../../config/supabase';
 
@@ -12,6 +12,9 @@ const debug = {
     console.log(`[GrowthRoadmap] ${message}`);
   }
 };
+
+// Debug: Confirm SHADOWS import is working
+debug.log('SHADOWS import successful:', typeof SHADOWS);
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -182,14 +185,14 @@ const GrowthRoadmap = ({
       const completedWGs = associatedWGs.filter(wg => wg.completed).length;
       const ltaProgress = associatedWGs.length > 0 ? completedWGs / associatedWGs.length : 0;
 
-      debug.log(`Rendering LTA: ${lta.id} (${lta.description}). Progress: ${ltaProgress}. WGs: ${associatedWGs.length}`);
+      debug.log(`Rendering LTA: ${lta.id} (${lta.text}). Progress: ${ltaProgress}. WGs: ${associatedWGs.length}`);
 
       return (
         <View key={lta.id} style={styles.ltaContainer}>
           <TouchableRipple onPress={() => toggleLtaSection(lta.id)} style={styles.ltaHeaderTouchable}>
             <View style={styles.ltaHeader}>
               <MaterialCommunityIcons name="bullseye-arrow" size={20} color={COLORS.primary} />
-              <Text style={styles.ltaTitle}>{lta.description}</Text>
+              <Text style={styles.ltaTitle}>{lta.text}</Text>
               <MaterialCommunityIcons 
                 name={expandedLtaId === lta.id ? "chevron-up" : "chevron-down"} 
                 size={24} 
@@ -274,7 +277,7 @@ const GrowthRoadmap = ({
         <View style={styles.headerContent}>
           <TouchableRipple style={styles.streakContainer}>
             <View style={styles.streakBadge}>
-              <MaterialCommunityIcons name="fire" size={20} color={COLORS.accent} />
+              <MaterialCommunityIcons name="fire" size={18} color={COLORS.textOnColor} />
               <Text style={styles.streakText}>{streak || 0} day streak</Text>
             </View>
           </TouchableRipple>
@@ -346,8 +349,11 @@ const GrowthRoadmap = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.backgroundLight,
+    borderRadius: RADIUS.xl,
+    marginHorizontal: SPACING.md,
     marginBottom: SPACING.lg,
+    ...SHADOWS.small,
   },
   scrollContainer: {
     paddingHorizontal: SPACING.lg,
@@ -369,26 +375,30 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
   },
   streakContainer: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: RADIUS.pill,
-    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.orange,
+    ...SHADOWS.small,
   },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   streakText: {
-    color: COLORS.text,
-    fontWeight: FONT.weight.medium,
+    color: COLORS.textOnColor,
+    fontWeight: FONT.weight.semiBold,
     fontSize: FONT.size.sm,
     marginLeft: SPACING.xxs,
   },
   moodButton: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: RADIUS.pill,
-    paddingVertical: SPACING.xs,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
   },
   moodContent: {
     alignItems: 'center',
@@ -399,7 +409,8 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: FONT.size.sm,
-    fontWeight: FONT.weight.medium,
+    fontWeight: FONT.weight.semiBold,
+    color: COLORS.text,
   },
   overallProgress: {
     position: 'relative',
@@ -415,7 +426,7 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: COLORS.mediumGray,
     borderRadius: 4,
-    marginTop: SPACING.xs,
+    marginTop: SPACING.md,
   },
   progressBarFill: {
     height: '100%',
@@ -425,7 +436,7 @@ const styles = StyleSheet.create({
   progressCircle: {
     position: 'absolute',
     right: 0,
-    top: '50%',
+    top: '20%',
     transform: [{ translateY: -20 }],
     width: 40,
     height: 40,
@@ -442,10 +453,11 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.xs,
   },
   phaseContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginVertical: SPACING.md,
+    padding: SPACING.sm,
+    marginVertical: SPACING.xs,
+    ...SHADOWS.small,
   },
   phaseHeader: {
     flexDirection: 'row',
@@ -453,18 +465,17 @@ const styles = StyleSheet.create({
   },
   phaseTitle: {
     color: COLORS.text,
-    fontSize: FONT.size.lg,
+    fontSize: FONT.size.md,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
   },
   phaseDetails: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   phaseDescription: {
     color: COLORS.textSecondary,
-    fontSize: FONT.size.sm,
-    marginBottom: SPACING.sm,
-    lineHeight: FONT.size.sm * 1.5,
+    fontSize: FONT.size.xs,
+    lineHeight: FONT.size.xs * 1.4,
   },
   nextMilestone: {
     flexDirection: 'row',
@@ -472,23 +483,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     padding: SPACING.xs,
     borderRadius: RADIUS.sm,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   milestoneText: {
     color: COLORS.text,
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.xs,
     marginLeft: SPACING.xs,
   },
   ltaContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginVertical: SPACING.md,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginVertical: SPACING.xs,
+    ...SHADOWS.small,
   },
   ltaHeaderTouchable: {
     borderRadius: RADIUS.md,
@@ -497,31 +504,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   ltaTitle: {
     color: COLORS.textHeader,
-    fontSize: FONT.size.md,
+    fontSize: FONT.size.sm,
     fontWeight: FONT.weight.semiBold,
     marginLeft: SPACING.sm,
     flex: 1,
   },
   ltaProgress: {
-    height: 6,
-    borderRadius: 3,
-    marginVertical: SPACING.sm,
+    height: 4,
+    borderRadius: 2,
+    marginVertical: SPACING.xs,
     backgroundColor: COLORS.mediumGray,
   },
   ltaDetails: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.md,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.sm,
   },
   goalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: SPACING.xs,
+    marginVertical: SPACING.xxs,
     paddingVertical: SPACING.xxs,
   },
   goalCheckbox: {
@@ -530,9 +537,10 @@ const styles = StyleSheet.create({
   },
   goalText: {
     color: COLORS.text,
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.xs,
     marginLeft: SPACING.xs,
     flex: 1,
+    lineHeight: FONT.size.xs * 1.4,
   },
   completedGoalText: {
     textDecorationLine: 'line-through',
@@ -546,25 +554,25 @@ const styles = StyleSheet.create({
   addGoalContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     backgroundColor: COLORS.backgroundInput,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xxs,
   },
   goalInput: {
     flex: 1,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     color: COLORS.textInput,
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.xs,
   },
   emptyGoalsText: {
     color: COLORS.textSecondary,
-    fontSize: FONT.size.sm,
+    fontSize: FONT.size.xs,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    marginTop: SPACING.xs,
+    paddingBottom: SPACING.xs,
   },
 });
 

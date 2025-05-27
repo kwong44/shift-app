@@ -7,10 +7,10 @@ import { completeBinauralSession } from '../../../../api/exercises';
 // Replace these commented imports with your actual audio files once you have them
 const BINAURAL_AUDIO = {
   // Example of what to uncomment when you add actual files:
-  // focus: require('../../../../../assets/audio/binaural-15hz.mp3'),
-  // meditation: require('../../../../../assets/audio/binaural-6hz.mp3'),
-  // creativity: require('../../../../../assets/audio/binaural-8hz.mp3'),
-  // sleep: require('../../../../../assets/audio/binaural-4hz.mp3'),
+  focus: require('../../../../../assets/audio/binaural/focus.mp3'), // Reverted from icon.png
+  meditation: require('../../../../../assets/audio/binaural/meditation.mp3'),
+  creativity: require('../../../../../assets/audio/binaural/creativity.mp3'),
+  sleep: require('../../../../../assets/audio/binaural/sleep.mp3'),
   
   // This is a temporary placeholder - you'll need to create or download this file
   placeholder: require('../../../../../assets/audio/silence.mp3'),
@@ -109,10 +109,14 @@ export const useBinauralAudio = (selectedFrequencyData) => {
         // setSound(null); // Sound object will be replaced by newSound
       }
       
-      const audioSource = BINAURAL_AUDIO.placeholder; // Using placeholder for now
+      // const audioSource = BINAURAL_AUDIO.placeholder; // Using placeholder for now
+      // Use the selected frequency key to get the correct audio source.
+      // Fallback to placeholder if the specific key doesn't exist.
+      const audioKey = selectedFrequencyData?.name?.toLowerCase(); // Assuming name is 'Focus', 'Meditation' etc.
+      const audioSource = BINAURAL_AUDIO[audioKey] || BINAURAL_AUDIO.placeholder;
       
       if (!audioSource) {
-        console.error('[useBinauralAudio] No audio file found for:', selectedFrequencyData.name);
+        console.error('[useBinauralAudio] No audio file found for key:', audioKey, 'or placeholder.');
         setError('Audio file not found. Please check configuration.');
         throw new Error('Audio file not found');
       }
