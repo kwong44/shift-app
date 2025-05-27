@@ -15,12 +15,17 @@ import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 
 // Onboarding screens
-import OnboardingStart from '../screens/onboarding/OnboardingStart';
+import CelebratoryWelcomeScreen from '../screens/onboarding/CelebratoryWelcomeScreen';
+import ScienceIntroNeuroscienceScreen from '../screens/onboarding/ScienceIntroNeuroscienceScreen';
+import ScienceIntroTechniquesScreen from '../screens/onboarding/ScienceIntroTechniquesScreen';
+import ScienceIntroTransformationScreen from '../screens/onboarding/ScienceIntroTransformationScreen';
+import ScienceIntroThinkersScreen from '../screens/onboarding/ScienceIntroThinkersScreen';
 import LifeSatisfactionScreen from '../screens/onboarding/LifeSatisfactionScreen';
 import AreasForGrowthScreen from '../screens/onboarding/AreasForGrowthScreen';
 import AspirationsScreen from '../screens/onboarding/AspirationsScreen';
 import BenefitsIntroScreen from '../screens/onboarding/BenefitsIntroScreen';
 import PreferencesScreen from '../screens/onboarding/PreferencesScreen';
+import NotificationPermissionScreen from '../screens/onboarding/NotificationPermissionScreen';
 import OnboardingComplete from '../screens/onboarding/OnboardingComplete';
 
 // Main app screens
@@ -239,12 +244,17 @@ const Navigation = () => {
           // Onboarding Stack - Include main app screens to enable reset navigation
           <>
             <Stack.Group screenOptions={screenOptions}>
-              <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
+              <Stack.Screen name="CelebratoryWelcome" component={CelebratoryWelcomeScreen} />
+              <Stack.Screen name="ScienceIntroNeuroscience" component={ScienceIntroNeuroscienceScreen} />
+              <Stack.Screen name="ScienceIntroTechniques" component={ScienceIntroTechniquesScreen} />
+              <Stack.Screen name="ScienceIntroTransformation" component={ScienceIntroTransformationScreen} />
+              <Stack.Screen name="ScienceIntroThinkers" component={ScienceIntroThinkersScreen} />
               <Stack.Screen name="LifeSatisfaction" component={LifeSatisfactionScreen} />
               <Stack.Screen name="AreasForGrowth" component={AreasForGrowthScreen} />
               <Stack.Screen name="Aspirations" component={AspirationsScreen} />
               <Stack.Screen name="BenefitsIntro" component={BenefitsIntroScreen} />
               <Stack.Screen name="Preferences" component={PreferencesScreen} />
+              <Stack.Screen name="NotificationPermission" component={NotificationPermissionScreen} />
               <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
             </Stack.Group>
             

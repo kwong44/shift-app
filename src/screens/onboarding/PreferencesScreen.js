@@ -90,15 +90,15 @@ const PreferencesScreen = ({ navigation, route }) => {
     };
 
     console.log('[PreferencesScreen] Proceeding to OnboardingComplete with all data:', allOnboardingData);
-    navigation.navigate('OnboardingComplete', allOnboardingData); // Pass the whole object directly
+    navigation.navigate('NotificationPermission', allOnboardingData); // Changed to NotificationPermissionScreen
   };
 
   return (
     <OnboardingLayout
       title="Your Preferences"
       subtitle="Help us personalize your experience"
-      currentStep={5}
-      totalSteps={5}
+      currentStep={9}
+      totalSteps={12}
       onBack={() => navigation.goBack()}
       onNext={handleContinue}
       nextDisabled={!isFormValid()}

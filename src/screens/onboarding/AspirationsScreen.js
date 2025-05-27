@@ -128,16 +128,13 @@ const AspirationsScreen = ({ navigation, route }) => {
 
   return (
     <OnboardingLayout
-      title={`Aspirations for:`}
-      titleDynamic={currentGrowthArea.label}
-      subtitle={`What long-term aspirations do you have in this area? (1-2 goals)`}
-      currentStep={3} // Adjust step numbering
-      totalSteps={5}  // Adjust total steps
-      onBack={currentAreaIndex === 0 ? () => navigation.goBack() : handlePreviousArea}
-      backButtonLabel={currentAreaIndex === 0 ? 'Back to Areas' : 'Previous Area'}
+      title="Define Your Aspirations"
+      subtitle="For each area, what long-term changes do you aspire to achieve? Aim for 1-2 clear aspirations per area."
+      currentStep={8} // Updated currentStep
+      totalSteps={12} // Updated totalSteps
+      onBack={() => navigation.goBack()} // Go back to AreasForGrowthScreen
       onNext={handleNextArea}
       nextButtonLabel={isLastArea ? 'Review & Continue' : 'Next Area'}
-      // nextDisabled={currentAreaAspirations.every(asp => asp.trim() === '')}
     >
       <ScrollView 
         style={styles.scrollContent}

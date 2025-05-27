@@ -97,10 +97,10 @@ const AreasForGrowthScreen = ({ navigation, route }) => {
 
   return (
     <OnboardingLayout
-      title="Where Do You Want to Grow?"
-      subtitle={`Select up to 4 areas you're most interested in focusing on right now.`}
-      currentStep={2} // Adjusted step numbering as per new flow
-      totalSteps={5}   // Adjusted total steps
+      title="Areas for Growth"
+      subtitle="Select the areas in your life you're most excited to transform."
+      currentStep={7}
+      totalSteps={12}
       onBack={() => navigation.goBack()}
       onNext={handleContinue}
       nextDisabled={selectedAreas.length === 0 || selectedAreas.length > 4}

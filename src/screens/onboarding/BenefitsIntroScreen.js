@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text, Title, Paragraph, Button, Card } from 'react-native-paper';
 import { OnboardingLayout } from '../../components/onboarding';
@@ -74,11 +74,11 @@ const BenefitsIntroScreen = ({ navigation, route }) => {
 
   return (
     <OnboardingLayout
-      title="You're All Set to Transform!"
-      subtitle="Here's how Shift App will empower your journey to achieve your aspirations:"
-      currentStep={4} // Adjust step numbering
-      totalSteps={5}  // Adjust total steps
-      onBack={() => navigation.goBack()} // Go back to AspirationsScreen
+      title="What You'll Gain"
+      subtitle="RealityShift™ empowers you to make meaningful life changes."
+      currentStep={9}
+      totalSteps={12}
+      onBack={() => navigation.goBack()}
       onNext={handleContinue}
       nextButtonLabel="Let's Get Started!"
     >

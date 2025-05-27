@@ -105,11 +105,12 @@ const LifeSatisfactionScreen = ({ navigation }) => {
 
   return (
     <OnboardingLayout
-      subtitle="Rate your current satisfaction in each life area from 1-10"
-      currentStep={1}
-      totalSteps={5}
+      title="Rate Your Life Satisfaction"
+      subtitle="How satisfied are you with your life overall right now?"
+      currentStep={6}
+      totalSteps={12}
+      onBack={() => navigation.goBack()}
       onNext={handleContinue}
-      hideBackButton
     >
       <OnboardingCard>
         <View style={styles.sectionHeader}>

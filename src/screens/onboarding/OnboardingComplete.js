@@ -95,15 +95,17 @@ const OnboardingComplete = ({ navigation, route }) => {
   };
 
   const handleGoToApp = () => {
-    navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
+    debug.log('Attempting to navigate to the main app. Current route params:', route.params);
+    // The main app stack is typically identified by a name like 'App' that loads the BottomTabNavigator
+    navigation.reset({ index: 0, routes: [{ name: 'App' }] });
   };
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <Card style={styles.loadingCard}>
         <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
-        <Text style={styles.statusText}>Setting up your personalized journey...</Text>
-      </View>
+        <Text style={styles.loadingStatusText}>Setting up your personalized journey...</Text>
+      </Card>
     );
   }
 
@@ -119,6 +121,8 @@ const OnboardingComplete = ({ navigation, route }) => {
       onNext={handleGoToApp}
       nextButtonLabel="Explore Your Growth Roadmap"
       nextButtonIcon="arrow-right-circle-outline"
+      currentStep={12}
+      totalSteps={12}
     >
       <ScrollView contentContainerStyle={styles.contentContainer}>
         {error ? (
@@ -164,6 +168,25 @@ const getDynamicStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.background,
     padding: SPACING.lg,
+  },
+  loadingCard: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: SPACING.lg,
+    marginVertical: SPACING.xxl,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.colors.background,
+    elevation: 2,
+    minHeight: 200,
+  },
+  loadingStatusText: {
+    marginTop: SPACING.md,
+    fontSize: FONT.size.md,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.lg,
   },
   statusText: {
     marginTop: SPACING.md,

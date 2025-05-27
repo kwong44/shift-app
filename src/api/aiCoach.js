@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'; // Your Supabase client initialization
-import { getWeeklyGoals } from './exercises/goals'; // Import the goals API
+import { fetchAllUserWeeklyGoals } from './exercises/goals'; // UPDATED: Import to get all weekly goals
+import { fetchRoadmap } from './roadmap'; // NEW: Import to get user's roadmap for LTAs
 import { getUserTokens, updateUserTokens, TOKENS_CONFIG } from './credits'; // Import tokens API
 import conversationHistory, { getContextMessages } from './conversationHistory'; // Import conversation history API
 
@@ -222,17 +223,45 @@ export const chatWithCoach = async (message, context = {}) => {
       throw new Error(`Insufficient tokens to use AI Coach. You need at least ${AI_COACH_CONFIG.tokens.minTokensRequired} tokens.`);
     }
 
-    // Fetch the user's weekly goals to provide context
-    console.debug('[aiCoachAPI] Fetching user goals for context');
-    let userGoals = [];
+    // Fetch the user's roadmap to get Long-Term Aspirations (LTAs)
+    console.debug('[aiCoachAPI] Fetching user roadmap for LTAs');
+    let longTermAspirations = [];
     try {
-      userGoals = await getWeeklyGoals(user.id) || [];
-      console.debug(`[aiCoachAPI] Found ${userGoals?.length || 0} goals`);
+      const roadmap = await fetchRoadmap(user.id);
+      if (roadmap && roadmap.goals && Array.isArray(roadmap.goals)) {
+        longTermAspirations = roadmap.goals.map(lta => ({
+          text: `Long-Term Aspiration: ${lta.text}`, // Prefix to distinguish from WGs
+          completed: lta.status === 'completed', // Assuming 'completed' status exists or can be inferred
+          type: 'LTA' // Add a type for clarity
+        }));
+      }
+      console.debug(`[aiCoachAPI] Found ${longTermAspirations.length} LTAs`);
     } catch (error) {
-      console.error('[aiCoachAPI] Error fetching goals:', error);
+      console.error('[aiCoachAPI] Error fetching roadmap for LTAs:', error);
+      // Continue without LTAs rather than failing the whole request
+    }
+
+    // Fetch all user's weekly goals to provide context
+    console.debug('[aiCoachAPI] Fetching all user weekly goals for context');
+    let weeklyGoals = [];
+    try {
+      // Use fetchAllUserWeeklyGoals instead of getWeeklyGoals
+      const allWGs = await fetchAllUserWeeklyGoals(user.id) || [];
+      weeklyGoals = allWGs.map(wg => ({
+        text: `Weekly Goal: ${wg.text}`, // Prefix to distinguish from LTAs
+        completed: wg.completed,
+        type: 'WG' // Add a type for clarity
+      }));
+      console.debug(`[aiCoachAPI] Found ${weeklyGoals.length} weekly goals`);
+    } catch (error) {
+      console.error('[aiCoachAPI] Error fetching weekly goals:', error);
       // Continue without goals rather than failing the whole request
     }
     
+    // Combine LTAs and WGs for the AI context
+    const combinedUserGoals = [...longTermAspirations, ...weeklyGoals];
+    console.debug(`[aiCoachAPI] Total combined goals for AI context: ${combinedUserGoals.length}`);
+
     // Get conversation history for the AI context
     console.debug('[aiCoachAPI] Fetching conversation history for context');
     let pastMessages = [];
@@ -249,7 +278,7 @@ export const chatWithCoach = async (message, context = {}) => {
       messageLength: message?.length,
       userId: user.id,
       contextSize: Object.keys(context).length,
-      goalsCount: userGoals?.length || 0,
+      goalsCount: combinedUserGoals.length,
       pastMessagesCount: pastMessages.length
     });
 
@@ -264,7 +293,7 @@ export const chatWithCoach = async (message, context = {}) => {
           message,
           userId: user.id,
           context,
-          userGoals,
+          userGoals: combinedUserGoals,
           pastMessages
         },
         signal: controller.signal,
