@@ -3,30 +3,37 @@ import { supabase } from '../config/supabase';
 /**
  * Submit a user's self-assessment to Supabase
  * @param {string} userId - The user's ID from Supabase Auth
- * @param {object} responses - Assessment responses { currentHabits, improvementAreas, longTermGoals, engagementPrefs }
+ * @param {object} responses - Assessment responses { satisfactionBaseline, engagementPrefs, growthAreas, aspirations }
  * @returns {Promise} - The created self-assessment record
  */
 export const submitSelfAssessment = async (userId, responses) => {
   try {
     console.log('[SelfAssessment] Submitting assessment for user:', userId);
-    console.log('[SelfAssessment] Assessment data:', responses);
+    // Log the incoming responses, ensuring sensitive data is handled appropriately if necessary in a real app
+    console.log('[SelfAssessment] Assessment data (v3):', JSON.stringify(responses, null, 2));
 
     // Validate the responses object
-    if (!responses.currentHabits || !responses.engagementPrefs || !responses.satisfactionBaseline) {
-      console.error('[SelfAssessment] Missing required data:', {
-        hasCurrentHabits: !!responses.currentHabits,
+    if (!responses.satisfactionBaseline || !responses.engagementPrefs || !responses.growthAreas || !responses.aspirations) {
+      console.error('[SelfAssessment] Missing required data (v3):', {
+        hasSatisfactionBaseline: !!responses.satisfactionBaseline,
         hasEngagementPrefs: !!responses.engagementPrefs,
-        hasSatisfactionBaseline: !!responses.satisfactionBaseline
+        hasGrowthAreas: !!responses.growthAreas,
+        hasAspirations: !!responses.aspirations,
       });
-      throw new Error('Missing required assessment data');
+      throw new Error('Missing required assessment data (satisfaction, engagement, growth areas, or aspirations)');
+    }
+    // Additional check for empty arrays if that's a concern
+    if (responses.growthAreas.length === 0) {
+      console.error('[SelfAssessment] Growth areas array cannot be empty.');
+      throw new Error('Growth areas must be provided.');
+    }
+    if (responses.aspirations.length === 0) {
+      console.error('[SelfAssessment] Aspirations array cannot be empty.');
+      throw new Error('At least one aspiration must be defined.');
     }
 
     // Format the responses for storage
     const formattedResponses = {
-      habits: {
-        current: responses.currentHabits,
-        timestamp: new Date().toISOString()
-      },
       satisfaction_baseline: {
         ...responses.satisfactionBaseline,
         timestamp: new Date().toISOString()
@@ -34,17 +41,26 @@ export const submitSelfAssessment = async (userId, responses) => {
       engagement_preferences: {
         ...responses.engagementPrefs,
         timestamp: new Date().toISOString()
+      },
+      // New fields for v3 assessment
+      growth_areas: { // Store the selected growth areas
+        areas: responses.growthAreas, // This will be an array of area objects
+        timestamp: new Date().toISOString()
+      },
+      aspirations: { // Store the user-defined Long-Term Aspirations
+        defined_ltas: responses.aspirations, // This will be an array of LTA objects
+        timestamp: new Date().toISOString()
       }
     };
 
-    console.log('[SelfAssessment] Formatted responses:', formattedResponses);
+    console.log('[SelfAssessment] Formatted responses for Supabase (v3):', JSON.stringify(formattedResponses, null, 2));
 
     const { data, error } = await supabase
       .from('self_assessments')
       .insert({
         user_id: userId,
         responses: formattedResponses,
-        assessment_version: 2
+        assessment_version: 3 // Increment version due to structural changes
       })
       .select()
       .single();

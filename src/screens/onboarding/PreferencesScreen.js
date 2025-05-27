@@ -67,29 +67,30 @@ const PreferencesScreen = ({ navigation, route }) => {
   };
 
   const handleContinue = () => {
-    // Debug log
-    console.log('User preferences:', {
+    // Debug log of preferences collected on this screen
+    const currentScreenPreferences = {
       preferredTime,
       sessionLength,
       reminderFrequency,
       preferredExercises
-    });
+    };
+    console.log('[PreferencesScreen] User preferences collected:', currentScreenPreferences);
 
-    const { satisfactionBaseline, currentHabits, improvementAreas } = route.params || {};
+    // Get the data passed from previous screens
+    const { satisfactionBaseline, selectedGrowthAreas, definedLTAs } = route.params || {};
     
-    const assessmentData = {
-      satisfactionBaseline,
-      currentHabits,
-      improvementAreas,
-      engagementPrefs: {
-        preferredTime,
-        sessionLength,
-        reminderFrequency,
-        preferredExercises
-      }
+    // Construct the complete data object for OnboardingComplete
+    // Note: We are creating a new engagementPrefs object here with the data from this screen.
+    // The one from route.params (if any) is effectively overridden, which is usually the intent for a preferences screen.
+    const allOnboardingData = {
+      satisfactionBaseline, // From LifeSatisfactionScreen
+      selectedGrowthAreas,  // From AreasForGrowthScreen, passed through Aspirations & BenefitsIntro
+      definedLTAs,          // From AspirationsScreen, passed through BenefitsIntro
+      engagementPrefs: currentScreenPreferences // Newly defined on this screen
     };
 
-    navigation.navigate('OnboardingComplete', { assessmentData });
+    console.log('[PreferencesScreen] Proceeding to OnboardingComplete with all data:', allOnboardingData);
+    navigation.navigate('OnboardingComplete', allOnboardingData); // Pass the whole object directly
   };
 
   return (
@@ -97,7 +98,7 @@ const PreferencesScreen = ({ navigation, route }) => {
       title="Your Preferences"
       subtitle="Help us personalize your experience"
       currentStep={5}
-      totalSteps={6}
+      totalSteps={5}
       onBack={() => navigation.goBack()}
       onNext={handleContinue}
       nextDisabled={!isFormValid()}

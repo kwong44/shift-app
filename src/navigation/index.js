@@ -17,7 +17,9 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 // Onboarding screens
 import OnboardingStart from '../screens/onboarding/OnboardingStart';
 import LifeSatisfactionScreen from '../screens/onboarding/LifeSatisfactionScreen';
-import HabitsScreen from '../screens/onboarding/HabitsScreen';
+import AreasForGrowthScreen from '../screens/onboarding/AreasForGrowthScreen';
+import AspirationsScreen from '../screens/onboarding/AspirationsScreen';
+import BenefitsIntroScreen from '../screens/onboarding/BenefitsIntroScreen';
 import PreferencesScreen from '../screens/onboarding/PreferencesScreen';
 import OnboardingComplete from '../screens/onboarding/OnboardingComplete';
 
@@ -239,7 +241,9 @@ const Navigation = () => {
             <Stack.Group screenOptions={screenOptions}>
               <Stack.Screen name="OnboardingStart" component={OnboardingStart} />
               <Stack.Screen name="LifeSatisfaction" component={LifeSatisfactionScreen} />
-              <Stack.Screen name="Habits" component={HabitsScreen} />
+              <Stack.Screen name="AreasForGrowth" component={AreasForGrowthScreen} />
+              <Stack.Screen name="Aspirations" component={AspirationsScreen} />
+              <Stack.Screen name="BenefitsIntro" component={BenefitsIntroScreen} />
               <Stack.Screen name="Preferences" component={PreferencesScreen} />
               <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
             </Stack.Group>
@@ -270,7 +274,7 @@ const Navigation = () => {
             <Stack.Screen 
               name="AICoachChat"
               component={AICoachScreen}
-              options={{
+              options={({ navigation, route }) => ({
                 title: 'Samantha Placeholder',
                 headerShadowVisible: false,
                 headerStyle: {
@@ -278,7 +282,7 @@ const Navigation = () => {
                 },
                 presentation: 'modal',
                 cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
-              }}
+              })}
             />
           </Stack.Group>
         )}

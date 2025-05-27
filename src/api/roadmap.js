@@ -45,39 +45,46 @@ export const fetchRoadmap = async (userId) => {
  */
 export const createRoadmap = async (userId, assessmentData) => {
   try {
-    console.log('[Roadmap] Creating roadmap for user:', userId);
+    // Log the user ID and a summary of assessment data (e.g., number of aspirations)
+    console.log('[Roadmap] Creating roadmap (v2 - LTA based) for user:', userId, 
+                `with ${assessmentData?.aspirations?.length || 0} aspirations.`);
     
-    // Transform assessment data into roadmap goals and milestones
+    // Transform assessment data into roadmap goals (LTAs) and metadata
     const roadmapData = generateRoadmapFromAssessment(assessmentData);
+
+    // Ensure roadmapData.goals is an array, even if empty
+    const goalsToInsert = roadmapData.goals || [];
 
     const { data, error } = await supabase
       .from('roadmaps')
       .insert({
         user_id: userId,
-        goals: roadmapData.goals,
-        milestones: roadmapData.milestones,
+        goals: goalsToInsert, // These are now the LTAs
+        // milestones: roadmapData.milestones, // Milestones are no longer part of the initial roadmap creation here
         progress: {
           completed_goals: 0,
-          total_goals: roadmapData.goals.length
+          total_goals: goalsToInsert.length, // Based on the number of LTAs
+          // We might add more detailed progress tracking later, e.g., per LTA or overall WG completion
         },
-        metadata: roadmapData.metadata,
-        current_phase: 1,
+        metadata: roadmapData.metadata, // Contains engagement prefs, satisfaction baseline, etc.
+        current_phase: 1, // Default starting phase
         phases: [{
           number: 1,
-          name: 'Getting Started',
-          description: 'Building foundational habits and routines',
+          name: 'Embarking on Your Journey', // Renamed for a more motivational feel
+          description: 'Defining long-term aspirations and starting to build momentum.',
           status: 'active'
         }]
+        // roadmap_version: '2.0' // Optional: if you want to version the roadmap structure itself
       })
       .select()
       .single();
 
     if (error) {
-      console.error('[Roadmap] Error creating roadmap:', error);
+      console.error('[Roadmap] Error creating roadmap in Supabase:', JSON.stringify(error, null, 2));
       throw error;
     }
 
-    console.log('[Roadmap] Successfully created roadmap:', data);
+    console.log('[Roadmap] Successfully created LTA-based roadmap:', JSON.stringify(data, null, 2));
 
     // Store in local storage
     await AsyncStorage.setItem(ROADMAP_STORAGE_KEY, JSON.stringify(data));
@@ -134,70 +141,72 @@ export const clearLocalRoadmap = async () => {
  * @returns {object} - Formatted roadmap data with goals and milestones
  */
 const generateRoadmapFromAssessment = (assessmentData) => {
-  console.log('[Roadmap] Generating roadmap from assessment data:', assessmentData);
+  // Console log the raw assessmentData to see what's coming in
+  console.log('[Roadmap] Generating roadmap from assessment data (v2 - LTA based):', JSON.stringify(assessmentData, null, 2));
   
   const goals = [];
-  const milestones = [];
+  // Milestones are no longer auto-generated here; they will be represented by Weekly Goals created by the user.
+  // const milestones = []; 
 
-  // Transform focus areas (currentHabits) into goals
-  const focusAreas = assessmentData.currentHabits || [];
-  console.log('[Roadmap] Processing focus areas:', focusAreas);
+  // Transform user-defined aspirations (LTAs) into roadmap goals
+  const userAspirations = assessmentData.aspirations || []; // This now comes from definedLTAs in onboarding
+  console.log('[Roadmap] Processing user aspirations (LTAs):', JSON.stringify(userAspirations, null, 2));
   
-  focusAreas.forEach((area, index) => {
-    const goalId = `goal_${index}`;
+  userAspirations.forEach((aspiration, index) => {
+    const goalId = `user_lta_${index}_${new Date().getTime()}`; // More unique ID
     goals.push({
       id: goalId,
-      description: area,
-      timeline: '3 months',
-      status: 'pending',
-      priority: index + 1,
-      type: 'focus_area'
+      text: aspiration.text, // User's own words for their LTA
+      // description: aspiration.text, // Using 'text' as the primary field for LTA content
+      timeline: 'long-term', // Default timeline, user breaks it down with WGs
+      status: 'pending', // Initial status
+      priority: index + 1, // Simple priority based on order of definition
+      type: 'user_defined_lta', // Clearly mark as a user-defined Long-Term Aspiration
+      areaId: aspiration.areaId, // Link to the growth area
+      areaLabel: aspiration.areaLabel, // Store label for convenience
+      // weeklyGoalIds: [], // Initialize if we want to store linked WG IDs directly here, though typically WGs will reference the LTA.
+      // progress: 0, // LTA-specific progress, could be calculated later based on WGs
+      created_at: new Date().toISOString(),
     });
 
-    milestones.push({
-      goal_id: goalId,
-      description: `Start working on ${area}`,
-      target_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'pending'
-    });
+    // Milestones are not created here anymore.
+    // Users will create Weekly Goals which act as actionable steps (milestones) for these LTAs.
   });
 
-  // Add satisfaction baseline goal if score is below 7
+  // The satisfaction improvement goal can be kept if desired, or re-evaluated.
+  // For now, let's keep it to see how it fits with user-defined LTAs.
+  // It might be better for the AI coach to suggest this based on satisfaction score later.
   if (assessmentData.satisfactionBaseline?.overallScore < 7) {
-    console.log('[Roadmap] Adding satisfaction improvement goal');
-    const goalId = 'satisfaction_improvement';
+    console.log('[Roadmap] Adding satisfaction improvement goal (alongside user LTAs)');
+    const goalId = `satisfaction_improvement_${new Date().getTime()}`;
     goals.push({
       id: goalId,
-      description: 'Improve overall life satisfaction',
-      timeline: '6 months',
+      text: 'Improve overall life satisfaction',
+      // description: 'Improve overall life satisfaction',
+      timeline: 'ongoing', // Satisfaction is an ongoing process
       status: 'pending',
       priority: goals.length + 1,
-      type: 'satisfaction'
-    });
-
-    milestones.push({
-      goal_id: goalId,
-      description: 'Set small daily actions for improvement',
-      target_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'pending'
+      type: 'system_suggested_satisfaction', // Differentiate from user LTAs
+      created_at: new Date().toISOString(),
     });
   }
 
-  // Add engagement preferences as metadata
+  // Add engagement preferences and other relevant selections as metadata
   const metadata = {
-    preferredTime: assessmentData.engagementPrefs?.preferredTime,
-    sessionLength: assessmentData.engagementPrefs?.sessionLength,
-    reminderFrequency: assessmentData.engagementPrefs?.reminderFrequency,
-    preferredExercises: assessmentData.engagementPrefs?.preferredExercises
+    assessmentVersion: assessmentData.assessment_version || '3', // Store assessment version used
+    satisfactionBaseline: assessmentData.satisfactionBaseline,
+    engagementPreferences: assessmentData.engagementPrefs,
+    growthAreasSelected: assessmentData.growthAreas, // Store the selected growth areas raw objects
+    // Any other parts of assessmentData that are useful as metadata for the roadmap
   };
 
-  console.log('[Roadmap] Generated goals:', goals);
-  console.log('[Roadmap] Generated milestones:', milestones);
-  console.log('[Roadmap] Metadata:', metadata);
+  console.log('[Roadmap] Generated goals (LTA-based):', JSON.stringify(goals, null, 2));
+  // console.log('[Roadmap] Milestones (removed from auto-generation):', milestones);
+  console.log('[Roadmap] Generated metadata:', JSON.stringify(metadata, null, 2));
 
   return {
-    goals,
-    milestones,
+    goals, // These are now the LTAs
+    // milestones, // Removed
     metadata
   };
 };
