@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
@@ -30,6 +30,7 @@ const PlayerScreen = ({ navigation, route }) => {
   const { user } = useUser();
   const [isCompleted, setIsCompleted] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [loading, setLoading] = useState(true); // Add loading state for UI consistency
   const { 
     isPlaying,
     progress,
@@ -48,8 +49,18 @@ const PlayerScreen = ({ navigation, route }) => {
     originRouteName,
     isPlaying,
     progress,
-    userId: user?.id
+    userId: user?.id,
+    loading
   });
+
+  // Simulate loading for audio setup - remove loading state after a brief moment
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+      console.debug('[BinauralPlayerScreen] Audio setup complete, removing loading state');
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (progress >= 1 && !isCompleted && user?.id) {
@@ -120,21 +131,47 @@ const PlayerScreen = ({ navigation, route }) => {
     navigation.goBack();
   };
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.indigoGradient.start} />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+  // Loading screen with ActivityIndicator
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.indigoGradient.start} />
         <LinearGradient
           colors={[COLORS.indigoGradient.start, COLORS.indigoGradient.end]}
           style={styles.screenGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
-            <View>
-              <Text style={styles.appbarTitle}>Binaural Beats</Text>
-              <Text style={styles.appbarSubtitle}>{frequencyData.name}</Text>
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color={COLORS.textOnColor} />
+              <Text style={styles.loadingText}>Setting up your binaural beats...</Text>
             </View>
-          </Appbar.Header>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.indigoGradient.start} />
+      <LinearGradient
+        colors={[COLORS.indigoGradient.start, COLORS.indigoGradient.end]}
+        style={styles.screenGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <View style={styles.headerContainer}>
+            <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+              <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.appbarTitle}>Binaural Beats</Text>
+                <Text style={styles.appbarSubtitle}>{frequencyData.name}</Text>
+              </View>
+            </Appbar.Header>
+          </View>
 
           <View style={styles.content}>
             <PlayerCard
@@ -172,8 +209,8 @@ const PlayerScreen = ({ navigation, route }) => {
             iconColor={COLORS.error}
             iconBackgroundColor="rgba(255,59,48,0.1)"
           />
-        </LinearGradient>
-      </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 };
@@ -183,15 +220,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textOnColor,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.medium,
+  },
   safeArea: {
     flex: 1,
   },
   screenGradient: {
     flex: 1,
   },
+  headerContainer: {
+    // Clean header container like DeepWorkScreen
+  },
   appbar: {
     backgroundColor: 'transparent',
     elevation: 0,
+    paddingHorizontal: SPACING.md,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: SPACING.md,
   },
   appbarTitle: {
     color: COLORS.textOnColor,
@@ -199,8 +255,10 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.lg,
   },
   appbarSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
     fontWeight: FONT.weight.medium,
+    fontSize: FONT.size.md,
+    marginTop: 2,
   },
   content: {
     flex: 1,

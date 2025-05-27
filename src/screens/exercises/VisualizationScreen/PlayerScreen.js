@@ -88,9 +88,21 @@ const PlayerScreen = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={COLORS.coralGradient.start} />
-        <Text style={styles.loadingText}>Setting up your visualization...</Text>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.coralGradient.start} />
+        <LinearGradient
+          colors={[COLORS.coralGradient.start, COLORS.coralGradient.end]}
+          style={styles.screenGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color={COLORS.textOnColor} />
+              <Text style={styles.loadingText}>Setting up your visualization...</Text>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
       </View>
     );
   }
@@ -98,18 +110,22 @@ const PlayerScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.coralGradient.start} />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <LinearGradient
-          colors={[COLORS.coralGradient.start, COLORS.coralGradient.end]}
-          style={styles.screenGradient}
-        >
-          <Appbar.Header style={styles.appbar} statusBarHeight={0}>
-            <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
-            <View>
-              <Text style={styles.appbarTitle}>Visualization</Text>
-              <Text style={styles.appbarSubtitle}>{selectedType.label}</Text>
-            </View>
-          </Appbar.Header>
+      <LinearGradient
+        colors={[COLORS.coralGradient.start, COLORS.coralGradient.end]}
+        style={styles.screenGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <View style={styles.headerContainer}>
+            <Appbar.Header style={styles.appbar} statusBarHeight={0}>
+              <Appbar.BackAction onPress={handleBack} color={COLORS.textOnColor} />
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.appbarTitle}>Visualization</Text>
+                <Text style={styles.appbarSubtitle}>{selectedType.label}</Text>
+              </View>
+            </Appbar.Header>
+          </View>
 
           <View style={styles.content}>
             <PlayerCard
@@ -145,8 +161,8 @@ const PlayerScreen = ({ route, navigation }) => {
             iconColor={COLORS.error}
             iconBackgroundColor="rgba(255,59,48,0.1)"
           />
-        </LinearGradient>
-      </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 };
@@ -156,14 +172,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  loadingContainer: {
+  loadingContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     marginTop: SPACING.md,
-    color: COLORS.textLight,
+    color: COLORS.textOnColor,
     fontSize: FONT.size.md,
+    fontWeight: FONT.weight.medium,
   },
   safeArea: {
     flex: 1,
@@ -171,9 +189,17 @@ const styles = StyleSheet.create({
   screenGradient: {
     flex: 1,
   },
+  headerContainer: {
+    // Clean header container like DeepWorkScreen
+  },
   appbar: {
     backgroundColor: 'transparent',
     elevation: 0,
+    paddingHorizontal: SPACING.md,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: SPACING.md,
   },
   appbarTitle: {
     color: COLORS.textOnColor,
@@ -181,8 +207,10 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.lg,
   },
   appbarSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
     fontWeight: FONT.weight.medium,
+    fontSize: FONT.size.md,
+    marginTop: 2,
   },
   content: {
     flex: 1,
