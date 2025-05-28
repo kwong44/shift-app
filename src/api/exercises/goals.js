@@ -187,4 +187,105 @@ export const fetchAllUserWeeklyGoals = async (userId) => {
     console.error('[Goals API] Error in fetchAllUserWeeklyGoals:', error.message);
     throw error;
   }
+};
+
+/**
+ * Create a simple weekly goal (simplified version for AI Coach)
+ * @param {string} userId - User ID
+ * @param {string} text - Goal text content
+ * @returns {Promise} - The created goal object
+ */
+export const createSimpleWeeklyGoal = async (userId, text) => {
+  try {
+    // Calculate the end of the current week (Sunday)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    const daysUntilEndOfWeek = 7 - dayOfWeek;
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + daysUntilEndOfWeek);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Debug log
+    console.debug('[Goals API] Creating simple weekly goal', { userId, text, weekEnding: endOfWeek });
+
+    // For AI Coach goals, we'll create them without roadmap linkage initially
+    // This allows for quick goal creation that can be linked to roadmaps later
+    const { data, error } = await supabase
+      .from('weekly_goals')
+      .insert({
+        user_id: userId,
+        text,
+        completed: false,
+        week_ending: endOfWeek.toISOString(),
+        // roadmap_id and lta_id_ref are nullable, so we can leave them null for AI Coach goals
+        roadmap_id: null,
+        lta_id_ref: null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Goals API] Error creating simple weekly goal:', error);
+      throw error;
+    }
+
+    console.debug('[Goals API] Simple weekly goal created successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[Goals API] Error in createSimpleWeeklyGoal:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Create a weekly goal linked to a long-term goal (NEW SYSTEM)
+ * @param {string} userId - User ID
+ * @param {string} longTermGoalId - ID of the long-term goal this weekly goal belongs to
+ * @param {string} text - Goal text content
+ * @returns {Promise} - The created goal object
+ */
+export const createWeeklyGoalForLongTermGoal = async (userId, longTermGoalId, text) => {
+  try {
+    // Calculate the end of the current week (Sunday)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    const daysUntilEndOfWeek = 7 - dayOfWeek;
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + daysUntilEndOfWeek);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Debug log - Rule: Always add debug logs
+    console.debug('[Goals API] Creating weekly goal for long-term goal', { 
+      userId, 
+      longTermGoalId, 
+      text, 
+      weekEnding: endOfWeek 
+    });
+
+    const { data, error } = await supabase
+      .from('weekly_goals')
+      .insert({
+        user_id: userId,
+        text,
+        completed: false,
+        week_ending: endOfWeek.toISOString(),
+        long_term_goal_id: longTermGoalId, // NEW: Use the new foreign key
+        // Leave old columns null for clean separation
+        roadmap_id: null,
+        lta_id_ref: null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Goals API] Error creating weekly goal for long-term goal:', error);
+      throw error;
+    }
+
+    console.debug('[Goals API] Weekly goal created successfully for long-term goal:', data);
+    return data;
+  } catch (error) {
+    console.error('[Goals API] Error in createWeeklyGoalForLongTermGoal:', error.message);
+    throw error;
+  }
 }; 

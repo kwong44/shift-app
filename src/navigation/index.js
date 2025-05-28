@@ -284,15 +284,12 @@ const Navigation = () => {
             <Stack.Screen 
               name="AICoachChat"
               component={AICoachScreen}
-              options={({ navigation, route }) => ({
-                title: 'Samantha Placeholder',
-                headerShadowVisible: false,
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                presentation: 'modal',
-                cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
-              })}
+              options={{
+                headerShown: true,
+                headerBackVisible: true,
+                presentation: 'card',
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              }}
             />
           </Stack.Group>
         )}

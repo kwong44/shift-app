@@ -5,11 +5,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import { createWeeklyGoal, updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
 import { supabase } from '../../../../config/supabase';
+import * as Haptics from 'expo-haptics';
 
 // Debug logger for tracking component lifecycle and user interactions
 const debug = {
   log: (message) => {
     console.log(`[GrowthRoadmap] ${message}`);
+  },
+  error: (message) => {
+    console.error(`[GrowthRoadmap] ${message}`);
   }
 };
 
@@ -29,9 +33,10 @@ const GrowthRoadmap = ({
   onMoodPress,
   emotions, // Updated from MOODS to emotions
   // New props for roadmap features
-  roadmap, // New prop: the user's roadmap object from Supabase (contains LTAs, current phase)
-  allUserWeeklyGoals = [], // New prop: all weekly goals for the user
-  onUpdateRoadmapData, // New prop: callback to notify parent of data changes (e.g., after adding/updating WG)
+  roadmap, // Old prop: the user's roadmap object from Supabase (contains LTAs, current phase) - DEPRECATED
+  allUserWeeklyGoals = [], // All weekly goals for the user (includes both old and new system)
+  longTermGoals = [], // NEW: Long-term goals with linked weekly goals from new system
+  onUpdateRoadmapData, // Callback to notify parent of data changes
 }) => {
   const [animatedProgress] = React.useState(new Animated.Value(0));
   const [expandedLtaId, setExpandedLtaId] = useState(null);
@@ -51,7 +56,8 @@ const GrowthRoadmap = ({
   useEffect(() => {
     debug.log(`Roadmap data: ${roadmap ? `Phase: ${roadmap.current_phase?.name}, LTAs: ${roadmap.goals?.length}` : 'No roadmap'}`);
     debug.log(`All user weekly goals received: ${allUserWeeklyGoals.length}`);
-  }, [roadmap, allUserWeeklyGoals]);
+    debug.log(`Long-term goals (NEW SYSTEM) received: ${longTermGoals.length}`);
+  }, [roadmap, allUserWeeklyGoals, longTermGoals]);
 
   useEffect(() => {
     const progressToAnimate = dailyProgress || (roadmap?.progress?.total_goals ? (roadmap.progress.completed_goals / roadmap.progress.total_goals) : 0);
@@ -86,12 +92,24 @@ const GrowthRoadmap = ({
     const goalText = newGoalTexts[ltaId]?.trim();
     if (!goalText || !roadmap || !roadmap.id) {
       debug.log('Cannot add weekly goal: missing text, roadmap, or roadmap ID.');
+      debug.log(`Debug details: goalText="${goalText}", roadmap exists=${!!roadmap}, roadmap.id="${roadmap?.id}"`);
       return;
     }
     
     try {
       setIsLoading(true);
       debug.log(`Attempting to add weekly goal "${goalText}" for LTA ${ltaId} in roadmap ${roadmap.id}`);
+      
+      // Additional validation - Rule: Always add debug logs
+      debug.log(`Roadmap validation: ID=${roadmap.id}, goals count=${roadmap.goals?.length}, LTA exists=${roadmap.goals?.some(g => g.id === ltaId)}`);
+      
+      // Verify the LTA exists in the roadmap
+      const ltaExists = roadmap.goals?.some(goal => goal.id === ltaId);
+      if (!ltaExists) {
+        debug.log(`ERROR: LTA ${ltaId} not found in roadmap goals`);
+        console.error('LTA not found in roadmap:', { ltaId, availableLTAs: roadmap.goals?.map(g => g.id) });
+        return;
+      }
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated for adding weekly goal');
@@ -105,6 +123,13 @@ const GrowthRoadmap = ({
 
     } catch (error) {
       console.error('Failed to add weekly goal:', error);
+      debug.log(`Error details: ${error.message}`);
+      // Add user-friendly error message
+      if (error.message?.includes('foreign key constraint')) {
+        console.error('Foreign key constraint error - roadmap or LTA not found in database');
+        debug.log('This suggests a data synchronization issue. Refreshing data...');
+        if (onUpdateRoadmapData) onUpdateRoadmapData();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -257,19 +282,210 @@ const GrowthRoadmap = ({
     });
   };
 
+  const renderNewLongTermGoals = () => {
+    if (!longTermGoals || longTermGoals.length === 0) {
+      debug.log('No long-term goals (NEW SYSTEM) to render.');
+      return (
+        <View style={styles.emptyGoalsSection}>
+          <Text style={styles.infoText}>
+            Create long-term goals through the AI Coach to track your progress!
+          </Text>
+        </View>
+      );
+    }
+
+    debug.log(`Rendering ${longTermGoals.length} long-term goals from NEW SYSTEM`);
+
+    return longTermGoals.map((longTermGoal) => {
+      const weeklyGoals = longTermGoal.weekly_goals || [];
+      const completedWeeklyGoals = weeklyGoals.filter(wg => wg.completed).length;
+      const goalProgress = weeklyGoals.length > 0 ? completedWeeklyGoals / weeklyGoals.length : 0;
+
+      debug.log(`Rendering Long-term Goal: ${longTermGoal.id} (${longTermGoal.title}). Progress: ${goalProgress}. Weekly Goals: ${weeklyGoals.length}`);
+
+      return (
+        <View key={longTermGoal.id} style={styles.ltaContainer}>
+          <TouchableRipple onPress={() => toggleLtaSection(longTermGoal.id)} style={styles.ltaHeaderTouchable}>
+            <View style={styles.ltaHeader}>
+              <MaterialCommunityIcons 
+                name={longTermGoal.source === 'ai_coach' ? 'robot-outline' : 'bullseye-arrow'} 
+                size={20} 
+                color={longTermGoal.source === 'ai_coach' ? COLORS.accent : COLORS.primary} 
+              />
+              <Text style={styles.ltaTitle}>{longTermGoal.title}</Text>
+              {longTermGoal.source === 'ai_coach' && (
+                <Text style={styles.aiCoachBadge}>AI</Text>
+              )}
+              <MaterialCommunityIcons 
+                name={expandedLtaId === longTermGoal.id ? "chevron-up" : "chevron-down"} 
+                size={24} 
+                color={COLORS.text} 
+              />
+            </View>
+          </TouchableRipple>
+          <ProgressBar progress={goalProgress} color={COLORS.accent} style={styles.ltaProgress} />
+
+          {expandedLtaId === longTermGoal.id && (
+            <View style={styles.ltaDetails}>
+              {longTermGoal.description && (
+                <Text style={styles.goalDescription}>{longTermGoal.description}</Text>
+              )}
+              
+              <View style={styles.addGoalContainer}>
+                <TextInput
+                  style={styles.goalInput}
+                  value={newGoalTexts[longTermGoal.id] || ''}
+                  onChangeText={(text) => handleNewGoalTextChange(longTermGoal.id, text)}
+                  placeholder="Add a new weekly goal for this long-term goal..."
+                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                  editable={!isLoading}
+                />
+                <IconButton
+                  icon="plus-circle"
+                  size={24}
+                  color={COLORS.primary}
+                  onPress={() => addWeeklyGoal(longTermGoal.id)}
+                  disabled={!(newGoalTexts[longTermGoal.id]?.trim()) || isLoading}
+                />
+              </View>
+              
+              {weeklyGoals.length > 0 ? weeklyGoals.map((goal) => (
+                <View key={goal.id} style={styles.goalItem}>
+                  <TouchableRipple
+                    onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
+                    style={styles.goalCheckbox}
+                    disabled={isLoading}
+                  >
+                    <MaterialCommunityIcons 
+                      name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
+                      size={16} 
+                      color={COLORS.text} 
+                    />
+                  </TouchableRipple>
+                  <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
+                    {goal.text}
+                  </Text>
+                  <IconButton
+                    icon="close-circle"
+                    size={16}
+                    color="rgba(0, 0, 0, 0.5)"
+                    onPress={() => removeGoal(goal.id)}
+                    style={styles.removeGoalButton}
+                    disabled={isLoading}
+                  />
+                </View>
+              )) : (
+                <Text style={styles.emptyGoalsText}>
+                  Break down this long-term goal into weekly action steps!
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    });
+  };
+
+  const renderAICoachGoals = () => {
+    // Filter goals that were created by AI Coach (no roadmap linkage)
+    const aiCoachGoals = allUserWeeklyGoals.filter(wg => !wg.roadmap_id || !wg.lta_id_ref);
+    
+    if (aiCoachGoals.length === 0) {
+      debug.log('No AI Coach goals to display');
+      return null;
+    }
+
+    debug.log(`Rendering ${aiCoachGoals.length} AI Coach goals`);
+
+    return (
+      <View style={styles.aiCoachContainer}>
+        <View style={styles.aiCoachHeader}>
+          <MaterialCommunityIcons name="robot-outline" size={20} color={COLORS.accent} />
+          <Text style={styles.aiCoachTitle}>AI Coach Goals</Text>
+        </View>
+        <Text style={styles.aiCoachDescription}>
+          Goals suggested by your AI Coach to help you grow
+        </Text>
+        
+        {aiCoachGoals.map((goal) => (
+          <View key={goal.id} style={styles.goalItem}>
+            <TouchableRipple
+              onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
+              style={styles.goalCheckbox}
+              disabled={isLoading}
+            >
+              <MaterialCommunityIcons 
+                name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
+                size={16} 
+                color={COLORS.text} 
+              />
+            </TouchableRipple>
+            <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
+              {goal.text}
+            </Text>
+            <IconButton
+              icon="close-circle"
+              size={16}
+              color="rgba(0, 0, 0, 0.5)"
+              onPress={() => removeGoal(goal.id)}
+              style={styles.removeGoalButton}
+              disabled={isLoading}
+            />
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   // Get the current emotion object
   const currentEmotionData = getCurrentEmotion();
 
-  // Calculate overall progress for the main progress bar (example: based on LTAs)
-  const overallProgressValue = roadmap?.goals?.length > 0 
-    ? roadmap.goals.reduce((acc, lta) => {
-        const associatedWGs = allUserWeeklyGoals.filter(wg => wg.lta_id_ref === lta.id && wg.roadmap_id === roadmap.id);
-        const completedWGs = associatedWGs.filter(wg => wg.completed).length;
-        return acc + (associatedWGs.length > 0 ? (completedWGs / associatedWGs.length) : 0);
-      }, 0) / roadmap.goals.length
+  // Calculate overall progress from roadmap or daily progress - Rule: Always add debug logs  
+  const overallProgressValue = roadmap?.progress?.total_goals 
+    ? (roadmap.progress.completed_goals / roadmap.progress.total_goals) 
     : 0;
-  
+    
   debug.log(`Calculated overall progress value for top bar: ${overallProgressValue}`);
+
+  const addWeeklyGoalToLongTermGoal = async (longTermGoalId) => {
+    const goalText = newGoalTexts[longTermGoalId]?.trim();
+    if (!goalText) return;
+
+    setIsLoading(true);
+    try {
+      debug.log(`Adding weekly goal to long-term goal ${longTermGoalId}: ${goalText}`);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Use the new system API
+      const { createWeeklyGoalForLongTermGoal } = await import('../../../api/exercises/goals');
+      const newGoal = await createWeeklyGoalForLongTermGoal(user.id, longTermGoalId, goalText);
+
+      debug.log('Weekly goal added to long-term goal successfully:', newGoal);
+
+      // Clear the input
+      setNewGoalTexts(prev => ({
+        ...prev,
+        [longTermGoalId]: ''
+      }));
+
+      // Notify parent to refresh data
+      if (onUpdateRoadmapData) {
+        await onUpdateRoadmapData();
+      }
+
+      // Success feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    } catch (error) {
+      debug.error('Error adding weekly goal to long-term goal:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      alert(`Failed to add goal: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -342,6 +558,8 @@ const GrowthRoadmap = ({
 
         {renderPhaseIndicator()}
         {renderLongTermAspirations()}
+        {renderNewLongTermGoals()}
+        {renderAICoachGoals()}
       </ScrollView>
     </View>
   );
@@ -359,7 +577,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   scrollContentContainer: {
-    paddingBottom: SPACING.xxl, 
+    paddingBottom: SPACING.lg,
   },
   infoText: {
     color: COLORS.textSecondary,
@@ -573,6 +791,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.xs,
     paddingBottom: SPACING.xs,
+  },
+  aiCoachContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginVertical: SPACING.xs,
+    ...SHADOWS.small,
+  },
+  aiCoachHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  aiCoachTitle: {
+    color: COLORS.textHeader,
+    fontSize: FONT.size.sm,
+    fontWeight: FONT.weight.semiBold,
+    marginLeft: SPACING.sm,
+  },
+  aiCoachDescription: {
+    color: COLORS.textSecondary,
+    fontSize: FONT.size.xs,
+    lineHeight: FONT.size.xs * 1.4,
+  },
+  aiCoachBadge: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xxs,
+    marginLeft: SPACING.xs,
+    color: COLORS.textOnColor,
+    fontSize: FONT.size.xs,
+    fontWeight: FONT.weight.semiBold,
+  },
+  goalDescription: {
+    color: COLORS.textSecondary,
+    fontSize: FONT.size.xs,
+    lineHeight: FONT.size.xs * 1.4,
+    marginBottom: SPACING.sm,
+  },
+  emptyGoalsSection: {
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: RADIUS.md,
+    marginVertical: SPACING.sm,
   },
 });
 

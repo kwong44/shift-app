@@ -12,6 +12,7 @@ import {
   getRecentJournalInsights,
   fetchAllUserWeeklyGoals
 } from '../../../api/exercises';
+import { getLongTermGoalsWithWeeklyGoals } from '../../../api/longTermGoals';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -41,6 +42,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Transformed roadmap data for GrowthRoadmap component
   const [allUserWeeklyGoals, setAllUserWeeklyGoals] = useState([]);
+  const [longTermGoals, setLongTermGoals] = useState([]);
 
   useEffect(() => {
     loadUserData();
@@ -183,20 +185,35 @@ const HomeScreen = ({ navigation }) => {
 
       console.debug('[HomeScreen] Loading user data for:', user.id);
 
-      const [roadmapData, tasksData, visualizationsData, userData, streakData, allGoalsData] = await Promise.all([
+      // Clear roadmap cache to prevent stale data issues - Rule: Always add debug logs
+      console.debug('[HomeScreen] Clearing roadmap cache to prevent stale data');
+      try {
+        const { clearLocalRoadmap } = await import('../../../api/roadmap');
+        await clearLocalRoadmap();
+        console.debug('[HomeScreen] Roadmap cache cleared successfully');
+      } catch (cacheError) {
+        console.warn('[HomeScreen] Could not clear roadmap cache:', cacheError);
+      }
+
+      const [roadmapData, tasksData, visualizationsData, userData, streakData, allGoalsData, longTermGoalsData] = await Promise.all([
         fetchRoadmap(user.id),
         getTasks(user.id),
         getVisualizations(user.id),
         supabase.from('users').select('name').eq('id', user.id).single(),
         supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
-        fetchAllUserWeeklyGoals(user.id)
+        fetchAllUserWeeklyGoals(user.id),
+        getLongTermGoalsWithWeeklyGoals(user.id)
       ]);
 
       console.debug('[HomeScreen] Raw roadmap data:', roadmapData);
+      console.debug('[HomeScreen] Roadmap ID being set:', roadmapData?.id);
       setRoadmap(roadmapData);
       
       console.debug('[HomeScreen] Raw allUserWeeklyGoals data:', allGoalsData);
       setAllUserWeeklyGoals(allGoalsData || []);
+      
+      console.debug('[HomeScreen] Raw longTermGoals data:', longTermGoalsData);
+      setLongTermGoals(longTermGoalsData || []);
       
       setUserName(userData?.data?.name || '');
 
@@ -246,20 +263,29 @@ const HomeScreen = ({ navigation }) => {
 
   const handleRoadmapUpdate = async () => {
     try {
-      console.debug('[HomeScreen] handleRoadmapUpdate: Refreshing roadmap and weekly goals due to update from GrowthRoadmap.');
+      console.debug('[HomeScreen] handleRoadmapUpdate: Refreshing roadmap, weekly goals, and long-term goals.');
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.warn('[HomeScreen] handleRoadmapUpdate: No user found to refresh data.');
         return;
       }
-      const roadmapData = await fetchRoadmap(user.id);
-      const allGoalsData = await fetchAllUserWeeklyGoals(user.id);
+      
+      // Fetch both old and new systems data
+      const [roadmapData, allGoalsData, longTermGoalsData] = await Promise.all([
+        fetchRoadmap(user.id),
+        fetchAllUserWeeklyGoals(user.id),
+        getLongTermGoalsWithWeeklyGoals(user.id)
+      ]);
 
       console.debug('[HomeScreen] handleRoadmapUpdate: New roadmap data:', roadmapData);
       setRoadmap(roadmapData);
+      
       console.debug('[HomeScreen] handleRoadmapUpdate: New allUserWeeklyGoals data:', allGoalsData);
       setAllUserWeeklyGoals(allGoalsData || []);
+      
+      console.debug('[HomeScreen] handleRoadmapUpdate: New longTermGoals data:', longTermGoalsData);
+      setLongTermGoals(longTermGoalsData || []);
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       console.debug('[HomeScreen] handleRoadmapUpdate: Data refresh complete.');
@@ -305,6 +331,7 @@ const HomeScreen = ({ navigation }) => {
             emotions={EMOTIONS}
             roadmap={roadmap}
             allUserWeeklyGoals={allUserWeeklyGoals}
+            longTermGoals={longTermGoals}
             onUpdateRoadmapData={handleRoadmapUpdate}
           />
 

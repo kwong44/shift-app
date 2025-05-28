@@ -129,18 +129,29 @@ const AICoachScreen = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      headerTintColor: COLORS.white,
-      headerStyle: {
-        backgroundColor: COLORS.background,
+      title: 'AI Coach',
+      headerTintColor: COLORS.text,
+      headerTitleStyle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.text,
       },
-      // Add credits display to header
+      headerStyle: {
+        backgroundColor: COLORS.surface,
+        elevation: 4,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      headerBackVisible: true,
+      headerBackTitleVisible: false,
       headerRight: () => credits !== null && (
         <CreditDisplay credits={credits} onTopUp={handleTopUpCredits} />
       ),
     });
     
     // Debug log
-    console.debug('[AICoachScreen] Screen focused, header options set');
+    console.debug('[AICoachScreen] Screen focused, header options set with title and back button');
     
     // Load user credits
     loadUserTokens();
@@ -358,13 +369,27 @@ const AICoachScreen = ({ navigation }) => {
 
       // Save user message to conversation history
       try {
-        await conversationHistory.saveMessage({
+        console.debug('[AICoachScreen] About to save user message:', {
+          content: userMessage.content,
+          isUser: true,
+          length: userMessage.content.length
+        });
+        
+        const savedUserMessage = await conversationHistory.saveMessage({
           content: userMessage.content,
           isUser: true
         });
-        console.debug('[AICoachScreen] User message saved to history');
+        
+        console.debug('[AICoachScreen] User message saved to history successfully:', {
+          id: savedUserMessage.id,
+          created_at: savedUserMessage.created_at
+        });
       } catch (error) {
         console.error('[AICoachScreen] Error saving user message to history:', error);
+        console.error('[AICoachScreen] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
         // Continue anyway - the edge function will save it as a backup
       }
 
@@ -414,14 +439,30 @@ const AICoachScreen = ({ navigation }) => {
 
           // Save AI message to conversation history
           try {
-            await conversationHistory.saveMessage({
+            console.debug('[AICoachScreen] About to save AI message:', {
+              content: aiMessage.content.substring(0, 50) + '...',
+              isUser: false,
+              tokenUsage: aiMessage.tokenInfo.used,
+              length: aiMessage.content.length
+            });
+            
+            const savedAIMessage = await conversationHistory.saveMessage({
               content: aiMessage.content,
               isUser: false,
               tokenUsage: aiMessage.tokenInfo.used
             });
-            console.debug('[AICoachScreen] AI response saved to history');
+            
+            console.debug('[AICoachScreen] AI response saved to history successfully:', {
+              id: savedAIMessage.id,
+              created_at: savedAIMessage.created_at,
+              token_usage: savedAIMessage.token_usage
+            });
           } catch (error) {
             console.error('[AICoachScreen] Error saving AI response to history:', error);
+            console.error('[AICoachScreen] AI save error details:', {
+              message: error.message,
+              stack: error.stack
+            });
             // Continue anyway - the edge function will save it as a backup
           }
           
