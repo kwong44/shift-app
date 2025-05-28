@@ -17,7 +17,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'weather-windy',
     route: 'MindfulnessSetup',
     tags: ['stress_reduction', 'focus', 'calm', 'short_session', 'beginner'],
-    gradientColors: COLORS.mindfulnessGradients?.breath || ['#4C63B6', '#3949AB'],
+    gradientColors: COLORS.mindfulnessGradients?.breath || ['#00B894', '#007E66'], // tealGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { mindfulnessType: 'breath', duration: minutesToSeconds(5) },
@@ -31,7 +31,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'human',
     route: 'MindfulnessSetup',
     tags: ['relaxation', 'body_awareness', 'tension_release'],
-    gradientColors: COLORS.mindfulnessGradients?.body || ['#7D8CC4', '#5C6BC0'],
+    gradientColors: COLORS.mindfulnessGradients?.body || ['#00B894', '#007E66'], // tealGradient
     defaultDurationText: '8 min',
     defaultDurationSeconds: minutesToSeconds(8),
     defaultSettings: { mindfulnessType: 'body', duration: minutesToSeconds(8) },
@@ -45,7 +45,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'eye',
     route: 'MindfulnessSetup',
     tags: ['grounding', 'present_moment', 'short_session'],
-    gradientColors: COLORS.mindfulnessGradients?.senses || ['#5C96AE', '#4A7B8A'],
+    gradientColors: COLORS.mindfulnessGradients?.senses || ['#00B894', '#007E66'], // tealGradient
     defaultDurationText: '4 min',
     defaultDurationSeconds: minutesToSeconds(4),
     defaultSettings: { mindfulnessType: 'senses', duration: minutesToSeconds(4) },
@@ -61,7 +61,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'target',
     route: 'VisualizationSetup',
     tags: ['goal_setting', 'motivation', 'success_mindset'],
-    gradientColors: COLORS.visualizationGradients?.goals || ['#4C63B6', '#3F51B5'],
+    gradientColors: COLORS.visualizationGradients?.goals || ['#FF7675', '#FF5D5D'], // coralGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { visualizationType: 'goals', duration: minutesToSeconds(5) },
@@ -75,7 +75,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'home-heart',
     route: 'VisualizationSetup',
     tags: ['future_planning', 'inspiration', 'positive_outlook'],
-    gradientColors: COLORS.visualizationGradients?.ideal_life || ['#FF7675', '#FF5D5D'],
+    gradientColors: COLORS.visualizationGradients?.ideal_life || ['#FF7675', '#FF5D5D'], // coralGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { visualizationType: 'ideal_life', duration: minutesToSeconds(5) },
@@ -89,7 +89,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'account-star',
     route: 'VisualizationSetup',
     tags: ['self_esteem', 'confidence_boost', 'positive_self_image'],
-    gradientColors: COLORS.visualizationGradients?.confidence || ['#7D8CC4', '#5C6BC0'],
+    gradientColors: COLORS.visualizationGradients?.confidence || ['#FF7675', '#FF5D5D'], // coralGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { visualizationType: 'confidence', duration: minutesToSeconds(5) },
@@ -103,7 +103,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'heart-pulse',
     route: 'VisualizationSetup',
     tags: ['gratitude', 'present_moment', 'inner_peace'],
-    gradientColors: COLORS.visualizationGradients?.contentment || ['#00B894', '#00A383'],
+    gradientColors: COLORS.visualizationGradients?.contentment || ['#FF7675', '#FF5D5D'], // coralGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { visualizationType: 'contentment', duration: minutesToSeconds(5) },
@@ -117,7 +117,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'wave',
     route: 'VisualizationSetup',
     tags: ['calm', 'emotional_regulation', 'relaxation'],
-    gradientColors: COLORS.visualizationGradients?.calm || ['#5C96AE', '#4A7F9B'],
+    gradientColors: COLORS.visualizationGradients?.calm || ['#FF7675', '#FF5D5D'], // coralGradient
     defaultDurationText: '5 min',
     defaultDurationSeconds: minutesToSeconds(5),
     defaultSettings: { visualizationType: 'calm', duration: minutesToSeconds(5) },
@@ -133,7 +133,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'checkbox-marked-outline',
     route: 'TaskPlanner',
     tags: ['organization', 'productivity', 'planning', 'focus'],
-    gradientColors: COLORS.purpleGradient ? [COLORS.purpleGradient.start, COLORS.purpleGradient.end] : ['#6A1B9A', '#4A148C'],
+    gradientColors: COLORS.purpleGradient ? [COLORS.purpleGradient.start, COLORS.purpleGradient.end] : ['#6C63FF', '#5F52EE'], // purpleGradient
     defaultDurationText: 'Flexible', // Duration is user-dependent
     defaultDurationSeconds: null, // Not a timed session in the same way
     defaultSettings: {},
@@ -149,7 +149,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'timer-outline',
     route: 'DeepWorkSetup',
     tags: ['focus', 'productivity', 'time_management', 'pomodoro'],
-    gradientColors: COLORS.deepWorkGradients?.pomodoro || ['#4C63B6', '#3F51B5'],
+    gradientColors: COLORS.deepWorkGradients?.pomodoro || ['#5AC8FA', '#4B9EF8'], // blueGradient
     defaultDurationText: '25 min',
     defaultDurationSeconds: minutesToSeconds(25),
     defaultSettings: { duration: minutesToSeconds(25) },
@@ -163,7 +163,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'timer-sand',
     route: 'DeepWorkSetup',
     tags: ['focus', 'deep_work', 'productivity'],
-    gradientColors: COLORS.deepWorkGradients?.extended || ['#7D8CC4', '#5C6BC0'],
+    gradientColors: COLORS.deepWorkGradients?.extended || ['#5AC8FA', '#4B9EF8'], // blueGradient
     defaultDurationText: '45 min',
     defaultDurationSeconds: minutesToSeconds(45),
     defaultSettings: { duration: minutesToSeconds(45) },
@@ -177,7 +177,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'timer',
     route: 'DeepWorkSetup',
     tags: ['deep_work', 'intense_focus', 'productivity'],
-    gradientColors: COLORS.deepWorkGradients?.deep || ['#5C96AE', '#4A7F9B'],
+    gradientColors: COLORS.deepWorkGradients?.deep || ['#5AC8FA', '#4B9EF8'], // blueGradient
     defaultDurationText: '50 min',
     defaultDurationSeconds: minutesToSeconds(50),
     defaultSettings: { duration: minutesToSeconds(50) },
@@ -193,7 +193,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'brain',
     route: 'BinauralSetup',
     tags: ['focus', 'concentration', 'study', 'work', 'beta_waves'],
-    gradientColors: COLORS.binauralGradients?.focus || ['#1E88E5', '#1565C0'], // Example blue
+    gradientColors: COLORS.binauralGradients?.focus || ['#7D8CC4', '#5D6CAF'], // indigoGradient
     defaultDurationText: '20 min',
     defaultDurationSeconds: minutesToSeconds(20),
     defaultSettings: { binauralType: 'focus', name: 'Focus', frequency: 15, baseFrequency: 200, duration: minutesToSeconds(20), waveform: 'sine', category: 'Beta' },
@@ -208,7 +208,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'meditation',
     route: 'BinauralSetup',
     tags: ['meditation', 'relaxation', 'mindfulness', 'theta_waves'],
-    gradientColors: COLORS.binauralGradients?.meditation || ['#7E57C2', '#5E35B1'], // Example purple
+    gradientColors: COLORS.binauralGradients?.meditation || ['#7D8CC4', '#5D6CAF'], // indigoGradient
     defaultDurationText: '15 min',
     defaultDurationSeconds: minutesToSeconds(15),
     defaultSettings: { binauralType: 'meditation', name: 'Meditation', frequency: 6, baseFrequency: 180, duration: minutesToSeconds(15), waveform: 'sine', category: 'Theta' },
@@ -223,7 +223,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'lightbulb-on-outline',
     route: 'BinauralSetup',
     tags: ['creativity', 'flow_state', 'inspiration', 'alpha_waves'],
-    gradientColors: COLORS.binauralGradients?.creativity || ['#FFB300', '#FF8F00'], // Example amber
+    gradientColors: COLORS.binauralGradients?.creativity || ['#7D8CC4', '#5D6CAF'], // indigoGradient
     defaultDurationText: '30 min',
     defaultDurationSeconds: minutesToSeconds(30),
     defaultSettings: { binauralType: 'creativity', name: 'Creativity', frequency: 8, baseFrequency: 160, duration: minutesToSeconds(30), waveform: 'triangle', category: 'Alpha' },
@@ -238,7 +238,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'power-sleep',
     route: 'BinauralSetup',
     tags: ['sleep', 'relaxation', 'insomnia_aid', 'theta_waves'],
-    gradientColors: COLORS.binauralGradients?.sleep || ['#424242', '#212121'], // Example dark grey
+    gradientColors: COLORS.binauralGradients?.sleep || ['#7D8CC4', '#5D6CAF'], // indigoGradient
     defaultDurationText: '30 min',
     defaultDurationSeconds: minutesToSeconds(30),
     defaultSettings: { binauralType: 'sleep', name: 'Sleep', frequency: 4, baseFrequency: 140, duration: minutesToSeconds(30), waveform: 'sine', category: 'Theta' },
@@ -255,7 +255,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'heart-outline',
     route: 'Journaling', 
     tags: ['gratitude', 'positive_psychology', 'reflection', 'well_being'],
-    gradientColors: COLORS.journalingGradients?.gratitude || ['#4C63B6', '#3F51B5'],
+    gradientColors: COLORS.journalingGradients?.gratitude || ['#F368E0', '#D63AC8'], // pinkGradient
     defaultDurationText: '5-10 min', // User-defined
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'gratitude' }, 
@@ -269,7 +269,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'thought-bubble-outline',
     route: 'Journaling',
     tags: ['self_reflection', 'mindfulness', 'personal_growth'],
-    gradientColors: COLORS.journalingGradients?.reflection || ['#7D8CC4', '#5C6BC0'],
+    gradientColors: COLORS.journalingGradients?.reflection || ['#F368E0', '#D63AC8'], // pinkGradient
     defaultDurationText: '5-10 min',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'reflection' },
@@ -283,7 +283,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'chart-line',
     route: 'Journaling',
     tags: ['personal_development', 'goal_setting', 'learning'],
-    gradientColors: COLORS.journalingGradients?.growth || ['#5C96AE', '#4A7F9B'],
+    gradientColors: COLORS.journalingGradients?.growth || ['#F368E0', '#D63AC8'], // pinkGradient
     defaultDurationText: '5-10 min',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'growth' },
@@ -297,7 +297,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'pencil-outline',
     route: 'Journaling', 
     tags: ['mind_clearing', 'creativity', 'self_expression'],
-    gradientColors: COLORS.journalingGradients?.free_write || ['#BDBDBD', '#9E9E9E'], // Example grey
+    gradientColors: COLORS.journalingGradients?.free_write || ['#F368E0', '#D63AC8'], // pinkGradient
     defaultDurationText: 'Flexible',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'free_write' }, // Special type for no prompt
@@ -305,19 +305,28 @@ export const MASTER_EXERCISE_LIST = [
   },
 ];
 
-console.debug('[MasterExerciseList] Loaded', { count: MASTER_EXERCISE_LIST.length });
+console.debug('[MasterExerciseList] Loaded with consistent color scheme', { 
+  count: MASTER_EXERCISE_LIST.length,
+  colorMapping: {
+    mindfulness: 'tealGradient',
+    visualization: 'coralGradient', 
+    tasks: 'purpleGradient',
+    deepWork: 'blueGradient',
+    binaural: 'indigoGradient',
+    journaling: 'pinkGradient'
+  }
+});
 
 // It might be useful to have a helper function to get an exercise by ID
 export const getExerciseById = (id) => {
   return MASTER_EXERCISE_LIST.find(exercise => exercise.id === id) || null;
 };
 
-// Placeholder for color gradients if not defined in theme, to avoid errors
-// This ensures that if you haven't defined these specific gradient objects in your COLORS theme,
-// the app won't crash. You can refine these default fallbacks or add them to your theme.
-if (!COLORS.mindfulnessGradients) COLORS.mindfulnessGradients = {};
-if (!COLORS.visualizationGradients) COLORS.visualizationGradients = {};
-if (!COLORS.deepWorkGradients) COLORS.deepWorkGradients = {};
-if (!COLORS.binauralGradients) COLORS.binauralGradients = {};
-if (!COLORS.journalingGradients) COLORS.journalingGradients = {};
-if (!COLORS.purpleGradient) COLORS.purpleGradient = { start: '#AB47BC', end: '#8E24AA' }; // Default purple
+// Note: Exercise-specific gradients are now properly defined in theme.js
+// Each exercise type has a consistent color scheme:
+// - Mindfulness: tealGradient (#00B894 → #007E66)
+// - Visualization: coralGradient (#FF7675 → #FF5D5D) 
+// - Deep Work: blueGradient (#5AC8FA → #4B9EF8)
+// - Binaural Beats: indigoGradient (#7D8CC4 → #5D6CAF)
+// - Journaling: pinkGradient (#F368E0 → #D63AC8)
+// - Task Planning: purpleGradient (#6C63FF → #5F52EE)

@@ -14,6 +14,7 @@ import StatCard from './components/StatCard';
 import GoalsProgress from './components/GoalsProgress';
 import MoodTrend from './components/MoodTrend';
 import ExerciseBreakdown from './components/ExerciseBreakdown';
+import FavoritesSection from './components/FavoritesSection';
 
 // Import helpers
 import { calculateMoodTrend } from './helpers/moodHelpers';
@@ -63,6 +64,7 @@ const ProgressScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   console.debug('[ProgressScreen] Initializing. User:', user?.id);
+  console.debug('[ProgressScreen] FavoritesSection integrated into Progress tab');
 
   const fetchSummaryData = useCallback(async () => {
     if (!user?.id) {
@@ -289,6 +291,9 @@ const ProgressScreen = () => {
                 icon="calendar-check"
               />
             </View>
+
+            {/* Favorites Section */}
+            <FavoritesSection />
 
             <GoalsProgress 
               completedGoals={stats.completedGoals}

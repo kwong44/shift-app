@@ -12,6 +12,7 @@ export const COLORS = {
   background: '#FFFFFF',    // Pure white background
   backgroundLight: '#F8F9FC', // Very light blue-gray for subtle contrast
   surface: '#FFFFFF',       // White surface
+  white: '#FFFFFF',         // Pure white
 
   // Text colors
   text: '#333333',          // Dark gray for text
@@ -66,6 +67,38 @@ export const COLORS = {
   indigoGradient: {
     start: '#7D8CC4',
     end: '#5D6CAF',
+  },
+  
+  // Exercise Type Specific Gradients
+  // Mapping exercise types to consistent gradient colors
+  mindfulnessGradients: {
+    breath: ['#00B894', '#007E66'], // tealGradient
+    body: ['#00B894', '#007E66'],
+    senses: ['#00B894', '#007E66'],
+  },
+  visualizationGradients: {
+    goals: ['#FF7675', '#FF5D5D'], // coralGradient
+    ideal_life: ['#FF7675', '#FF5D5D'],
+    confidence: ['#FF7675', '#FF5D5D'],
+    contentment: ['#FF7675', '#FF5D5D'],
+    calm: ['#FF7675', '#FF5D5D'],
+  },
+  deepWorkGradients: {
+    pomodoro: ['#5AC8FA', '#4B9EF8'], // blueGradient
+    extended: ['#5AC8FA', '#4B9EF8'],
+    deep: ['#5AC8FA', '#4B9EF8'],
+  },
+  binauralGradients: {
+    focus: ['#7D8CC4', '#5D6CAF'], // indigoGradient
+    meditation: ['#7D8CC4', '#5D6CAF'],
+    creativity: ['#7D8CC4', '#5D6CAF'],
+    sleep: ['#7D8CC4', '#5D6CAF'],
+  },
+  journalingGradients: {
+    gratitude: ['#F368E0', '#D63AC8'], // pinkGradient
+    reflection: ['#F368E0', '#D63AC8'],
+    growth: ['#F368E0', '#D63AC8'],
+    free_write: ['#F368E0', '#D63AC8'],
   },
   
   // Navigation & Interactive elements

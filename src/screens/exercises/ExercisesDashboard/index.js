@@ -14,7 +14,7 @@ const EXERCISES = [
     icon: 'book-outline',
     duration: '5-10 min', // This is display text, actual duration set in setup screen
     route: 'Journaling',  
-    gradientColors: COLORS.journalingGradients?.gratitude || ['#4C63B6', '#3F51B5'], // Example gradient
+    gradientColors: COLORS.journalingGradients?.gratitude || ['#F368E0', '#D63AC8'], // pinkGradient
   },
    {
     id: 'tasks',
@@ -32,7 +32,7 @@ const EXERCISES = [
     icon: 'headphones',
     duration: '10-20 min',
     route: 'BinauralSetup',
-    gradientColors: COLORS.binauralGradients?.focus || ['#1E88E5', '#1565C0'],
+    gradientColors: COLORS.binauralGradients?.focus || ['#7D8CC4', '#5D6CAF'], // indigoGradient
   },
   {
     id: 'visualization',
@@ -41,7 +41,7 @@ const EXERCISES = [
     icon: 'eye',
     duration: '5-10 min',
     route: 'VisualizationSetup',
-    gradientColors: COLORS.visualizationGradients?.goals || ['#4C63B6', '#3F51B5'],
+    gradientColors: COLORS.visualizationGradients?.goals || ['#FF7675', '#FF5D5D'], // coralGradient
   },
   {
     id: 'deepwork',
@@ -50,7 +50,7 @@ const EXERCISES = [
     icon: 'timer-outline',
     duration: '25-50 min',
     route: 'DeepWorkSetup',
-    gradientColors: COLORS.deepWorkGradients?.pomodoro || ['#4C63B6', '#3F51B5'],
+    gradientColors: COLORS.deepWorkGradients?.pomodoro || ['#5AC8FA', '#4B9EF8'], // blueGradient
   },
   {
     id: 'mindfulness',
@@ -59,11 +59,20 @@ const EXERCISES = [
     icon: 'meditation',
     duration: '5-10 min',
     route: 'MindfulnessSetup',
-    gradientColors: COLORS.mindfulnessGradients?.breath || ['#4C63B6', '#3949AB'],
+    gradientColors: COLORS.mindfulnessGradients?.breath || ['#00B894', '#007E66'], // tealGradient
   }
 ];
 
-console.debug('[ExercisesDashboard] Mounted. Now displays exercise categories.');
+console.debug('[ExercisesDashboard] Mounted with consistent color scheme', {
+  colorMapping: {
+    journaling: 'pinkGradient',
+    tasks: 'purpleGradient', 
+    binaural: 'indigoGradient',
+    visualization: 'coralGradient',
+    deepwork: 'blueGradient',
+    mindfulness: 'tealGradient'
+  }
+});
 
 const ExercisesDashboard = ({ navigation }) => {
   const [scrollY] = useState(new Animated.Value(0));
