@@ -1,6 +1,19 @@
 import { supabase } from '../config/supabase';
 
 /**
+ * Long-term Goals API - NEW PRIMARY SYSTEM
+ * 
+ * This replaces the old roadmap JSON-based LTA system with a proper database table.
+ * Long-term goals are now stored as individual rows in the long_term_goals table,
+ * and weekly goals reference them via the long_term_goal_id foreign key.
+ * 
+ * The roadmap table still exists for phases/milestones but now references these
+ * long-term goal IDs instead of storing LTA data in JSON.
+ * 
+ * Rule: Always add debug logs and comments
+ */
+
+/**
  * Create a new long-term goal
  * @param {string} userId - User ID
  * @param {object} goalData - Goal data object

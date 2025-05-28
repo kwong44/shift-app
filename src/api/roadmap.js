@@ -137,56 +137,56 @@ export const clearLocalRoadmap = async () => {
 
 /**
  * Generate a structured roadmap from assessment data
- * @param {object} assessmentData - The user's self-assessment responses
- * @returns {object} - Formatted roadmap data with goals and milestones
+ * NEW: References existing long-term goals from database instead of creating new JSON entries
+ * @param {object} assessmentData - The user's self-assessment responses  
+ * @returns {object} - Formatted roadmap data with goals referencing database IDs
  */
 const generateRoadmapFromAssessment = (assessmentData) => {
   // Console log the raw assessmentData to see what's coming in
-  console.log('[Roadmap] Generating roadmap from assessment data (v2 - LTA based):', JSON.stringify(assessmentData, null, 2));
+  console.log('[Roadmap] Generating roadmap from assessment data (v3 - DB reference based):', JSON.stringify(assessmentData, null, 2));
   
   const goals = [];
-  // Milestones are no longer auto-generated here; they will be represented by Weekly Goals created by the user.
-  // const milestones = []; 
 
-  // Transform user-defined aspirations (LTAs) into roadmap goals
+  // Transform user-defined aspirations (LTAs) into roadmap goals that REFERENCE the database
   const userAspirations = assessmentData.aspirations || []; // This now comes from definedLTAs in onboarding
-  console.log('[Roadmap] Processing user aspirations (LTAs):', JSON.stringify(userAspirations, null, 2));
+  console.log('[Roadmap] Processing user aspirations (LTAs) with DB references:', JSON.stringify(userAspirations, null, 2));
   
   userAspirations.forEach((aspiration, index) => {
-    const goalId = `user_lta_${index}_${new Date().getTime()}`; // More unique ID
+    // NEW: Instead of generating IDs, use the actual database long_term_goal_id
+    if (!aspiration.longTermGoalId) {
+      console.warn('[Roadmap] WARNING: Aspiration missing longTermGoalId database reference:', aspiration);
+    }
+    
     goals.push({
-      id: goalId,
+      id: aspiration.longTermGoalId || `fallback_lta_${index}_${new Date().getTime()}`, // NEW: Use DB ID as primary reference
+      legacyId: `user_lta_${index}_${new Date().getTime()}`, // Keep legacy ID for compatibility 
       text: aspiration.text, // User's own words for their LTA
-      // description: aspiration.text, // Using 'text' as the primary field for LTA content
       timeline: 'long-term', // Default timeline, user breaks it down with WGs
       status: 'pending', // Initial status
       priority: index + 1, // Simple priority based on order of definition
       type: 'user_defined_lta', // Clearly mark as a user-defined Long-Term Aspiration
       areaId: aspiration.areaId, // Link to the growth area
       areaLabel: aspiration.areaLabel, // Store label for convenience
-      // weeklyGoalIds: [], // Initialize if we want to store linked WG IDs directly here, though typically WGs will reference the LTA.
-      // progress: 0, // LTA-specific progress, could be calculated later based on WGs
+      longTermGoalId: aspiration.longTermGoalId, // NEW: Explicit reference to database table
+      source: 'onboarding', // NEW: Track source
       created_at: new Date().toISOString(),
     });
-
-    // Milestones are not created here anymore.
-    // Users will create Weekly Goals which act as actionable steps (milestones) for these LTAs.
   });
 
-  // The satisfaction improvement goal can be kept if desired, or re-evaluated.
-  // For now, let's keep it to see how it fits with user-defined LTAs.
-  // It might be better for the AI coach to suggest this based on satisfaction score later.
+  // The satisfaction improvement goal - we can still add this as a JSON goal for phases/milestones
+  // But it could also be created in the database if needed
   if (assessmentData.satisfactionBaseline?.overallScore < 7) {
-    console.log('[Roadmap] Adding satisfaction improvement goal (alongside user LTAs)');
+    console.log('[Roadmap] Adding satisfaction improvement goal (JSON-only for phases)');
     const goalId = `satisfaction_improvement_${new Date().getTime()}`;
     goals.push({
       id: goalId,
       text: 'Improve overall life satisfaction',
-      // description: 'Improve overall life satisfaction',
       timeline: 'ongoing', // Satisfaction is an ongoing process
       status: 'pending',
       priority: goals.length + 1,
       type: 'system_suggested_satisfaction', // Differentiate from user LTAs
+      longTermGoalId: null, // This one stays JSON-only for now
+      source: 'system',
       created_at: new Date().toISOString(),
     });
   }
@@ -197,16 +197,14 @@ const generateRoadmapFromAssessment = (assessmentData) => {
     satisfactionBaseline: assessmentData.satisfactionBaseline,
     engagementPreferences: assessmentData.engagementPrefs,
     growthAreasSelected: assessmentData.growthAreas, // Store the selected growth areas raw objects
-    // Any other parts of assessmentData that are useful as metadata for the roadmap
+    longTermGoalIds: userAspirations.map(asp => asp.longTermGoalId).filter(Boolean), // NEW: Track DB IDs for easy reference
   };
 
-  console.log('[Roadmap] Generated goals (LTA-based):', JSON.stringify(goals, null, 2));
-  // console.log('[Roadmap] Milestones (removed from auto-generation):', milestones);
-  console.log('[Roadmap] Generated metadata:', JSON.stringify(metadata, null, 2));
+  console.log('[Roadmap] Generated goals (DB-reference based):', JSON.stringify(goals, null, 2));
+  console.log('[Roadmap] Generated metadata with DB references:', JSON.stringify(metadata, null, 2));
 
   return {
-    goals, // These are now the LTAs
-    // milestones, // Removed
+    goals, // These now reference the database long_term_goals table
     metadata
   };
 };

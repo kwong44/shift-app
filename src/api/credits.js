@@ -101,49 +101,68 @@ export const getUserTokens = async () => {
  * @returns {Promise<{tokens: number, credits: number}>} The initial token balance
  */
 export const initializeUserTokens = async (userId) => {
-  console.debug('[tokens] Initializing new user with free tokens');
+  console.debug('[tokens] Initializing user with free tokens (if not exists)');
   
   try {
     const initialTokens = TOKENS_CONFIG.initialFreeTokens;
     
-    // Insert a new record with initial free tokens
-    const { error } = await supabase
+    // Use upsert with ignoreDuplicates to handle existing records gracefully
+    const { data, error } = await supabase
       .from('user_credits')
-      .insert([
+      .upsert([
         { user_id: userId, tokens: initialTokens }
-      ]);
+      ], { 
+        onConflict: 'user_id',
+        ignoreDuplicates: true 
+      })
+      .select()
+      .maybeSingle();
     
     if (error) {
-      console.error('[tokens] Error initializing user tokens:', error);
-      // If there was an error (likely because another process created the record),
-      // try getting the tokens again
-      const { data: checkData } = await supabase
+      console.debug('[tokens] Upsert failed, fetching existing record:', error.message);
+      // Fallback: fetch existing record
+      const { data: existingData } = await supabase
         .from('user_credits')
         .select('tokens')
         .eq('user_id', userId)
         .maybeSingle();
       
-      if (checkData) {
-        console.debug('[tokens] Found existing token record after failed insert');
+      if (existingData) {
+        console.debug('[tokens] Found existing token record:', existingData.tokens);
         return {
-          tokens: checkData.tokens,
-          credits: tokensToCredits(checkData.tokens)
+          tokens: existingData.tokens,
+          credits: tokensToCredits(existingData.tokens)
         };
       }
       
       // If we still can't get the token record, return default values
-      console.debug('[tokens] Returning default tokens after initialization failure');
+      console.debug('[tokens] Returning default tokens after upsert failure');
       return {
         tokens: initialTokens,
         credits: tokensToCredits(initialTokens)
       };
     }
     
-    console.debug('[tokens] User initialized with tokens:', initialTokens);
-    return {
-      tokens: initialTokens,
-      credits: tokensToCredits(initialTokens)
-    };
+    if (data) {
+      console.debug('[tokens] User initialized/fetched with tokens:', data.tokens);
+      return {
+        tokens: data.tokens,
+        credits: tokensToCredits(data.tokens)
+      };
+    } else {
+      // No data returned means the record was ignored due to ignoreDuplicates
+      console.debug('[tokens] Record existed, fetching current tokens');
+      const { data: existingData } = await supabase
+        .from('user_credits')
+        .select('tokens')
+        .eq('user_id', userId)
+        .single();
+      
+      return {
+        tokens: existingData.tokens,
+        credits: tokensToCredits(existingData.tokens)
+      };
+    }
   } catch (error) {
     console.error('[tokens] Error in initializeUserTokens:', error);
     // Return default values on error

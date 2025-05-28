@@ -3,7 +3,8 @@ import { View, StyleSheet, Animated, ScrollView, TextInput, LayoutAnimation, Pla
 import { Text, TouchableRipple, ProgressBar, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
-import { createWeeklyGoal, updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
+import { updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
+import { createWeeklyGoalForLongTermGoal } from '../../../../api/exercises/goals';
 import { supabase } from '../../../../config/supabase';
 import * as Haptics from 'expo-haptics';
 
@@ -88,51 +89,15 @@ const GrowthRoadmap = ({
     return foundEmotion;
   };
 
+  /**
+   * @deprecated - Use addWeeklyGoalToLongTermGoal instead
+   * Old function for adding weekly goals to roadmap LTAs - no longer supported
+   */
   const addWeeklyGoal = async (ltaId) => {
-    const goalText = newGoalTexts[ltaId]?.trim();
-    if (!goalText || !roadmap || !roadmap.id) {
-      debug.log('Cannot add weekly goal: missing text, roadmap, or roadmap ID.');
-      debug.log(`Debug details: goalText="${goalText}", roadmap exists=${!!roadmap}, roadmap.id="${roadmap?.id}"`);
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      debug.log(`Attempting to add weekly goal "${goalText}" for LTA ${ltaId} in roadmap ${roadmap.id}`);
-      
-      // Additional validation - Rule: Always add debug logs
-      debug.log(`Roadmap validation: ID=${roadmap.id}, goals count=${roadmap.goals?.length}, LTA exists=${roadmap.goals?.some(g => g.id === ltaId)}`);
-      
-      // Verify the LTA exists in the roadmap
-      const ltaExists = roadmap.goals?.some(goal => goal.id === ltaId);
-      if (!ltaExists) {
-        debug.log(`ERROR: LTA ${ltaId} not found in roadmap goals`);
-        console.error('LTA not found in roadmap:', { ltaId, availableLTAs: roadmap.goals?.map(g => g.id) });
-        return;
-      }
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated for adding weekly goal');
-      
-      await createWeeklyGoal(user.id, roadmap.id, ltaId, goalText);
-      
-      setNewGoalTexts(prev => ({ ...prev, [ltaId]: '' }));
-      
-      debug.log(`Successfully added weekly goal for LTA: ${ltaId}. Triggering data refresh.`);
-      if (onUpdateRoadmapData) onUpdateRoadmapData();
-
-    } catch (error) {
-      console.error('Failed to add weekly goal:', error);
-      debug.log(`Error details: ${error.message}`);
-      // Add user-friendly error message
-      if (error.message?.includes('foreign key constraint')) {
-        console.error('Foreign key constraint error - roadmap or LTA not found in database');
-        debug.log('This suggests a data synchronization issue. Refreshing data...');
-        if (onUpdateRoadmapData) onUpdateRoadmapData();
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    console.warn('[GrowthRoadmap] DEPRECATED: addWeeklyGoal function is deprecated. Database columns removed.');
+    debug.log('ERROR: Attempted to use deprecated addWeeklyGoal function');
+    alert('This feature has been updated. Please use the new long-term goals system.');
+    return;
   };
 
   const toggleGoalCompletion = async (goalId, isCompleted) => {
@@ -199,89 +164,6 @@ const GrowthRoadmap = ({
     );
   };
 
-  const renderLongTermAspirations = () => {
-    if (!roadmap || !roadmap.goals || roadmap.goals.length === 0) {
-      debug.log('No Long-Term Aspirations (LTAs) to render.');
-      return <Text style={styles.infoText}>Define your aspirations during onboarding!</Text>;
-    }
-
-    return roadmap.goals.map((lta) => {
-      const associatedWGs = allUserWeeklyGoals.filter(wg => wg.lta_id_ref === lta.id && wg.roadmap_id === roadmap.id);
-      const completedWGs = associatedWGs.filter(wg => wg.completed).length;
-      const ltaProgress = associatedWGs.length > 0 ? completedWGs / associatedWGs.length : 0;
-
-      debug.log(`Rendering LTA: ${lta.id} (${lta.text}). Progress: ${ltaProgress}. WGs: ${associatedWGs.length}`);
-
-      return (
-        <View key={lta.id} style={styles.ltaContainer}>
-          <TouchableRipple onPress={() => toggleLtaSection(lta.id)} style={styles.ltaHeaderTouchable}>
-            <View style={styles.ltaHeader}>
-              <MaterialCommunityIcons name="bullseye-arrow" size={20} color={COLORS.primary} />
-              <Text style={styles.ltaTitle}>{lta.text}</Text>
-              <MaterialCommunityIcons 
-                name={expandedLtaId === lta.id ? "chevron-up" : "chevron-down"} 
-                size={24} 
-                color={COLORS.text} 
-              />
-            </View>
-          </TouchableRipple>
-          <ProgressBar progress={ltaProgress} color={COLORS.accent} style={styles.ltaProgress} />
-
-          {expandedLtaId === lta.id && (
-            <View style={styles.ltaDetails}>
-              <View style={styles.addGoalContainer}>
-                <TextInput
-                  style={styles.goalInput}
-                  value={newGoalTexts[lta.id] || ''}
-                  onChangeText={(text) => handleNewGoalTextChange(lta.id, text)}
-                  placeholder="Add a new weekly goal for this aspiration..."
-                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                  editable={!isLoading}
-                />
-                <IconButton
-                  icon="plus-circle"
-                  size={24}
-                  color={COLORS.primary}
-                  onPress={() => addWeeklyGoal(lta.id)}
-                  disabled={!(newGoalTexts[lta.id]?.trim()) || isLoading}
-                />
-              </View>
-              
-              {associatedWGs.length > 0 ? associatedWGs.map((goal) => (
-                <View key={goal.id} style={styles.goalItem}>
-                  <TouchableRipple
-                    onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
-                    style={styles.goalCheckbox}
-                    disabled={isLoading}
-                  >
-                    <MaterialCommunityIcons 
-                      name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
-                      size={16} 
-                      color={COLORS.text} 
-                    />
-                  </TouchableRipple>
-                  <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
-                    {goal.text}
-                  </Text>
-                  <IconButton
-                    icon="close-circle"
-                    size={16}
-                    color="rgba(0, 0, 0, 0.5)"
-                    onPress={() => removeGoal(goal.id)}
-                    style={styles.removeGoalButton}
-                    disabled={isLoading}
-                  />
-                </View>
-              )) : (
-                <Text style={styles.emptyGoalsText}>Break down this aspiration into weekly goals!</Text>
-              )}
-            </View>
-          )}
-        </View>
-      );
-    });
-  };
-
   const renderNewLongTermGoals = () => {
     if (!longTermGoals || longTermGoals.length === 0) {
       debug.log('No long-term goals (NEW SYSTEM) to render.');
@@ -344,7 +226,7 @@ const GrowthRoadmap = ({
                   icon="plus-circle"
                   size={24}
                   color={COLORS.primary}
-                  onPress={() => addWeeklyGoal(longTermGoal.id)}
+                  onPress={() => addWeeklyGoalToLongTermGoal(longTermGoal.id)}
                   disabled={!(newGoalTexts[longTermGoal.id]?.trim()) || isLoading}
                 />
               </View>
@@ -387,24 +269,24 @@ const GrowthRoadmap = ({
   };
 
   const renderAICoachGoals = () => {
-    // Filter goals that were created by AI Coach (no roadmap linkage)
-    const aiCoachGoals = allUserWeeklyGoals.filter(wg => !wg.roadmap_id || !wg.lta_id_ref);
+    // Filter goals that were created by AI Coach or standalone (no long-term goal linkage)
+    const aiCoachGoals = allUserWeeklyGoals.filter(wg => !wg.long_term_goal_id);
     
     if (aiCoachGoals.length === 0) {
-      debug.log('No AI Coach goals to display');
+      debug.log('No standalone/AI Coach goals to display');
       return null;
     }
 
-    debug.log(`Rendering ${aiCoachGoals.length} AI Coach goals`);
+    debug.log(`Rendering ${aiCoachGoals.length} standalone/AI Coach goals`);
 
     return (
       <View style={styles.aiCoachContainer}>
         <View style={styles.aiCoachHeader}>
           <MaterialCommunityIcons name="robot-outline" size={20} color={COLORS.accent} />
-          <Text style={styles.aiCoachTitle}>AI Coach Goals</Text>
+          <Text style={styles.aiCoachTitle}>Standalone Goals</Text>
         </View>
         <Text style={styles.aiCoachDescription}>
-          Goals suggested by your AI Coach to help you grow
+          Weekly goals not linked to specific long-term goals
         </Text>
         
         {aiCoachGoals.map((goal) => (
@@ -458,8 +340,7 @@ const GrowthRoadmap = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Use the new system API
-      const { createWeeklyGoalForLongTermGoal } = await import('../../../api/exercises/goals');
+      // Use the static import (FIXED: removed dynamic import)
       const newGoal = await createWeeklyGoalForLongTermGoal(user.id, longTermGoalId, goalText);
 
       debug.log('Weekly goal added to long-term goal successfully:', newGoal);
@@ -557,7 +438,6 @@ const GrowthRoadmap = ({
         </View>
 
         {renderPhaseIndicator()}
-        {renderLongTermAspirations()}
         {renderNewLongTermGoals()}
         {renderAICoachGoals()}
       </ScrollView>

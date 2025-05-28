@@ -4,6 +4,8 @@ import { Text, Card, Title, Paragraph, Button, HelperText } from 'react-native-p
 import { OnboardingLayout } from '../../components/onboarding';
 import { SPACING, FONT, COLORS, RADIUS } from '../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { createLongTermGoal } from '../../api/longTermGoals';
+import { supabase } from '../../config/supabase';
 
 // Debug logger
 const debug = {
@@ -78,37 +80,80 @@ const AspirationsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleContinueToNextScreen = () => {
+  const handleContinueToNextScreen = async () => {
     // Consolidate all defined aspirations
     const definedLTAs = [];
-    selectedGrowthAreas.forEach(area => {
-      const areaAspirations = (aspirations[area.id] || []).filter(asp => asp.trim() !== '');
-      areaAspirations.forEach(aspText => {
-        definedLTAs.push({
-          text: aspText,
-          areaId: area.id,       // Link LTA to its growth area ID
-          areaLabel: area.label,  // Keep label for easier display if needed
-          type: 'user_defined', // Mark as user-defined LTA
-          status: 'pending',      // Default status
-          // timeline: 'flexible' // Or derive/ask later
-        });
-      });
-    });
-
-    if (definedLTAs.length === 0) {
-      debug.log('No LTAs defined overall. Prompting user.');
-      // Add an alert here, perhaps?
-      alert('Please define at least one aspiration to continue.');
+    const createdLongTermGoalIds = []; // NEW: Track created long-term goal IDs for roadmap reference
+    
+    // Get user for database operations - Rule: Always add debug logs
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      debug.log('ERROR: User not authenticated');
+      alert('Authentication error. Please sign in again.');
       return;
     }
+    
+    debug.log('Creating long-term goals for user:', user.id);
 
-    debug.log('Proceeding to BenefitsIntro screen with LTAs:', definedLTAs);
-    navigation.navigate('BenefitsIntro', { // New screen we'll create
-      satisfactionBaseline,
-      engagementPrefs,
-      selectedGrowthAreas,
-      definedLTAs, // Pass the collected Long-Term Aspirations
-    });
+    try {
+      // Process each growth area and create long-term goals in database
+      for (const area of selectedGrowthAreas) {
+        const areaAspirations = (aspirations[area.id] || []).filter(asp => asp.trim() !== '');
+        
+        for (const aspText of areaAspirations) {
+          debug.log(`Creating long-term goal: "${aspText}" for area: ${area.label}`);
+          
+          // NEW: Create entry in long_term_goals table
+          const longTermGoalData = {
+            title: aspText,
+            description: `Goal for ${area.label}: ${aspText}`,
+            category: area.id, // Use growth area ID as category
+            priority: definedLTAs.length + 1, // Sequential priority
+            source: 'onboarding', // NEW: Mark as onboarding source
+            target_date: null // Can be set later by user
+          };
+          
+          const createdGoal = await createLongTermGoal(user.id, longTermGoalData);
+          debug.log('Created long-term goal in database:', createdGoal.id);
+          
+          // Track for roadmap JSON reference
+          createdLongTermGoalIds.push(createdGoal.id);
+          
+          // Keep existing LTA structure for roadmap JSON compatibility
+          definedLTAs.push({
+            text: aspText,
+            areaId: area.id,
+            areaLabel: area.label,
+            type: 'user_defined',
+            status: 'pending',
+            longTermGoalId: createdGoal.id // NEW: Reference to database entry
+          });
+        }
+      }
+
+      if (definedLTAs.length === 0) {
+        debug.log('No LTAs defined overall. Prompting user.');
+        alert('Please define at least one aspiration to continue.');
+        return;
+      }
+
+      debug.log('Successfully created long-term goals:', {
+        count: definedLTAs.length,
+        databaseIds: createdLongTermGoalIds
+      });
+
+      debug.log('Proceeding to BenefitsIntro screen with LTAs:', definedLTAs);
+      navigation.navigate('BenefitsIntro', {
+        satisfactionBaseline,
+        engagementPrefs,
+        selectedGrowthAreas,
+        definedLTAs, // Pass the collected Long-Term Aspirations (now with DB references)
+      });
+    } catch (error) {
+      debug.log('ERROR creating long-term goals:', error);
+      console.error('[AspirationsScreen] Error creating long-term goals:', error);
+      alert('Failed to save your aspirations. Please try again.');
+    }
   };
 
   if (!currentGrowthArea) {

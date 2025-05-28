@@ -196,13 +196,13 @@ const HomeScreen = ({ navigation }) => {
       }
 
       const [roadmapData, tasksData, visualizationsData, userData, streakData, allGoalsData, longTermGoalsData] = await Promise.all([
-        fetchRoadmap(user.id),
+        fetchRoadmap(user.id), // TRANSITIONAL: Still used for phases/milestones
         getTasks(user.id),
         getVisualizations(user.id),
         supabase.from('users').select('name').eq('id', user.id).single(),
         supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
-        fetchAllUserWeeklyGoals(user.id),
-        getLongTermGoalsWithWeeklyGoals(user.id)
+        fetchAllUserWeeklyGoals(user.id), // TRANSITIONAL: Contains old system goals
+        getLongTermGoalsWithWeeklyGoals(user.id) // NEW: Primary long-term goals system
       ]);
 
       console.debug('[HomeScreen] Raw roadmap data:', roadmapData);

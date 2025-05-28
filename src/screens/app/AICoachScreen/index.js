@@ -80,6 +80,7 @@ const AICoachScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [tokens, setTokens] = useState(null);
   const [credits, setCredits] = useState(null);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(true);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [loadingError, setLoadingError] = useState(false);
@@ -145,24 +146,30 @@ const AICoachScreen = ({ navigation }) => {
       },
       headerBackVisible: true,
       headerBackTitleVisible: false,
-      headerRight: () => credits !== null && (
+      headerRight: () => !isLoadingTokens && credits !== null && (
         <CreditDisplay credits={credits} onTopUp={handleTopUpCredits} />
       ),
     });
     
     // Debug log
-    console.debug('[AICoachScreen] Screen focused, header options set with title and back button');
+    console.debug('[AICoachScreen] Header options updated');
+  }, [navigation, credits, isLoadingTokens]); // Keep dependencies for header updates
+
+  // Load tokens on mount and focus (SEPARATE useEffect to avoid loop)
+  useEffect(() => {
+    console.debug('[AICoachScreen] Setting up token loading on mount and focus');
     
-    // Load user credits
+    // Load tokens immediately on mount
     loadUserTokens();
     
     // Set up focus listener to refresh tokens when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
+      console.debug('[AICoachScreen] Screen focused, refreshing tokens');
       loadUserTokens();
     });
     
     return unsubscribe;
-  }, [navigation, credits]);
+  }, [navigation]); // Only depend on navigation, not on token states
 
   // Load conversation history from the database
   const loadConversationHistory = async (retryCount = 0) => {
@@ -247,6 +254,7 @@ const AICoachScreen = ({ navigation }) => {
   // Load user tokens from the database
   const loadUserTokens = async () => {
     try {
+      setIsLoadingTokens(true);
       console.debug('[AICoachScreen] Loading user tokens');
       const { tokens: userTokens, credits: userCredits } = await getUserTokens();
       console.debug('[AICoachScreen] User tokens loaded:', { tokens: userTokens, credits: userCredits });
@@ -263,6 +271,8 @@ const AICoachScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('[AICoachScreen] Error loading user tokens:', error);
+    } finally {
+      setIsLoadingTokens(false);
     }
   };
 
@@ -606,8 +616,9 @@ const AICoachScreen = ({ navigation }) => {
     );
   };
 
-  // Check if user has enough tokens to chat
-  const hasEnoughTokens = tokens !== null && tokens >= TOKENS_CONFIG.minTokensRequired;
+  // Check if user has enough tokens to chat - Rule: Always add debug logs
+  const hasEnoughTokens = !isLoadingTokens && tokens !== null && tokens >= TOKENS_CONFIG.minTokensRequired;
+  const shouldShowPurchaseButton = !isLoadingTokens && tokens !== null && tokens < TOKENS_CONFIG.minTokensRequired;
 
   // Display token/credit warning banner
   const renderCreditWarningBanner = () => {
@@ -743,7 +754,7 @@ const AICoachScreen = ({ navigation }) => {
                 )
               }
             />
-            {!hasEnoughTokens && (
+            {shouldShowPurchaseButton && (
               <Button 
                 mode="contained" 
                 onPress={handleTopUpCredits}
@@ -752,7 +763,11 @@ const AICoachScreen = ({ navigation }) => {
                 Purchase Credits
               </Button>
             )}
-            {tokens !== null && (
+            {isLoadingTokens ? (
+              <View style={styles.tokenInfoContainer}>
+                <Text style={styles.tokenInfoText}>Loading credits...</Text>
+              </View>
+            ) : tokens !== null && (
               <View style={styles.tokenInfoContainer}>
                 <Text style={styles.tokenInfoText}>
                   {hasEnoughTokens 

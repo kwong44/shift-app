@@ -1,14 +1,21 @@
 import { supabase } from '../../config/supabase';
 
 /**
- * Create a new weekly goal
+ * @deprecated Since version 2.0.0. Use createWeeklyGoalForLongTermGoal() or createSimpleWeeklyGoal() instead.
+ * 
+ * Create a new weekly goal (OLD SYSTEM - DEPRECATED)
+ * This function is kept for transition period but will throw an error as the database columns have been removed.
+ * 
  * @param {string} userId - User ID
- * @param {string} roadmapId - ID of the roadmap this goal belongs to
- * @param {string} ltaIdRef - Reference ID of the Long-Term Aspiration this goal is for
+ * @param {string} roadmapId - ID of the roadmap this goal belongs to (REMOVED FROM DB)
+ * @param {string} ltaIdRef - Reference ID of the Long-Term Aspiration this goal is for (REMOVED FROM DB)  
  * @param {string} text - Goal text content
- * @returns {Promise} - The created goal object
+ * @returns {Promise} - Throws error - function is deprecated
+ * @throws {Error} Always throws - function is deprecated and database columns removed
  */
 export const createWeeklyGoal = async (userId, roadmapId, ltaIdRef, text) => {
+  console.warn('[Goals API] DEPRECATED: createWeeklyGoal function is deprecated. Use createWeeklyGoalForLongTermGoal or createSimpleWeeklyGoal instead.');
+  
   try {
     // Calculate the end of the current week (Sunday)
     const now = new Date();
@@ -19,29 +26,14 @@ export const createWeeklyGoal = async (userId, roadmapId, ltaIdRef, text) => {
     endOfWeek.setHours(23, 59, 59, 999);
 
     // Debug log
-    console.debug('[Goals API] Creating weekly goal', { userId, roadmapId, ltaIdRef, text, weekEnding: endOfWeek });
+    console.debug('[Goals API] Creating weekly goal (DEPRECATED)', { userId, roadmapId, ltaIdRef, text, weekEnding: endOfWeek });
 
-    const { data, error } = await supabase
-      .from('weekly_goals')
-      .insert({
-        user_id: userId,
-        text,
-        completed: false,
-        week_ending: endOfWeek.toISOString(),
-        roadmap_id: roadmapId,
-        lta_id_ref: ltaIdRef
-      })
-      .select()
-      .single();
+    // NOTE: roadmap_id and lta_id_ref columns have been removed from weekly_goals table
+    // This function will fail and should not be used
+    throw new Error('DEPRECATED: roadmap_id and lta_id_ref columns have been removed. Use createWeeklyGoalForLongTermGoal instead.');
 
-    if (error) {
-      console.error('[Goals API] Error creating weekly goal:', error);
-      throw error;
-    }
-
-    return data;
   } catch (error) {
-    console.error('[Goals API] Error in createWeeklyGoal:', error.message);
+    console.error('[Goals API] Error in createWeeklyGoal (DEPRECATED):', error.message);
     throw error;
   }
 };
@@ -157,7 +149,7 @@ export const getWeeklyGoals = async (userId) => {
 
 /**
  * Fetch all weekly goals for a user, regardless of week.
- * Includes roadmap_id and lta_id_ref for linking to LTAs.
+ * Uses the new long_term_goal_id for linking to long-term goals.
  * @param {string} userId - The user's ID
  * @returns {Promise<Array>} - An array of all weekly goals for the user
  */
@@ -208,8 +200,8 @@ export const createSimpleWeeklyGoal = async (userId, text) => {
     // Debug log
     console.debug('[Goals API] Creating simple weekly goal', { userId, text, weekEnding: endOfWeek });
 
-    // For AI Coach goals, we'll create them without roadmap linkage initially
-    // This allows for quick goal creation that can be linked to roadmaps later
+    // For AI Coach goals, we'll create them without any linkage initially
+    // This allows for quick goal creation that can be used standalone
     const { data, error } = await supabase
       .from('weekly_goals')
       .insert({
@@ -217,9 +209,7 @@ export const createSimpleWeeklyGoal = async (userId, text) => {
         text,
         completed: false,
         week_ending: endOfWeek.toISOString(),
-        // roadmap_id and lta_id_ref are nullable, so we can leave them null for AI Coach goals
-        roadmap_id: null,
-        lta_id_ref: null
+        long_term_goal_id: null // No linkage for standalone goals
       })
       .select()
       .single();
@@ -269,10 +259,7 @@ export const createWeeklyGoalForLongTermGoal = async (userId, longTermGoalId, te
         text,
         completed: false,
         week_ending: endOfWeek.toISOString(),
-        long_term_goal_id: longTermGoalId, // NEW: Use the new foreign key
-        // Leave old columns null for clean separation
-        roadmap_id: null,
-        lta_id_ref: null
+        long_term_goal_id: longTermGoalId // NEW: Use the new foreign key
       })
       .select()
       .single();
