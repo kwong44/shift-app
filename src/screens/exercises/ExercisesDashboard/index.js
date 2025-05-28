@@ -12,7 +12,9 @@ const EXERCISES = [
     title: 'Journaling',
     description: 'Process thoughts and emotions through writing',
     icon: 'book-outline',
-    duration: '5-10 min', // This is display text, actual duration set in setup screen
+    duration: '5-10 min',
+    defaultDurationText: '5-10 min',
+    type: 'Writing',
     route: 'Journaling',  
     gradientColors: COLORS.journalingGradients?.gratitude || ['#F368E0', '#D63AC8'], // pinkGradient
   },
@@ -22,6 +24,8 @@ const EXERCISES = [
     description: 'Break down your goals into actionable tasks',
     icon: 'checkbox-marked-outline',
     duration: 'Flexible',
+    defaultDurationText: 'Flexible',
+    type: 'Planning',
     route: 'TaskPlanner',
     gradientColors: COLORS.purpleGradient ? [COLORS.purpleGradient.start, COLORS.purpleGradient.end] : ['#6A1B9A', '#4A148C'],
   },
@@ -31,6 +35,8 @@ const EXERCISES = [
     description: 'Enhance focus and relaxation through audio entrainment',
     icon: 'headphones',
     duration: '10-20 min',
+    defaultDurationText: '10-20 min',
+    type: 'Audio',
     route: 'BinauralSetup',
     gradientColors: COLORS.binauralGradients?.focus || ['#7D8CC4', '#5D6CAF'], // indigoGradient
   },
@@ -40,6 +46,8 @@ const EXERCISES = [
     description: 'Strengthen your mindset through guided visualization',
     icon: 'eye',
     duration: '5-10 min',
+    defaultDurationText: '5-10 min',
+    type: 'Mental',
     route: 'VisualizationSetup',
     gradientColors: COLORS.visualizationGradients?.goals || ['#FF7675', '#FF5D5D'], // coralGradient
   },
@@ -49,6 +57,8 @@ const EXERCISES = [
     description: 'Focus intensely on important tasks without distractions',
     icon: 'timer-outline',
     duration: '25-50 min',
+    defaultDurationText: '25-50 min',
+    type: 'Focus',
     route: 'DeepWorkSetup',
     gradientColors: COLORS.deepWorkGradients?.pomodoro || ['#5AC8FA', '#4B9EF8'], // blueGradient
   },
@@ -58,12 +68,16 @@ const EXERCISES = [
     description: 'Practice presence and emotional awareness',
     icon: 'meditation',
     duration: '5-10 min',
+    defaultDurationText: '5-10 min',
+    type: 'Meditation',
     route: 'MindfulnessSetup',
     gradientColors: COLORS.mindfulnessGradients?.breath || ['#00B894', '#007E66'], // tealGradient
   }
 ];
 
-console.debug('[ExercisesDashboard] Mounted with consistent color scheme', {
+console.debug('[ExercisesDashboard] Mounted with enhanced exercise data structure', {
+  exerciseCount: EXERCISES.length,
+  exerciseTypes: EXERCISES.map(ex => ({ id: ex.id, type: ex.type })),
   colorMapping: {
     journaling: 'pinkGradient',
     tasks: 'purpleGradient', 
@@ -77,10 +91,11 @@ console.debug('[ExercisesDashboard] Mounted with consistent color scheme', {
 const ExercisesDashboard = ({ navigation }) => {
   const [scrollY] = useState(new Animated.Value(0));
 
-  console.debug('[ExercisesDashboard] Initializing. Displaying categories.');
+  console.debug('[ExercisesDashboard] Initializing with modern ExerciseCard design');
+  console.debug('[ExercisesDashboard] Displaying', EXERCISES.length, 'exercise categories');
 
   const handleExercisePress = (categoryItem) => {
-    console.debug('[ExercisesDashboard] Category pressed:', categoryItem.id, 'Navigating to:', categoryItem.route);
+    console.debug('[ExercisesDashboard] Category pressed:', categoryItem.id, 'Type:', categoryItem.type, 'Navigating to:', categoryItem.route);
     navigation.navigate(categoryItem.route, { originRouteName: 'Exercises' }); // Pass only originRouteName
   };
 
@@ -99,13 +114,17 @@ const ExercisesDashboard = ({ navigation }) => {
           { useNativeDriver: Platform.OS !== 'web' }
         )}
         scrollEventThrottle={16}
+        bounces={true}
+        decelerationRate="normal"
       >
-        {EXERCISES.map(category => { // Iterate over local EXERCISES array
+        {EXERCISES.map((category, index) => { // Iterate over local EXERCISES array
+          console.debug('[ExercisesDashboard] Rendering card for:', category.title, 'Type:', category.type);
           return (
             <ExerciseCard
               key={category.id}
               exercise={category} // Pass the category item as 'exercise' prop for ExerciseCard
               onPress={() => handleExercisePress(category)} // Pass category to handler
+              style={index === EXERCISES.length - 1 ? styles.lastCard : null} // Add special styling for last card
             />
           );
         })}
@@ -141,6 +160,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     fontSize: 16,
     color: COLORS.textLight,
+  },
+  lastCard: {
+    marginBottom: SPACING.xl,
   },
 });
 

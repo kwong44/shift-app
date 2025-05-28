@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginBottom: SPACING.md,
     borderRadius: RADIUS.lg,
-    ...SHADOWS.medium,
+    ...SHADOWS.small,
   },
   loadingContent: {
     flexDirection: 'row',

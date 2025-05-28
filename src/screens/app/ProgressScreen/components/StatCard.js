@@ -1,8 +1,21 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
+import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
+
+// Icon to gradient mapping for different stat types
+const STAT_GRADIENTS = {
+  'brain': ['#5AC8FA', '#4B9EF8'], // Focus Time - blue gradient
+  'meditation': ['#00B894', '#007E66'], // Mindful Minutes - teal gradient
+  'dumbbell': ['#6C63FF', '#5F52EE'], // Total Exercises - purple gradient
+  'calendar-check': ['#FF7675', '#FF5D5D'], // Active Days - coral gradient
+  'fire': ['#FF9500', '#FF6B00'], // Streak - orange gradient
+  'trophy': ['#FDCB6E', '#E17055'], // Achievements - yellow gradient
+  'chart-line': ['#7D8CC4', '#5D6CAF'], // Progress - indigo gradient
+  'heart-pulse': ['#F368E0', '#D63AC8'], // Health - pink gradient
+};
 
 // Debug logger
 const debug = {
@@ -11,83 +24,117 @@ const debug = {
   }
 };
 
-const StatCard = ({ title, value, icon, color, unit }) => {
-  debug.log('Rendering stat card:', { title, value, icon, color, unit });
+const StatCard = ({ title, value, icon, unit }) => {
+  debug.log('Rendering modern stat card:', { title, value, icon, unit });
+  
+  // Get gradient colors for the icon, default to purple if not found
+  const gradientColors = STAT_GRADIENTS[icon] || ['#6C63FF', '#5F52EE'];
+  
+  // Format large numbers (e.g., 1000 -> 1K)
+  const formatValue = (val) => {
+    if (typeof val !== 'number') return val;
+    if (val >= 1000) {
+      return `${(val / 1000).toFixed(1)}K`;
+    }
+    return val.toString();
+  };
+
+  const formattedValue = formatValue(value);
+
   return (
-    <Card 
-      style={[
-        styles.statCardSmall,
-        {
-          borderColor: COLORS.border,
-          shadowColor: COLORS.text,
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 3,
-          elevation: 3,
-        }
-      ]} 
-      mode="outlined"
-    >
-      <Card.Content style={styles.statCardSmallContent}>
-        <MaterialCommunityIcons 
-          name={icon} 
-          size={28} 
-          color={COLORS.primaryLight} 
-          style={styles.icon}
-        />
-        <View style={styles.valueContainer}>
-          <Text style={styles.statValueSmall}>
-            {value}
-            <Text style={styles.unit}>{unit ? ` ${unit}` : ''}</Text>
-          </Text>
+    <Card style={styles.card}>
+      <View style={styles.content}>
+        {/* Icon with gradient background */}
+        <LinearGradient
+          colors={gradientColors}
+          style={styles.iconContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <MaterialCommunityIcons 
+            name={icon} 
+            size={24} 
+            color={COLORS.white} 
+          />
+        </LinearGradient>
+        
+        {/* Value and unit */}
+        <View style={styles.valueSection}>
+          <View style={styles.valueContainer}>
+            <Text style={styles.value}>{formattedValue}</Text>
+            {unit && <Text style={styles.unit}>{unit}</Text>}
+          </View>
+          
+          {/* Title */}
+          <Text style={styles.title} numberOfLines={2}>{title}</Text>
         </View>
-        <Text style={styles.statTitleSmall}>{title}</Text>
-      </Card.Content>
+        
+        {/* Subtle accent line */}
+        <LinearGradient
+          colors={[...gradientColors, 'transparent']}
+          style={styles.accentLine}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        />
+      </View>
     </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  statCardSmall: {
-    width: '46%',
+  card: {
+    width: '48%',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     marginBottom: SPACING.md,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
+    ...SHADOWS.small,
+    overflow: 'hidden', // Ensure gradient line doesn't overflow
   },
-  statCardSmallContent: {
-    alignItems: 'center',
+  content: {
     padding: SPACING.lg,
-    gap: SPACING.xs,
+    position: 'relative',
   },
-  icon: {
-    marginBottom: SPACING.sm
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+    ...SHADOWS.small,
+  },
+  valueSection: {
+    flex: 1,
   },
   valueContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     marginBottom: SPACING.xs,
   },
-  statValueSmall: {
-    fontFamily: FONT.family.heading,
+  value: {
+    fontSize: FONT.size.xxl,
     fontWeight: FONT.weight.bold,
-    fontSize: FONT.size.xl,
     color: COLORS.text,
-    textAlign: 'center',
+    lineHeight: FONT.size.xxl * 1.1,
   },
   unit: {
-    fontSize: FONT.size.lg,
-    color: COLORS.text,
-  },
-  statTitleSmall: {
-    fontFamily: FONT.family.base,
-    fontWeight: FONT.weight.regular,
     fontSize: FONT.size.md,
-    color: COLORS.textLight,
-    textAlign: 'center',
+    fontWeight: FONT.weight.medium,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.xxs,
+  },
+  title: {
+    fontSize: FONT.size.sm,
+    fontWeight: FONT.weight.medium,
+    color: COLORS.textSecondary,
+    lineHeight: FONT.size.sm * 1.3,
+  },
+  accentLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
 });
 

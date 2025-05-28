@@ -11,8 +11,6 @@ import { getProgressSummary } from '../../../api/progress';
 import ProfileTabHeader from './components/ProfileTabHeader';
 import ProfileInfo from './components/ProfileInfo';
 import StatCard from './components/StatCard';
-import GoalsProgress from './components/GoalsProgress';
-import MoodTrend from './components/MoodTrend';
 import ExerciseBreakdown from './components/ExerciseBreakdown';
 import FavoritesSection from './components/FavoritesSection';
 
@@ -65,6 +63,9 @@ const ProgressScreen = () => {
 
   console.debug('[ProgressScreen] Initializing. User:', user?.id);
   console.debug('[ProgressScreen] FavoritesSection integrated into Progress tab');
+  console.debug('[ProgressScreen] ExerciseBreakdown now fetches its own data from daily_exercise_logs');
+  console.debug('[ProgressScreen] Removed redundant GoalsProgress and MoodTrend components');
+  console.debug('[ProgressScreen] StatCard component redesigned with modern UI');
 
   const fetchSummaryData = useCallback(async () => {
     if (!user?.id) {
@@ -295,14 +296,7 @@ const ProgressScreen = () => {
             {/* Favorites Section */}
             <FavoritesSection />
 
-            <GoalsProgress 
-              completedGoals={stats.completedGoals}
-              totalGoals={stats.totalGoals}
-            />
-
-            <MoodTrend trend={stats.moodTrend} />
-
-            <ExerciseBreakdown exerciseBreakdown={stats.exerciseBreakdown} />
+            <ExerciseBreakdown />
           </>
         )}
       </ScrollView>
