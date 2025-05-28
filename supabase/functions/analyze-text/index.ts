@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { OpenAI } from 'https://esm.sh/openai@4.20.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
@@ -106,12 +107,14 @@ serve(async (req) => {
     }
 
     // 4. Make the OpenAI API call
+    // Debug: Using gpt-4o-mini for better performance and cost efficiency
+    console.log('Making OpenAI API call with gpt-4o-mini model');
     const completion = await openai.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: text }
       ],
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       max_tokens: maxTokens,
       temperature: 0.7,
     });
@@ -123,7 +126,8 @@ serve(async (req) => {
     // Debug log the response length
     console.log('Analysis complete:', { 
       analysisLength: analysis.length,
-      tokensUsed 
+      tokensUsed,
+      model: 'gpt-4o-mini'
     });
 
     // 6. Deduct tokens used from the user's balance
@@ -141,7 +145,7 @@ serve(async (req) => {
           analysis,
           metadata: {
             tokensUsed,
-            model: 'gpt-3.5-turbo'
+            model: 'gpt-4o-mini'
           }
         },
         tokens: {

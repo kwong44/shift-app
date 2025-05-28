@@ -236,9 +236,11 @@ IMPORTANT: If this is early in your conversation and they share goals but have n
     console.log('Sending request to OpenAI with message count:', messages.length);
     
     // Make OpenAI API call
+    // Debug: Using gpt-4o-mini for better performance and cost efficiency
+    console.log('Making OpenAI API call with gpt-4o-mini model');
     const completion = await openai.chat.completions.create({
       messages,
-      model: 'gpt-3.5-turbo', // Use 3.5-turbo for better reliability
+      model: 'gpt-4o-mini', // Updated from gpt-3.5-turbo to gpt-4o-mini
       max_tokens: 250,
       temperature: 0.8,
     });
@@ -256,7 +258,8 @@ IMPORTANT: If this is early in your conversation and they share goals but have n
     console.log('Coach response generated:', { 
       responseLength: response.length,
       tokensUsed,
-      userId 
+      userId,
+      model: 'gpt-4o-mini' // Updated debug log
     });
     
     // Deduct tokens used from the user's balance
@@ -275,7 +278,7 @@ IMPORTANT: If this is early in your conversation and they share goals but have n
           response,
           metadata: {
             tokensUsed,
-            model: 'gpt-3.5-turbo'
+            model: 'gpt-4o-mini' // Updated metadata
           }
         },
         tokens: {

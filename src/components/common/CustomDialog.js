@@ -21,13 +21,17 @@ import { SPACING } from '../../config/theme';
  * @param {string} props.icon - Material icon name (default: 'information')
  * @param {string} props.iconColor - Icon color (uses theme.colors.primary by default)
  * @param {string} props.iconBackgroundColor - Icon background color (uses theme.colors.primaryContainer by default)
- * @param {number} props.iconSize - Size of the icon (default: 80)
+ * @param {number} props.iconSize - Size of the icon (default: 60)
  * @param {string} props.confirmText - Text for the confirm button (default: 'OK')
  * @param {function} props.onConfirm - Callback when confirm button is pressed
  * @param {string} props.confirmMode - Button mode for confirm button (default: 'contained')
  * @param {string} props.cancelText - Text for optional cancel button
  * @param {function} props.onCancel - Callback when cancel button is pressed
  * @param {boolean} props.showIcon - Whether to show the icon (default: true)
+ * @param {boolean} props.showFavoriteButton - Whether to show the favorite button (default: false)
+ * @param {boolean} props.isFavorite - Current favorite status (default: false)
+ * @param {function} props.onFavoriteToggle - Callback when favorite button is pressed
+ * @param {boolean} props.favoriteLoading - Whether favorite action is loading (default: false)
  */
 const CustomDialog = ({
   visible,
@@ -37,19 +41,33 @@ const CustomDialog = ({
   icon = 'information',
   iconColor,
   iconBackgroundColor,
-  iconSize = 80,
+  iconSize = 60,
   confirmText = 'OK',
   onConfirm,
   confirmMode = 'contained',
   cancelText,
   onCancel,
-  showIcon = true
+  showIcon = true,
+  showFavoriteButton = false,
+  isFavorite = false,
+  onFavoriteToggle,
+  favoriteLoading = false
 }) => {
   const theme = useTheme();
   
   // Debug logs
   console.log(`DEBUG: CustomDialog rendered with title: ${title}`);
   console.log(`DEBUG: CustomDialog visible state: ${visible}`);
+  console.log(`DEBUG: CustomDialog showFavoriteButton: ${showFavoriteButton}, isFavorite: ${isFavorite}`);
+  console.log(`DEBUG: CustomDialog onFavoriteToggle function exists: ${!!onFavoriteToggle}`);
+  console.log(`DEBUG: CustomDialog favoriteLoading: ${favoriteLoading}`);
+  
+  // Additional debug for troubleshooting
+  if (showFavoriteButton) {
+    console.log(`DEBUG: CustomDialog - Favorites button SHOULD be visible!`);
+  } else {
+    console.log(`DEBUG: CustomDialog - Favorites button will NOT show because showFavoriteButton is false`);
+  }
 
   return (
     <Portal>
@@ -59,19 +77,22 @@ const CustomDialog = ({
         style={styles.dialog}
       >
         <View style={styles.dialogContent}>
-          {showIcon && (
-            <Avatar.Icon 
-              size={iconSize} 
-              icon={icon} 
-              style={styles.dialogIcon} 
-              color={iconColor || theme.colors.primary}
-              backgroundColor={iconBackgroundColor || theme.colors.primaryContainer} 
-            />
-          )}
+          {/* Header with icon */}
+          <View style={styles.headerContainer}>
+            {showIcon && (
+              <Avatar.Icon 
+                size={iconSize} 
+                icon={icon} 
+                style={styles.dialogIcon} 
+                color={iconColor || theme.colors.primary}
+                backgroundColor={iconBackgroundColor || theme.colors.primaryContainer} 
+              />
+            )}
+          </View>
           
           {title && <Dialog.Title style={styles.dialogTitle}>{title}</Dialog.Title>}
           
-          <Dialog.Content>
+          <Dialog.Content style={styles.dialogContentContainer}>
             {typeof content === 'string' ? (
               <Text variant="bodyMedium" style={styles.dialogText}>
                 {content}
@@ -82,28 +103,49 @@ const CustomDialog = ({
           </Dialog.Content>
           
           <Dialog.Actions style={styles.dialogActions}>
-            {cancelText && (
+            {/* Favorite button - shown first if enabled */}
+            {showFavoriteButton && (
               <Button 
+                mode="outlined"
                 onPress={() => {
-                  console.log('DEBUG: CustomDialog cancel button pressed');
-                  onCancel && onCancel();
+                  console.log('DEBUG: CustomDialog favorite button pressed');
+                  onFavoriteToggle && onFavoriteToggle();
                 }}
-                style={styles.dialogButton}
+                loading={favoriteLoading}
+                disabled={favoriteLoading}
+                style={[styles.dialogButton, styles.favoriteButtonStyle]}
+                labelStyle={styles.favoriteButtonLabel}
+                icon={isFavorite ? 'heart' : 'heart-outline'}
               >
-                {cancelText}
+                {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
               </Button>
             )}
             
-            <Button 
-              mode={confirmMode}
-              onPress={() => {
-                console.log('DEBUG: CustomDialog confirm button pressed');
-                onConfirm && onConfirm();
-              }}
-              style={styles.dialogButton}
-            >
-              {confirmText}
-            </Button>
+            {/* Action buttons row */}
+            <View style={styles.actionButtonsRow}>
+              {cancelText && (
+                <Button 
+                  onPress={() => {
+                    console.log('DEBUG: CustomDialog cancel button pressed');
+                    onCancel && onCancel();
+                  }}
+                  style={styles.dialogButton}
+                >
+                  {cancelText}
+                </Button>
+              )}
+              
+              <Button 
+                mode={confirmMode}
+                onPress={() => {
+                  console.log('DEBUG: CustomDialog confirm button pressed');
+                  onConfirm && onConfirm();
+                }}
+                style={styles.dialogButton}
+              >
+                {confirmText}
+              </Button>
+            </View>
           </Dialog.Actions>
         </View>
       </Dialog>
@@ -118,31 +160,56 @@ const styles = StyleSheet.create({
   },
   dialogContent: {
     alignItems: 'center',
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   dialogIcon: {
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
+    // Icon is centered by default due to headerContainer justifyContent: 'center'
   },
   dialogTitle: {
-    fontSize: 24,
+    fontSize: 22,
     textAlign: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+  },
+  dialogContentContainer: {
+    paddingVertical: 0,
+    paddingHorizontal: SPACING.md,
   },
   dialogText: {
     textAlign: 'center',
-    marginHorizontal: SPACING.lg,
     color: theme => theme.colors.onSurfaceVariant,
+    lineHeight: 20,
   },
   dialogActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: SPACING.md,
-    paddingBottom: SPACING.lg,
+    marginTop: SPACING.sm,
   },
   dialogButton: {
-    borderRadius: 30,
-    marginHorizontal: SPACING.xs,
-    paddingHorizontal: SPACING.lg,
+    minWidth: 200,
+  },
+  favoriteButtonStyle: {
+    borderColor: '#FF6B6B',
+    marginBottom: SPACING.sm,
+    minWidth: 200,
+  },
+  favoriteButtonLabel: {
+    color: '#FF6B6B',
+    fontSize: 14,
   },
 });
 

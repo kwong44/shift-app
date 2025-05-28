@@ -120,18 +120,33 @@ const SetupScreen = ({ navigation, route }) => {
         duration: sessionDuration, // Crucially, use the sessionDuration from state
     };
 
-    const exerciseTypeForPlayer = masterExerciseId ? (getExerciseById(masterExerciseId)?.type || 'Mindfulness') : 'Mindfulness';
+    // Determine the correct masterExerciseId based on mindfulness type and duration
+    let determinedMasterExerciseId = masterExerciseId; // Use passed one if available
+    
+    if (!determinedMasterExerciseId) {
+      // Map mindfulness type to masterExerciseId based on type and approximate duration
+      const typeToIdMap = {
+        'breath': 'mindfulness_breath_5min',
+        'body': 'mindfulness_body_scan_8min',
+        'senses': 'mindfulness_senses_4min'
+      };
+      
+      determinedMasterExerciseId = typeToIdMap[currentMindfulnessType] || 'mindfulness_breath_5min';
+      console.debug('[MindfulnessSetupScreen] Determined masterExerciseId:', determinedMasterExerciseId, 'for type:', currentMindfulnessType);
+    }
+
+    const exerciseTypeForPlayer = determinedMasterExerciseId ? (getExerciseById(determinedMasterExerciseId)?.type || 'Mindfulness') : 'Mindfulness';
 
     const playerParams = {
         mindfulnessType: currentMindfulnessType, // The value string, e.g., 'breath'
         selectedEmotions,
         typeData: finalTypeDataForPlayer, // Pass the rich object with correct duration
-        masterExerciseId: masterExerciseId, // Pass if available
+        masterExerciseId: determinedMasterExerciseId, // Pass determined masterExerciseId
         exerciseType: exerciseTypeForPlayer,
         originRouteName: originRouteName
     };
 
-    console.debug('[MindfulnessSetupScreen] Navigating to MindfulnessPlayer with params:', playerParams);
+    console.debug('[MindfulnessSetupScreen] Navigating to MindfulnessPlayer with params (including determined masterId):', playerParams);
     navigation.navigate('MindfulnessPlayer', playerParams);
   };
 

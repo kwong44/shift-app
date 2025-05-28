@@ -94,6 +94,23 @@ const SetupScreen = ({ navigation, route }) => {
     const visualizationContent = selectedTypeData.label || visualizationType;
     const durationInSeconds = sessionDuration;
 
+    // Determine the correct masterExerciseId based on visualization type and duration
+    let determinedMasterExerciseId = masterExerciseId; // Use passed one if available
+    
+    if (!determinedMasterExerciseId) {
+      // Map visualization type to masterExerciseId
+      const typeToIdMap = {
+        'goals': 'visualization_goals_5min',
+        'ideal_life': 'visualization_ideal_life_5min', 
+        'confidence': 'visualization_confidence_5min',
+        'contentment': 'visualization_contentment_5min',
+        'calm': 'visualization_calm_5min'
+      };
+      
+      determinedMasterExerciseId = typeToIdMap[visualizationType] || 'visualization_goals_5min';
+      console.debug('[VisualizationSetupScreen] Determined masterExerciseId:', determinedMasterExerciseId, 'for type:', visualizationType);
+    }
+
     try {
       console.debug('[VisualizationSetupScreen] Attempting to create visualization:', {
         userId: user.id,
@@ -104,7 +121,7 @@ const SetupScreen = ({ navigation, route }) => {
 
       if (createdViz && createdViz.id) {
         console.debug('[VisualizationSetupScreen] Visualization created successfully in DB:', createdViz);
-        const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+        const exerciseDetailsForPlayer = determinedMasterExerciseId ? getExerciseById(determinedMasterExerciseId) : null;
         const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Visualization';
 
         const playerParams = {
@@ -115,12 +132,12 @@ const SetupScreen = ({ navigation, route }) => {
             duration: durationInSeconds, // ensure updated duration from state is passed
           },
           content: visualizationContent,
-          // Pass masterExerciseId and exerciseType to PlayerScreen
-          masterExerciseId: masterExerciseId,
+          // Pass determined masterExerciseId and exerciseType to PlayerScreen
+          masterExerciseId: determinedMasterExerciseId,
           exerciseType: exerciseTypeForPlayer,
           originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[VisualizationSetupScreen] Navigating to VisualizationPlayer with params (including masterId/type/origin):', playerParams);
+        console.debug('[VisualizationSetupScreen] Navigating to VisualizationPlayer with params (including determined masterId/type/origin):', playerParams);
         navigation.navigate('VisualizationPlayer', playerParams);
       } else {
         console.error('[VisualizationSetupScreen] Failed to create visualization or ID missing.');

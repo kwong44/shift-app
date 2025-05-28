@@ -15,6 +15,8 @@ import { logMindfulnessSession } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
 import { supabase } from '../../../config/supabase';
 import { getExerciseById } from '../../../constants/masterExerciseList';
+import { getFavoriteExerciseIds } from '../../../api/profile';
+import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
 
 // Import local components
 import Timer from '../../../components/exercises/Timer';
@@ -34,6 +36,14 @@ const PlayerScreen = ({ navigation, route }) => {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
+  // Favorites functionality
+  const { 
+    toggleFavorite, 
+    getFavoriteStatus, 
+    getLoadingStatus, 
+    setInitialFavoriteStatus 
+  } = useExerciseFavorites(user?.id);
+
   // Debug logging for props
   console.debug('MindfulnessPlayerScreen props:', {
     type: mindfulnessType,
@@ -44,6 +54,42 @@ const PlayerScreen = ({ navigation, route }) => {
     originRouteName: originRouteName,
     plannedDuration: typeData?.duration
   });
+
+  // Load initial favorite status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (user?.id && masterExerciseId) {
+        console.debug('[MindfulnessPlayerScreen] Loading favorite status for exercise:', masterExerciseId);
+        try {
+          const favoriteIds = await getFavoriteExerciseIds(user.id);
+          const isFavorite = favoriteIds.includes(masterExerciseId);
+          setInitialFavoriteStatus(masterExerciseId, isFavorite);
+          console.debug('[MindfulnessPlayerScreen] Initial favorite status loaded:', isFavorite);
+        } catch (error) {
+          console.error('[MindfulnessPlayerScreen] Error loading favorite status:', error);
+        }
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
+
+  const handleFavoriteToggle = async () => {
+    if (!masterExerciseId) {
+      console.warn('[MindfulnessPlayerScreen] No masterExerciseId available for favorite toggle');
+      return;
+    }
+
+    const currentStatus = getFavoriteStatus(masterExerciseId, false);
+    console.debug('[MindfulnessPlayerScreen] Toggling favorite for exercise:', masterExerciseId, 'Current status:', currentStatus);
+    
+    const newStatus = await toggleFavorite(masterExerciseId, currentStatus);
+    
+    // Show feedback message
+    const message = newStatus ? 'Added to favorites!' : 'Removed from favorites';
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+  };
 
   const handleComplete = async (actualDurationSpent) => {
     if (!user) {
@@ -245,6 +291,10 @@ const PlayerScreen = ({ navigation, route }) => {
           onConfirm={handleFinish}
           iconColor={COLORS.primary}
           iconBackgroundColor={`${COLORS.primary}15`}
+          showFavoriteButton={!!masterExerciseId}
+          isFavorite={getFavoriteStatus(masterExerciseId, false)}
+          onFavoriteToggle={handleFavoriteToggle}
+          favoriteLoading={getLoadingStatus(masterExerciseId)}
         />
 
         {/* Enhanced snackbar */}

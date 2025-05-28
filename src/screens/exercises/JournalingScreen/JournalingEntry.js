@@ -22,6 +22,8 @@ import { JOURNAL_PROMPTS, PROMPT_TYPES } from './constants';
 import { useUser } from '../../../hooks/useUser';
 import CustomDialog from '../../../components/common/CustomDialog';
 import { supabase } from '../../../config/supabase';
+import { getFavoriteExerciseIds } from '../../../api/profile';
+import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
 
 const { height } = Dimensions.get('window');
 
@@ -42,8 +44,52 @@ const JournalingEntry = ({ route, navigation }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insights, setInsights] = useState(null);
 
+  // Favorites functionality
+  const { 
+    toggleFavorite, 
+    getFavoriteStatus, 
+    getLoadingStatus, 
+    setInitialFavoriteStatus 
+  } = useExerciseFavorites(user?.id);
+
   // Get the selected prompt type data
   const selectedPromptType = PROMPT_TYPES.find(type => type.value === promptType);
+
+  // Load initial favorite status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (user?.id && masterExerciseId) {
+        console.debug('[JournalingEntry] Loading favorite status for exercise:', masterExerciseId);
+        try {
+          const favoriteIds = await getFavoriteExerciseIds(user.id);
+          const isFavorite = favoriteIds.includes(masterExerciseId);
+          setInitialFavoriteStatus(masterExerciseId, isFavorite);
+          console.debug('[JournalingEntry] Initial favorite status loaded:', isFavorite);
+        } catch (error) {
+          console.error('[JournalingEntry] Error loading favorite status:', error);
+        }
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
+
+  const handleFavoriteToggle = async () => {
+    if (!masterExerciseId) {
+      console.warn('[JournalingEntry] No masterExerciseId available for favorite toggle');
+      return;
+    }
+
+    const currentStatus = getFavoriteStatus(masterExerciseId, false);
+    console.debug('[JournalingEntry] Toggling favorite for exercise:', masterExerciseId, 'Current status:', currentStatus);
+    
+    const newStatus = await toggleFavorite(masterExerciseId, currentStatus);
+    
+    // Show feedback message
+    const message = newStatus ? 'Added to favorites!' : 'Removed from favorites';
+    setError(message);
+    setSnackbarVisible(true);
+  };
 
   // Debug logging - only log when props change
   useEffect(() => {
@@ -272,6 +318,10 @@ const JournalingEntry = ({ route, navigation }) => {
         onConfirm={handleFinish}
         iconColor={COLORS.primary}
         iconBackgroundColor={`${COLORS.primary}15`}
+        showFavoriteButton={!!masterExerciseId}
+        isFavorite={getFavoriteStatus(masterExerciseId, false)}
+        onFavoriteToggle={handleFavoriteToggle}
+        favoriteLoading={getLoadingStatus(masterExerciseId)}
       />
 
       <Snackbar

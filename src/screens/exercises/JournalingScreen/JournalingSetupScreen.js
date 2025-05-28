@@ -46,14 +46,31 @@ const JournalingSetupScreen = ({ navigation, route }) => {
 
   const handleContinue = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    // Determine the correct masterExerciseId based on prompt type
+    let determinedMasterExerciseId = masterExerciseId; // Use passed one if available
+    
+    if (!determinedMasterExerciseId) {
+      // Map prompt type to masterExerciseId
+      const promptToIdMap = {
+        'gratitude': 'journaling_gratitude',
+        'reflection': 'journaling_reflection',
+        'growth': 'journaling_growth',
+        'free_write': 'journaling_free_write'
+      };
+      
+      determinedMasterExerciseId = promptToIdMap[promptType] || 'journaling_gratitude';
+      console.debug('[JournalingSetupScreen] Determined masterExerciseId:', determinedMasterExerciseId, 'for prompt type:', promptType);
+    }
+    
     const entryParams = {
       promptType,
       selectedEmotions,
-      masterExerciseId,
-      exerciseType,
+      masterExerciseId: determinedMasterExerciseId,
+      exerciseType: exerciseType || 'Journaling',
       originRouteName
     };
-    console.debug('[JournalingSetupScreen] Navigating to JournalingEntry with params:', entryParams);
+    console.debug('[JournalingSetupScreen] Navigating to JournalingEntry with params (including determined masterId):', entryParams);
     navigation.navigate('JournalingEntry', entryParams);
   };
 

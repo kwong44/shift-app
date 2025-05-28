@@ -110,7 +110,23 @@ const SetupScreen = ({ navigation, route }) => {
       if (session && session.id) {
         console.debug('[BinauralSetupScreen] Session started successfully:', session);
         
-        const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+        // Determine the correct masterExerciseId based on frequency type
+        let determinedMasterExerciseId = masterExerciseId; // Use passed one if available
+        
+        if (!determinedMasterExerciseId) {
+          // Map frequency type to masterExerciseId
+          const frequencyToIdMap = {
+            'focus': 'binaural_focus_beta_20min',
+            'meditation': 'binaural_meditation_theta_15min',
+            'creativity': 'binaural_creativity_alpha_30min',
+            'sleep': 'binaural_sleep_theta_30min'
+          };
+          
+          determinedMasterExerciseId = frequencyToIdMap[selectedFrequency] || 'binaural_focus_beta_20min';
+          console.debug('[BinauralSetupScreen] Determined masterExerciseId:', determinedMasterExerciseId, 'for frequency:', selectedFrequency);
+        }
+        
+        const exerciseDetailsForPlayer = determinedMasterExerciseId ? getExerciseById(determinedMasterExerciseId) : null;
         const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Binaural Beats';
         
         const frequencyDataForPlayer = {
@@ -122,11 +138,11 @@ const SetupScreen = ({ navigation, route }) => {
           category: params.category || initialExerciseDetails?.defaultSettings?.category || baseFrequencyDetails.category,
           duration: durationInSeconds,
           sessionId: session.id,
-          masterExerciseId: masterExerciseId,
+          masterExerciseId: determinedMasterExerciseId,
           exerciseType: exerciseTypeForPlayer,
           originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[BinauralSetupScreen] Navigating to BinauralPlayer with frequencyData (including masterId/type/origin):', frequencyDataForPlayer);
+        console.debug('[BinauralSetupScreen] Navigating to BinauralPlayer with frequencyData (including determined masterId/type/origin):', frequencyDataForPlayer);
         navigation.navigate('BinauralPlayer', { frequencyData: frequencyDataForPlayer });
       } else {
         console.error('[BinauralSetupScreen] Failed to start session or session ID missing.');

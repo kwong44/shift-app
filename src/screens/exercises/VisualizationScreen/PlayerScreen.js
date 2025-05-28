@@ -6,6 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
 import CustomDialog from '../../../components/common/CustomDialog';
+import { useUser } from '../../../hooks/useUser';
+import { getFavoriteExerciseIds } from '../../../api/profile';
+import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
 
 // Import local components and hooks
 import PlayerCard from './components/PlayerCard';
@@ -26,8 +29,55 @@ const PlayerScreen = ({ route, navigation }) => {
     exerciseType,
     originRouteName
   } = route.params;
+  const { user } = useUser();
   const selectedType = typeData;
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Favorites functionality
+  const { 
+    toggleFavorite, 
+    getFavoriteStatus, 
+    getLoadingStatus, 
+    setInitialFavoriteStatus 
+  } = useExerciseFavorites(user?.id);
+
+  // Load initial favorite status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (user?.id && masterExerciseId) {
+        console.debug('[VisualizationPlayerScreen] Loading favorite status for exercise:', masterExerciseId);
+        try {
+          const favoriteIds = await getFavoriteExerciseIds(user.id);
+          const isFavorite = favoriteIds.includes(masterExerciseId);
+          setInitialFavoriteStatus(masterExerciseId, isFavorite);
+          console.debug('[VisualizationPlayerScreen] Initial favorite status loaded:', isFavorite);
+        } catch (error) {
+          console.error('[VisualizationPlayerScreen] Error loading favorite status:', error);
+        }
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
+
+  const handleFavoriteToggle = async () => {
+    if (!masterExerciseId) {
+      console.warn('[VisualizationPlayerScreen] No masterExerciseId available for favorite toggle');
+      return;
+    }
+
+    const currentStatus = getFavoriteStatus(masterExerciseId, false);
+    console.debug('[VisualizationPlayerScreen] Toggling favorite for exercise:', masterExerciseId, 'Current status:', currentStatus);
+    
+    const newStatus = await toggleFavorite(masterExerciseId, currentStatus);
+    
+    // Show feedback message
+    const message = newStatus ? 'Added to favorites!' : 'Removed from favorites';
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+  };
   
   const handleSessionCompletionNavigation = () => {
     setShowCompletionDialog(false);
@@ -148,6 +198,10 @@ const PlayerScreen = ({ route, navigation }) => {
             onConfirm={handleSessionCompletionNavigation}
             icon="check-circle"
             iconColor={COLORS.success}
+            showFavoriteButton={!!masterExerciseId}
+            isFavorite={getFavoriteStatus(masterExerciseId, false)}
+            onFavoriteToggle={handleFavoriteToggle}
+            favoriteLoading={getLoadingStatus(masterExerciseId)}
           />
 
           <CustomDialog
@@ -161,6 +215,21 @@ const PlayerScreen = ({ route, navigation }) => {
             iconColor={COLORS.error}
             iconBackgroundColor="rgba(255,59,48,0.1)"
           />
+
+          {/* Snackbar for favorites feedback */}
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            duration={3000}
+            style={styles.snackbar}
+            action={{
+              label: 'OK',
+              onPress: () => setSnackbarVisible(false),
+              textColor: '#FFFFFF',
+            }}
+          >
+            {snackbarMessage}
+          </Snackbar>
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -228,7 +297,10 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   snackbar: {
-    bottom: SPACING.md,
+    bottom: SPACING.lg,
+    marginHorizontal: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: RADIUS.md,
   },
 });
 

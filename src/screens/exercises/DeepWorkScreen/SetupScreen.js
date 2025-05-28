@@ -104,7 +104,23 @@ const SetupScreen = ({ navigation, route }) => {
 
       if (session && session.id) {
         console.debug('[DeepWorkSetupScreen] Deep work session started successfully in DB:', session);
-        const exerciseDetailsForPlayer = masterExerciseId ? getExerciseById(masterExerciseId) : null;
+        
+        // Determine the correct masterExerciseId based on duration
+        let determinedMasterExerciseId = masterExerciseId; // Use passed one if available
+        
+        if (!determinedMasterExerciseId) {
+          // Map duration to masterExerciseId
+          const durationToIdMap = {
+            1500: 'deepwork_pomodoro_25min',    // 25 minutes
+            2700: 'deepwork_extended_45min',    // 45 minutes  
+            3000: 'deepwork_deep_50min'         // 50 minutes
+          };
+          
+          determinedMasterExerciseId = durationToIdMap[durationInSeconds] || 'deepwork_pomodoro_25min';
+          console.debug('[DeepWorkSetupScreen] Determined masterExerciseId:', determinedMasterExerciseId, 'for duration:', durationInSeconds);
+        }
+        
+        const exerciseDetailsForPlayer = determinedMasterExerciseId ? getExerciseById(determinedMasterExerciseId) : null;
         const exerciseTypeForPlayer = exerciseDetailsForPlayer?.type || 'Deep Work';
 
         const playerParams = {
@@ -113,12 +129,12 @@ const SetupScreen = ({ navigation, route }) => {
           duration: durationInSeconds,
           durationData: selectedDurationData, // This is from local SESSION_DURATIONS
           startTime: session.start_time,
-          // Pass masterExerciseId and exerciseType to PlayerScreen
-          masterExerciseId: masterExerciseId,
+          // Pass determined masterExerciseId and exerciseType to PlayerScreen
+          masterExerciseId: determinedMasterExerciseId,
           exerciseType: exerciseTypeForPlayer,
           originRouteName: originRouteName // Pass originRouteName
         };
-        console.debug('[DeepWorkSetupScreen] Navigating to DeepWorkPlayer with params (including masterId/type/origin):', playerParams);
+        console.debug('[DeepWorkSetupScreen] Navigating to DeepWorkPlayer with params (including determined masterId/type/origin):', playerParams);
         navigation.navigate('DeepWorkPlayer', playerParams);
       } else {
         console.error('[DeepWorkSetupScreen] Failed to start deep work session or session ID missing from API response.');

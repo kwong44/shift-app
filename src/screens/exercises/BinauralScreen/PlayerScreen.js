@@ -7,6 +7,7 @@ import {
   Portal,
   Dialog,
   Button,
+  Snackbar,
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../config/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,8 @@ import CustomDialog from '../../../components/common/CustomDialog';
 import { useUser } from '../../../hooks/useUser';
 import { supabase } from '../../../config/supabase';
 import { updateBinauralSession } from '../../../api/exercises/binaural';
+import { getFavoriteExerciseIds } from '../../../api/profile';
+import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
 
 // Import local components and hooks
 import PlayerCard from './components/PlayerCard';
@@ -31,6 +34,17 @@ const PlayerScreen = ({ navigation, route }) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [loading, setLoading] = useState(true); // Add loading state for UI consistency
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Favorites functionality
+  const { 
+    toggleFavorite, 
+    getFavoriteStatus, 
+    getLoadingStatus, 
+    setInitialFavoriteStatus 
+  } = useExerciseFavorites(user?.id);
+
   const { 
     isPlaying,
     progress,
@@ -52,6 +66,42 @@ const PlayerScreen = ({ navigation, route }) => {
     userId: user?.id,
     loading
   });
+
+  // Load initial favorite status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (user?.id && masterExerciseId) {
+        console.debug('[BinauralPlayerScreen] Loading favorite status for exercise:', masterExerciseId);
+        try {
+          const favoriteIds = await getFavoriteExerciseIds(user.id);
+          const isFavorite = favoriteIds.includes(masterExerciseId);
+          setInitialFavoriteStatus(masterExerciseId, isFavorite);
+          console.debug('[BinauralPlayerScreen] Initial favorite status loaded:', isFavorite);
+        } catch (error) {
+          console.error('[BinauralPlayerScreen] Error loading favorite status:', error);
+        }
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
+
+  const handleFavoriteToggle = async () => {
+    if (!masterExerciseId) {
+      console.warn('[BinauralPlayerScreen] No masterExerciseId available for favorite toggle');
+      return;
+    }
+
+    const currentStatus = getFavoriteStatus(masterExerciseId, false);
+    console.debug('[BinauralPlayerScreen] Toggling favorite for exercise:', masterExerciseId, 'Current status:', currentStatus);
+    
+    const newStatus = await toggleFavorite(masterExerciseId, currentStatus);
+    
+    // Show feedback message
+    const message = newStatus ? 'Added to favorites!' : 'Removed from favorites';
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+  };
 
   // Simulate loading for audio setup - remove loading state after a brief moment
   useEffect(() => {
@@ -196,6 +246,10 @@ const PlayerScreen = ({ navigation, route }) => {
             onConfirm={handleDialogFinish}
             icon="check-circle"
             iconColor={COLORS.success}
+            showFavoriteButton={!!masterExerciseId}
+            isFavorite={getFavoriteStatus(masterExerciseId, false)}
+            onFavoriteToggle={handleFavoriteToggle}
+            favoriteLoading={getLoadingStatus(masterExerciseId)}
           />
 
           <CustomDialog
@@ -209,6 +263,21 @@ const PlayerScreen = ({ navigation, route }) => {
             iconColor={COLORS.error}
             iconBackgroundColor="rgba(255,59,48,0.1)"
           />
+
+          {/* Snackbar for favorites feedback */}
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            duration={3000}
+            style={styles.snackbar}
+            action={{
+              label: 'OK',
+              onPress: () => setSnackbarVisible(false),
+              textColor: '#FFFFFF',
+            }}
+          >
+            {snackbarMessage}
+          </Snackbar>
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -264,6 +333,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: SPACING.md,
+  },
+  snackbar: {
+    bottom: SPACING.lg,
+    marginHorizontal: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: RADIUS.md,
   },
 });
 
