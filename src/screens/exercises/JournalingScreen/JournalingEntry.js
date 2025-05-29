@@ -83,21 +83,34 @@ const JournalingEntry = ({ route, navigation }) => {
   // Load user's credit balance
   useEffect(() => {
     const loadUserCredits = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.debug('[JournalingEntry] No user ID available for credit loading');
+        return;
+      }
       
+      console.debug('[JournalingEntry] Starting to load user credits for user:', user.id);
       setLoadingCredits(true);
+      
       try {
+        console.debug('[JournalingEntry] Calling checkUserTokens()...');
         const creditsResponse = await checkUserTokens();
-        if (creditsResponse.success) {
-          setUserCredits(creditsResponse.credits);
-          console.debug('[JournalingEntry] User credits loaded:', creditsResponse.credits);
+        console.debug('[JournalingEntry] checkUserTokens response:', creditsResponse);
+        
+        if (creditsResponse && creditsResponse.hasEnough !== undefined) {
+          // checkUserTokens returns { hasEnough, tokens, credits, isLow }
+          const credits = creditsResponse.credits || 0;
+          setUserCredits(credits);
+          console.debug('[JournalingEntry] User credits loaded successfully:', credits);
         } else {
-          console.warn('[JournalingEntry] Failed to load user credits:', creditsResponse.error);
+          console.warn('[JournalingEntry] Invalid response from checkUserTokens:', creditsResponse);
+          setUserCredits(0);
         }
       } catch (error) {
         console.error('[JournalingEntry] Error loading user credits:', error);
+        setUserCredits(0);
       } finally {
         setLoadingCredits(false);
+        console.debug('[JournalingEntry] Finished loading credits, loadingCredits set to false');
       }
     };
 
@@ -354,8 +367,13 @@ const JournalingEntry = ({ route, navigation }) => {
   /**
    * Handle navigation to recommended exercise from pattern analysis
    */
-  const handleNavigateToRecommendedExercise = (exerciseId, exerciseType) => {
-    console.debug('[JournalingEntry] Navigating to recommended exercise:', { exerciseId, exerciseType });
+  const handleNavigateToRecommendedExercise = (recommendation) => {
+    console.debug('[JournalingEntry] Navigating to recommended exercise:', recommendation);
+    
+    // Extract exerciseId and exerciseType from the recommendation object
+    const { exercise_id: exerciseId, exercise_type: exerciseType } = recommendation;
+    
+    console.debug('[JournalingEntry] Extracted navigation params:', { exerciseId, exerciseType });
     
     // Dismiss the dialog first
     setShowDialog(false);
@@ -385,6 +403,7 @@ const JournalingEntry = ({ route, navigation }) => {
         });
         break;
       default:
+        console.warn('[JournalingEntry] Unknown exercise type:', exerciseType, 'falling back to ExercisesDashboard');
         navigation.navigate('ExercisesDashboard');
     }
   };
@@ -479,7 +498,7 @@ const JournalingEntry = ({ route, navigation }) => {
             {/* Credit Balance Display */}
             <View style={styles.creditBalanceContainer}>
               <MaterialCommunityIcons 
-                name="coin" 
+                name="circle-multiple" 
                 size={16} 
                 color={COLORS.primary} 
                 style={styles.creditIcon}
@@ -508,7 +527,7 @@ const JournalingEntry = ({ route, navigation }) => {
                 </View>
 
                 {/* AI Analysis Button or Low Credits Warning */}
-                {userCredits !== null && userCredits < 1000 && (
+                {userCredits !== null && userCredits < 5 && (
                   <View style={styles.lowCreditsWarning}>
                     <MaterialCommunityIcons 
                       name="alert-circle-outline" 
@@ -585,7 +604,10 @@ const JournalingEntry = ({ route, navigation }) => {
         onFavoriteToggle={handleFavoriteToggle}
         favoriteLoading={getLoadingStatus(masterExerciseId)}
         patternAnalysis={patternAnalysis}
-        onNavigateToRecommendedExercise={handleNavigateToRecommendedExercise}
+        onNavigateToRecommendedExercise={(recommendation) => {
+          console.debug('[JournalingEntry] Pattern recommendation navigation triggered with:', recommendation);
+          handleNavigateToRecommendedExercise(recommendation);
+        }}
       />
 
       <Snackbar

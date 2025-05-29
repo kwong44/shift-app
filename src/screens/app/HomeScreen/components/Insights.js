@@ -74,8 +74,13 @@ const Insights = ({ insights, journalDate, navigation }) => {
     }
   };
 
-  const handleNavigateToRecommendedExercise = (exerciseId, exerciseType) => {
-    console.debug('[Insights] Navigating to recommended exercise:', { exerciseId, exerciseType });
+  const handleNavigateToRecommendedExercise = (recommendation) => {
+    console.debug('[Insights] Navigating to recommended exercise:', recommendation);
+    
+    // Extract exerciseId and exerciseType from the recommendation object
+    const { exercise_id: exerciseId, exercise_type: exerciseType } = recommendation;
+    
+    console.debug('[Insights] Extracted navigation params:', { exerciseId, exerciseType });
     
     // Dismiss the pattern recommendation
     setPatternRecommendations(null);
@@ -105,6 +110,7 @@ const Insights = ({ insights, journalDate, navigation }) => {
         });
         break;
       default:
+        console.warn('[Insights] Unknown exercise type:', exerciseType, 'falling back to ExercisesDashboard');
         navigation?.navigate('ExercisesDashboard');
     }
   };
