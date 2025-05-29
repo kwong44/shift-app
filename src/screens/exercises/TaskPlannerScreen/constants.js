@@ -3,7 +3,7 @@ export const PRIORITY_LEVELS = [
   { 
     value: 'high', 
     label: 'High', 
-    icon: 'flag', 
+    icon: 'fire', 
     color: '#E53935',
     gradient: ['#E53935', '#C62828'],
     description: 'Tasks that need immediate attention'
@@ -11,7 +11,7 @@ export const PRIORITY_LEVELS = [
   { 
     value: 'medium', 
     label: 'Medium', 
-    icon: 'flag-outline', 
+    icon: 'flag', 
     color: '#FB8C00',
     gradient: ['#FB8C00', '#EF6C00'],
     description: 'Important but not urgent tasks'
