@@ -335,7 +335,7 @@ const HomeScreen = ({ navigation }) => {
             onUpdateRoadmapData={handleRoadmapUpdate}
           />
 
-          <Insights insights={insights} journalDate={journalDate} />
+          <Insights insights={insights} journalDate={journalDate} navigation={navigation} />
           
           <View style={styles.componentWrapper}>
             <DailyFocus 

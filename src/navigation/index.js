@@ -45,6 +45,7 @@ import { PlayerScreen as DeepWorkPlayerScreen } from '../screens/exercises/DeepW
 import JournalingSetupScreen from '../screens/exercises/JournalingScreen/JournalingSetupScreen';
 import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEntry';
 import AICoachScreen from '../screens/app/AICoachScreen';
+import CreditsPurchaseScreen from '../screens/CreditsPurchaseScreen';
 
 const Stack = createStackNavigator();
 
@@ -291,6 +292,7 @@ const Navigation = () => {
                 cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
               }}
             />
+            <Stack.Screen name="CreditsPurchase" component={CreditsPurchaseScreen} />
           </Stack.Group>
         )}
       </Stack.Navigator>

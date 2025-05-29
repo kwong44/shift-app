@@ -23,7 +23,7 @@ export const AI_COACH_CONFIG = {
   // Interaction limits to manage costs
   limits: {
     maxDailyInteractions: 10,
-    maxTokensPerResponse: 150,
+    maxTokensPerResponse: 75, // Reduced from 150 for more concise insights
     minTimeBetweenRequests: 1000, // 1 second in milliseconds (reduced from 60 seconds)
   },
   
@@ -133,10 +133,15 @@ export const testAiConnection = async (inputText) => {
  * Analyzes text using the AI coach
  * @param {string} text - The text to analyze
  * @param {object} context - Additional context for the analysis
+ * @param {boolean} enablePatternAnalysis - Whether to enable pattern analysis for journaling (default: false)
  * @returns {Promise<object>} The AI's analysis
  */
-export const analyzeText = async (text, context = {}) => {
-  console.debug('[aiCoachAPI] Analyzing text with AI coach', { textLength: text?.length, context });
+export const analyzeText = async (text, context = {}, enablePatternAnalysis = false) => {
+  console.debug('[aiCoachAPI] Analyzing text with AI coach', { 
+    textLength: text?.length, 
+    context, 
+    enablePatternAnalysis 
+  });
 
   try {
     if (!canMakeRequest()) {
@@ -157,16 +162,24 @@ export const analyzeText = async (text, context = {}) => {
       throw new Error(`Insufficient tokens to use AI Coach. You need at least ${AI_COACH_CONFIG.tokens.minTokensRequired} tokens.`);
     }
 
+    console.debug('[aiCoachAPI] Invoking analyze-text function with pattern analysis:', enablePatternAnalysis);
+
     const { data, error } = await supabase.functions.invoke('analyze-text', {
       body: { 
         text,
         context,
         maxTokens: AI_COACH_CONFIG.limits.maxTokensPerResponse,
-        userId: user.id // Add user ID to the request so the edge function can track token usage
+        userId: user.id, // Add user ID to the request so the edge function can track token usage
+        enablePatternAnalysis // NEW: Enable pattern analysis for journaling
       },
     });
 
     if (error) throw error;
+    
+    // Log pattern analysis results for debugging
+    if (data.data?.patternAnalysis) {
+      console.debug('[aiCoachAPI] Pattern analysis results:', data.data.patternAnalysis);
+    }
     
     // Add token information to response
     // The edge function will report the exact token usage and new balance

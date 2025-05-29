@@ -14,16 +14,31 @@
 ├── app.json
 ├── assets
 │   ├── adaptive-icon.png
+│   ├── audio
+│   │   ├── binaural
+│   │   │   ├── creativity.mp3
+│   │   │   ├── focus.mp3
+│   │   │   ├── meditation.mp3
+│   │   │   └── sleep.mp3
+│   │   ├── silence.mp3
+│   │   └── visualization
+│   │       ├── calm.mp3
+│   │       ├── confidence.mp3
+│   │       ├── contentment.mp3
+│   │       ├── goals.mp3
+│   │       └── ideal_life.mp3
 │   ├── favicon.png
 │   ├── icon.png
 │   └── splash-icon.png
 ├── babel.config.js
+├── eas.json
 ├── index.js
 ├── instructions
 │   ├── ai_coach_implementation_plan.md
 │   ├── ai_coach_stage2.md
 │   ├── ai_metadata_querying.md
 │   ├── app-overview.md
+│   ├── daily_focus_recommendation_engine.md
 │   ├── design_patterns.md
 │   ├── instruction.md
 │   └── onboarding-improvement.md
@@ -34,16 +49,22 @@
 │   ├── api
 │   │   ├── aiCoach.js
 │   │   ├── auth.js
+│   │   ├── conversationHistory.js
+│   │   ├── credits.js
+│   │   ├── dailyFocus.js
 │   │   ├── exercises
 │   │   │   ├── binaural.js
 │   │   │   ├── deepWork.js
+│   │   │   ├── goals.js
 │   │   │   ├── index.js
 │   │   │   ├── journaling.js
 │   │   │   ├── mindfulness.js
 │   │   │   ├── tasks.js
 │   │   │   └── visualization.js
+│   │   ├── longTermGoals.js
 │   │   ├── mood.js
 │   │   ├── profile.js
+│   │   ├── progress.js
 │   │   ├── roadmap.js
 │   │   └── selfAssessment.js
 │   ├── components
@@ -51,6 +72,7 @@
 │   │   │   ├── AITestButton.js
 │   │   │   ├── CircularProgress.js
 │   │   │   ├── CustomButton.js
+│   │   │   ├── CustomDialog.js
 │   │   │   ├── CustomInput.js
 │   │   │   ├── OptionSelector.js
 │   │   │   ├── SetupScreenButton.js
@@ -70,13 +92,20 @@
 │   ├── config
 │   │   ├── supabase.js
 │   │   └── theme.js
+│   ├── constants
+│   │   └── masterExerciseList.js
 │   ├── hooks
+│   │   ├── useDailyFocusCompletion.js
+│   │   ├── useExerciseFavorites.js
 │   │   └── useUser.js
 │   ├── navigation
 │   │   ├── BottomTabNavigator.js
 │   │   └── index.js
 │   ├── screens
 │   │   ├── app
+│   │   │   ├── AICoachScreen
+│   │   │   │   ├── components
+│   │   │   │   └── index.js
 │   │   │   ├── HomeScreen
 │   │   │   │   ├── components
 │   │   │   │   └── index.js
@@ -122,19 +151,259 @@
 │   │   │       ├── PlayerScreen.js
 │   │   │       ├── SetupScreen.js
 │   │   │       ├── components
-│   │   │       └── constants.js
+│   │   │       ├── constants.js
+│   │   │       └── hooks
 │   │   └── onboarding
-│   │       ├── HabitsScreen.js
+│   │       ├── AreasForGrowthScreen.js
+│   │       ├── AspirationsScreen.js
+│   │       ├── BenefitsIntroScreen.js
+│   │       ├── CelebratoryWelcomeScreen.js
 │   │       ├── LifeSatisfactionScreen.js
+│   │       ├── NotificationPermissionScreen.js
 │   │       ├── OnboardingComplete.js
-│   │       ├── OnboardingStart.js
-│   │       └── PreferencesScreen.js
+│   │       ├── PreferencesScreen.js
+│   │       ├── ScienceIntroNeuroscienceScreen.js
+│   │       ├── ScienceIntroTechniquesScreen.js
+│   │       ├── ScienceIntroThinkersScreen.js
+│   │       └── ScienceIntroTransformationScreen.js
 │   └── utils
 │       └── testConnection.js
 ├── supabase
-│   └── functions
-│       ├── analyze-text
-│       │   └── index.ts
-│       └── test-ai-connection
-│           └── index.ts
+│   ├── functions
+│   │   ├── analyze-text
+│   │   │   └── index.ts
+│   │   ├── coach-conversation
+│   │   │   └── index.ts
+│   │   ├── purchase-credits
+│   │   │   └── index.ts
+│   │   ├── test-ai-connection
+│   │   │   └── index.ts
+│   │   └── test-coach
+│   │       └── index.ts
+│   └── migrations
+│       ├── 20240623000000_fix_add_user_tokens.sql
+│       ├── 20240623000001_ensure_user_credits_table.sql
+│       ├── 20240625000000_create_conversation_history_table.sql
+│       └── 20240627000000_fix_conversation_history_function.sql
+└── tsconfig.json
+
+55 directories, 123 files
+kylewong@MacBook-Air-3 shift-app % tree -L 6 -I 'node_modules|.git|.expo|.DS_Store'
+.
+├── App.js
+├── README.md
+├── app.json
+├── assets
+│   ├── adaptive-icon.png
+│   ├── audio
+│   │   ├── binaural
+│   │   │   ├── creativity.mp3
+│   │   │   ├── focus.mp3
+│   │   │   ├── meditation.mp3
+│   │   │   └── sleep.mp3
+│   │   ├── silence.mp3
+│   │   └── visualization
+│   │       ├── calm.mp3
+│   │       ├── confidence.mp3
+│   │       ├── contentment.mp3
+│   │       ├── goals.mp3
+│   │       └── ideal_life.mp3
+│   ├── favicon.png
+│   ├── icon.png
+│   └── splash-icon.png
+├── babel.config.js
+├── eas.json
+├── index.js
+├── instructions
+│   ├── ai_coach_implementation_plan.md
+│   ├── ai_coach_stage2.md
+│   ├── ai_metadata_querying.md
+│   ├── app-overview.md
+│   ├── daily_focus_recommendation_engine.md
+│   ├── design_patterns.md
+│   ├── instruction.md
+│   └── onboarding-improvement.md
+├── metro.config.js
+├── package-lock.json
+├── package.json
+├── src
+│   ├── api
+│   │   ├── aiCoach.js
+│   │   ├── auth.js
+│   │   ├── conversationHistory.js
+│   │   ├── credits.js
+│   │   ├── dailyFocus.js
+│   │   ├── exercises
+│   │   │   ├── binaural.js
+│   │   │   ├── deepWork.js
+│   │   │   ├── goals.js
+│   │   │   ├── index.js
+│   │   │   ├── journaling.js
+│   │   │   ├── mindfulness.js
+│   │   │   ├── tasks.js
+│   │   │   └── visualization.js
+│   │   ├── longTermGoals.js
+│   │   ├── mood.js
+│   │   ├── profile.js
+│   │   ├── progress.js
+│   │   ├── roadmap.js
+│   │   └── selfAssessment.js
+│   ├── components
+│   │   ├── common
+│   │   │   ├── AITestButton.js
+│   │   │   ├── CircularProgress.js
+│   │   │   ├── CustomButton.js
+│   │   │   ├── CustomDialog.js
+│   │   │   ├── CustomInput.js
+│   │   │   ├── OptionSelector.js
+│   │   │   ├── SetupScreenButton.js
+│   │   │   └── SetupScreenButtonContainer.js
+│   │   ├── exercises
+│   │   │   ├── EmotionPicker.js
+│   │   │   ├── ExerciseCard.js
+│   │   │   └── Timer.js
+│   │   └── onboarding
+│   │       ├── HabitCategoryCard.js
+│   │       ├── OnboardingCard.js
+│   │       ├── OnboardingFooter.js
+│   │       ├── OnboardingHeader.js
+│   │       ├── OnboardingLayout.js
+│   │       ├── ProgressBar.js
+│   │       └── index.js
+│   ├── config
+│   │   ├── supabase.js
+│   │   └── theme.js
+│   ├── constants
+│   │   └── masterExerciseList.js
+│   ├── hooks
+│   │   ├── useDailyFocusCompletion.js
+│   │   ├── useExerciseFavorites.js
+│   │   └── useUser.js
+│   ├── navigation
+│   │   ├── BottomTabNavigator.js
+│   │   └── index.js
+│   ├── screens
+│   │   ├── app
+│   │   │   ├── AICoachScreen
+│   │   │   │   ├── components
+│   │   │   │   │   └── GoalActionMessage.js
+│   │   │   │   └── index.js
+│   │   │   ├── HomeScreen
+│   │   │   │   ├── components
+│   │   │   │   │   ├── DailyFocus.js
+│   │   │   │   │   ├── GrowthRoadmap.js
+│   │   │   │   │   ├── Insights.js
+│   │   │   │   │   ├── MoodHistory.js
+│   │   │   │   │   ├── MoodModal.js
+│   │   │   │   │   ├── TopBar.js
+│   │   │   │   │   └── index.js
+│   │   │   │   └── index.js
+│   │   │   └── ProgressScreen
+│   │   │       ├── components
+│   │   │       │   ├── ExerciseBreakdown.js
+│   │   │       │   ├── FavoritesSection.js
+│   │   │       │   ├── ProfileInfo.js
+│   │   │       │   ├── ProfileTabHeader.js
+│   │   │       │   └── StatCard.js
+│   │   │       ├── helpers
+│   │   │       │   ├── exerciseIcons.js
+│   │   │       │   ├── moodHelpers.js
+│   │   │       │   └── statsCalculator.js
+│   │   │       └── index.js
+│   │   ├── auth
+│   │   │   ├── SignInScreen.js
+│   │   │   ├── SignUpScreen.js
+│   │   │   └── WelcomeScreen.js
+│   │   ├── exercises
+│   │   │   ├── BinauralScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   │   ├── DurationPicker.js
+│   │   │   │   │   ├── FrequencySelector.js
+│   │   │   │   │   └── PlayerCard.js
+│   │   │   │   ├── constants.js
+│   │   │   │   └── hooks
+│   │   │   │       └── useBinauralAudio.js
+│   │   │   ├── DeepWorkScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   │   ├── FocusCard.js
+│   │   │   │   │   ├── SessionDurationSelector.js
+│   │   │   │   │   └── TaskInput.js
+│   │   │   │   └── constants.js
+│   │   │   ├── ExercisesDashboard
+│   │   │   │   ├── components
+│   │   │   │   │   ├── DashboardHeader.js
+│   │   │   │   │   ├── ExerciseCard.js
+│   │   │   │   │   └── index.js
+│   │   │   │   ├── hooks
+│   │   │   │   └── index.js
+│   │   │   ├── JournalingScreen
+│   │   │   │   ├── JournalingEntry.js
+│   │   │   │   ├── JournalingSetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   │   ├── JournalEntryCard.js
+│   │   │   │   │   ├── PatternRecommendationCard.js
+│   │   │   │   │   └── PromptTypeSelector.js
+│   │   │   │   └── constants.js
+│   │   │   ├── MindfulnessScreen
+│   │   │   │   ├── PlayerScreen.js
+│   │   │   │   ├── SetupScreen.js
+│   │   │   │   ├── components
+│   │   │   │   │   ├── MindfulnessTypeSelector.js
+│   │   │   │   │   └── SessionCard.js
+│   │   │   │   └── constants.js
+│   │   │   ├── TaskPlannerScreen
+│   │   │   │   ├── components
+│   │   │   │   │   ├── CompletedTaskList.js
+│   │   │   │   │   ├── TaskCard.js
+│   │   │   │   │   ├── TaskInput.js
+│   │   │   │   │   └── TaskList.js
+│   │   │   │   ├── constants.js
+│   │   │   │   └── index.js
+│   │   │   └── VisualizationScreen
+│   │   │       ├── PlayerScreen.js
+│   │   │       ├── SetupScreen.js
+│   │   │       ├── components
+│   │   │       │   ├── AffirmationInput.js
+│   │   │       │   ├── PlayerCard.js
+│   │   │       │   ├── SessionCard.js
+│   │   │       │   └── VisualizationTypeSelector.js
+│   │   │       ├── constants.js
+│   │   │       └── hooks
+│   │   │           └── useVisualizationAudio.js
+│   │   └── onboarding
+│   │       ├── AreasForGrowthScreen.js
+│   │       ├── AspirationsScreen.js
+│   │       ├── BenefitsIntroScreen.js
+│   │       ├── CelebratoryWelcomeScreen.js
+│   │       ├── LifeSatisfactionScreen.js
+│   │       ├── NotificationPermissionScreen.js
+│   │       ├── OnboardingComplete.js
+│   │       ├── PreferencesScreen.js
+│   │       ├── ScienceIntroNeuroscienceScreen.js
+│   │       ├── ScienceIntroTechniquesScreen.js
+│   │       ├── ScienceIntroThinkersScreen.js
+│   │       └── ScienceIntroTransformationScreen.js
+│   └── utils
+│       └── testConnection.js
+├── supabase
+│   ├── functions
+│   │   ├── analyze-text
+│   │   │   └── index.ts
+│   │   ├── coach-conversation
+│   │   │   └── index.ts
+│   │   ├── purchase-credits
+│   │   │   └── index.ts
+│   │   ├── test-ai-connection
+│   │   │   └── index.ts
+│   │   └── test-coach
+│   │       └── index.ts
+│   └── migrations
+│       ├── 20240623000000_fix_add_user_tokens.sql
+│       ├── 20240623000001_ensure_user_credits_table.sql
+│       ├── 20240625000000_create_conversation_history_table.sql
+│       └── 20240627000000_fix_conversation_history_function.sql
 └── tsconfig.json

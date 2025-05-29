@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, StatusBar, Dimensions, KeyboardAvoidingView, Platform, Keyboard, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Text, 
@@ -18,12 +18,14 @@ import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import { analyzeText } from '../../../api/aiCoach';
 import { createJournalEntry } from '../../../api/exercises';
 import { JournalEntryCard } from './components/JournalEntryCard';
+import PatternRecommendationCard from './components/PatternRecommendationCard';
 import { JOURNAL_PROMPTS, PROMPT_TYPES } from './constants';
 import { useUser } from '../../../hooks/useUser';
 import CustomDialog from '../../../components/common/CustomDialog';
 import { supabase } from '../../../config/supabase';
 import { getFavoriteExerciseIds } from '../../../api/profile';
 import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
+import { checkUserTokens } from '../../../api/aiCoach';
 
 const { height } = Dimensions.get('window');
 
@@ -43,6 +45,10 @@ const JournalingEntry = ({ route, navigation }) => {
   const [textInputHeight, setTextInputHeight] = useState(height * 0.6);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insights, setInsights] = useState(null);
+  const [patternAnalysis, setPatternAnalysis] = useState(null);
+  const [savedEntryId, setSavedEntryId] = useState(null);
+  const [userCredits, setUserCredits] = useState(null);
+  const [loadingCredits, setLoadingCredits] = useState(false);
 
   // Favorites functionality
   const { 
@@ -73,6 +79,30 @@ const JournalingEntry = ({ route, navigation }) => {
 
     loadFavoriteStatus();
   }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
+
+  // Load user's credit balance
+  useEffect(() => {
+    const loadUserCredits = async () => {
+      if (!user?.id) return;
+      
+      setLoadingCredits(true);
+      try {
+        const creditsResponse = await checkUserTokens();
+        if (creditsResponse.success) {
+          setUserCredits(creditsResponse.credits);
+          console.debug('[JournalingEntry] User credits loaded:', creditsResponse.credits);
+        } else {
+          console.warn('[JournalingEntry] Failed to load user credits:', creditsResponse.error);
+        }
+      } catch (error) {
+        console.error('[JournalingEntry] Error loading user credits:', error);
+      } finally {
+        setLoadingCredits(false);
+      }
+    };
+
+    loadUserCredits();
+  }, [user?.id]);
 
   const handleFavoriteToggle = async () => {
     if (!masterExerciseId) {
@@ -120,47 +150,31 @@ const JournalingEntry = ({ route, navigation }) => {
     }
 
     setLoading(true);
-    setIsAnalyzing(true);
     setError(null);
     
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Get AI insights
-      console.debug('[JournalingEntry] Getting AI insights for journal entry');
-      
-      const aiResponse = await analyzeText(entry.trim(), {
-        type: 'journal',
-        promptType,
-        emotions: selectedEmotions
-      });
+      console.debug('[JournalingEntry] Saving journal entry without AI analysis');
 
-      if (!aiResponse.success) {
-        throw new Error(aiResponse.error || 'Failed to analyze journal entry');
-      }
-
-      const journalInsights = aiResponse.data.analysis;
-      console.debug('[JournalingEntry] AI analysis completed');
-
-      // Save journal entry with insights and metadata
+      // Save journal entry WITHOUT AI analysis (free)
       const savedEntry = await createJournalEntry(user.id, {
         content: entry.trim(),
-        insights: journalInsights,
+        insights: null, // No AI insights yet
         aiMetadata: {
-          model: aiResponse.data.metadata.model,
-          tokensUsed: aiResponse.data.metadata.tokensUsed,
-          processingTimeMs: aiResponse.data.metadata.processingTimeMs,
-          confidenceScore: aiResponse.data.metadata.confidenceScore,
           promptInfo: {
             type: promptType,
             prompt: JOURNAL_PROMPTS[promptType][currentPrompt]
           },
-          emotions: selectedEmotions
+          emotions: selectedEmotions,
+          hasAiAnalysis: false // Indicates no AI analysis performed yet
         }
       });
 
-      console.debug('[JournalingEntry] Entry saved successfully:', { entryId: savedEntry.id });
-      setInsights(journalInsights);
+      console.debug('[JournalingEntry] Entry saved successfully without AI analysis:', { entryId: savedEntry.id });
+      
+      // Store the saved entry ID for potential AI analysis later
+      setSavedEntryId(savedEntry.id);
       
       // Log to daily_exercise_logs
       if (masterExerciseId) {
@@ -176,7 +190,7 @@ const JournalingEntry = ({ route, navigation }) => {
             prompt_text: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
             entry_length: entry.trim().length,
             emotions_selected_count: selectedEmotions?.length || 0,
-            has_insights: !!journalInsights,
+            has_ai_analysis: false, // No AI analysis yet
             journal_entry_id: savedEntry.id
           }
         };
@@ -190,16 +204,133 @@ const JournalingEntry = ({ route, navigation }) => {
         console.warn('[JournalingEntry] masterExerciseId not available, cannot log to daily_exercise_logs.');
       }
       
-      // Ensure all state updates are done before showing dialog
+      // Clear states and show dialog with AI analysis option
       setLoading(false);
-      setIsAnalyzing(false);
-      setShowDialog(true);
+      
+      // Dismiss keyboard before showing dialog
+      Keyboard.dismiss();
+      
+      // Add a small delay to ensure keyboard dismisses smoothly
+      setTimeout(() => {
+        setShowDialog(true);
+      }, 100);
       
     } catch (error) {
       console.error('[JournalingEntry] Error saving entry:', error);
       setError(error.message || 'Failed to save journal entry');
       setSnackbarVisible(true);
       setLoading(false);
+    }
+  };
+
+  /**
+   * Handle AI analysis as a separate credit-based step
+   */
+  const handleGetAiInsights = async () => {
+    if (!user?.id || !savedEntryId || !entry.trim()) {
+      console.error('[JournalingEntry] handleGetAiInsights: Missing required data');
+      setError('Cannot analyze entry: Missing entry data');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+    
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      console.debug('[JournalingEntry] Getting AI insights for saved journal entry');
+      
+      const aiResponse = await analyzeText(entry.trim(), {
+        type: 'journal',
+        promptType,
+        emotions: selectedEmotions
+      }, true);
+
+      if (!aiResponse.success) {
+        throw new Error(aiResponse.error || 'Failed to analyze journal entry');
+      }
+
+      const journalInsights = aiResponse.data.analysis;
+      const journalPatternAnalysis = aiResponse.data.patternAnalysis;
+      console.debug('[JournalingEntry] AI analysis completed', {
+        hasInsights: !!journalInsights,
+        hasPatternAnalysis: !!journalPatternAnalysis,
+        patternDetected: journalPatternAnalysis?.pattern_detected,
+        tokensUsed: aiResponse.data.metadata.tokensUsed
+      });
+
+      // Update the saved journal entry with AI insights
+      const { error: updateError } = await supabase
+        .from('journal_entries')
+        .update({
+          insights: journalInsights,
+          ai_metadata: {
+            model: aiResponse.data.metadata.model,
+            tokensUsed: aiResponse.data.metadata.tokensUsed,
+            processingTimeMs: aiResponse.data.metadata.processingTimeMs,
+            hasPatternAnalysis: aiResponse.data.metadata.hasPatternAnalysis,
+            patternAnalysis: journalPatternAnalysis,
+            promptInfo: {
+              type: promptType,
+              prompt: JOURNAL_PROMPTS[promptType][currentPrompt]
+            },
+            emotions: selectedEmotions,
+            hasAiAnalysis: true
+          }
+        })
+        .eq('id', savedEntryId);
+
+      if (updateError) {
+        throw new Error(`Failed to update entry with insights: ${updateError.message}`);
+      }
+
+      console.debug('[JournalingEntry] Entry updated with AI insights successfully');
+      setInsights(journalInsights);
+      setPatternAnalysis(journalPatternAnalysis);
+      
+      // Refresh user credits after analysis (since credits were deducted)
+      try {
+        const creditsResponse = await checkUserTokens();
+        if (creditsResponse.success) {
+          setUserCredits(creditsResponse.credits);
+          console.debug('[JournalingEntry] User credits refreshed after AI analysis:', creditsResponse.credits);
+        }
+      } catch (creditsError) {
+        console.warn('[JournalingEntry] Failed to refresh credits after analysis:', creditsError);
+      }
+      
+      // Update daily_exercise_logs to reflect AI analysis
+      if (masterExerciseId) {
+        const { error: logUpdateError } = await supabase
+          .from('daily_exercise_logs')
+          .update({
+            metadata: {
+              prompt_type: promptType,
+              prompt_text: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
+              entry_length: entry.trim().length,
+              emotions_selected_count: selectedEmotions?.length || 0,
+              has_ai_analysis: true,
+              ai_tokens_used: aiResponse.data.metadata.tokensUsed,
+              journal_entry_id: savedEntryId
+            }
+          })
+          .eq('journal_entry_id', savedEntryId);
+
+        if (logUpdateError) {
+          console.warn('[JournalingEntry] Warning: Could not update daily_exercise_logs with AI analysis data:', logUpdateError);
+        } else {
+          console.debug('[JournalingEntry] Updated daily_exercise_logs with AI analysis data');
+        }
+      }
+      
+      setIsAnalyzing(false);
+      
+    } catch (error) {
+      console.error('[JournalingEntry] Error analyzing entry:', error);
+      setError(error.message || 'Failed to analyze journal entry');
+      setSnackbarVisible(true);
       setIsAnalyzing(false);
     }
   };
@@ -220,6 +351,44 @@ const JournalingEntry = ({ route, navigation }) => {
     }
   };
 
+  /**
+   * Handle navigation to recommended exercise from pattern analysis
+   */
+  const handleNavigateToRecommendedExercise = (exerciseId, exerciseType) => {
+    console.debug('[JournalingEntry] Navigating to recommended exercise:', { exerciseId, exerciseType });
+    
+    // Dismiss the dialog first
+    setShowDialog(false);
+    
+    // Navigate based on exercise type - same navigation logic as HomeScreen Insights
+    switch (exerciseType) {
+      case 'Mindfulness':
+        navigation.navigate('MindfulnessSetup', { 
+          preselectedExercise: exerciseId,
+          source: 'pattern_recommendation' 
+        });
+        break;
+      case 'Visualization':
+        navigation.navigate('VisualizationSetup', { 
+          preselectedExercise: exerciseId,
+          source: 'pattern_recommendation' 
+        });
+        break;
+      case 'Deep Work':
+        navigation.navigate('DeepWorkSetup', { 
+          source: 'pattern_recommendation' 
+        });
+        break;
+      case 'Task Planning':
+        navigation.navigate('TaskPlanner', { 
+          source: 'pattern_recommendation' 
+        });
+        break;
+      default:
+        navigation.navigate('ExercisesDashboard');
+    }
+  };
+
   const handleFinish = async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -228,6 +397,7 @@ const JournalingEntry = ({ route, navigation }) => {
       // Clear states
       setEntry('');
       setInsights(null);
+      setPatternAnalysis(null);
       setError(null);
       
       const targetRoute = originRouteName || 'ExercisesDashboard';
@@ -303,18 +473,110 @@ const JournalingEntry = ({ route, navigation }) => {
         content={
           <View style={styles.dialogContent}>
             <Text style={styles.dialogText}>
-              Great job! Your journal entry has been saved and analyzed. 
-              Regular journaling helps improve self-awareness and emotional intelligence.
+              Great job! Your journal entry has been saved.
             </Text>
-            {insights && (
-              <Text style={styles.insightsText}>
-                {insights}
+            
+            {/* Credit Balance Display */}
+            <View style={styles.creditBalanceContainer}>
+              <MaterialCommunityIcons 
+                name="coin" 
+                size={16} 
+                color={COLORS.primary} 
+                style={styles.creditIcon}
+              />
+              <Text style={styles.creditBalanceText}>
+                {loadingCredits ? 'Loading...' : `${userCredits || 0} credits available`}
               </Text>
+            </View>
+
+            {/* AI Analysis Section */}
+            {!insights && (
+              <View style={styles.aiAnalysisSection}>
+                <Text style={styles.aiAnalysisTitle}>Get AI Insights & Pattern Analysis</Text>
+                <Text style={styles.aiAnalysisDescription}>
+                  Unlock personalized insights and exercise recommendations based on your journal entry.
+                </Text>
+                
+                {/* Cost Estimate */}
+                <View style={styles.costEstimateContainer}>
+                  <Text style={styles.costEstimateText}>
+                    Estimated cost: 5-15 credits
+                  </Text>
+                  <Text style={styles.costEstimateSubtext}>
+                    (Varies by entry length and analysis complexity)
+                  </Text>
+                </View>
+
+                {/* AI Analysis Button or Low Credits Warning */}
+                {userCredits !== null && userCredits < 1000 && (
+                  <View style={styles.lowCreditsWarning}>
+                    <MaterialCommunityIcons 
+                      name="alert-circle-outline" 
+                      size={16} 
+                      color={COLORS.warning} 
+                    />
+                    <Text style={styles.lowCreditsText}>
+                      Low credits! Consider purchasing more for continued AI features.
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.aiActionButtons}>
+                  <Button
+                    mode="contained"
+                    onPress={handleGetAiInsights}
+                    disabled={isAnalyzing || (userCredits !== null && userCredits < 5)}
+                    loading={isAnalyzing}
+                    style={[
+                      styles.aiAnalysisButton,
+                      (userCredits !== null && userCredits < 5) && styles.disabledButton
+                    ]}
+                    labelStyle={styles.aiAnalysisButtonText}
+                    icon="brain"
+                  >
+                    {isAnalyzing ? 'Analyzing...' : 'Get AI Insights'}
+                  </Button>
+
+                  {(userCredits !== null && userCredits < 5) && (
+                    <Button
+                      mode="outlined"
+                      onPress={() => {
+                        setShowDialog(false); // Dismiss dialog first
+                        navigation.navigate('CreditsPurchase');
+                      }}
+                      style={styles.purchaseCreditsButton}
+                      labelStyle={styles.purchaseCreditsButtonText}
+                      icon="credit-card"
+                    >
+                      Buy Credits
+                    </Button>
+                  )}
+                </View>
+              </View>
+            )}
+            
+            {/* Show insights if available */}
+            {insights && (
+              <ScrollView 
+                style={styles.insightsScrollContainer}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.insightsLabel}>AI Insights:</Text>
+                <Text style={styles.insightsText}>
+                  {insights.length > 300 ? `${insights.substring(0, 300)}...` : insights}
+                </Text>
+                {insights.length > 300 && (
+                  <Text style={styles.readMoreText}>
+                    View full insights in your journal history
+                  </Text>
+                )}
+              </ScrollView>
             )}
           </View>
         }
         icon="check-circle-outline"
-        confirmText="Done"
+        confirmText={insights ? "Done" : "Skip AI Analysis"}
         onConfirm={handleFinish}
         iconColor={COLORS.primary}
         iconBackgroundColor={`${COLORS.primary}15`}
@@ -322,6 +584,8 @@ const JournalingEntry = ({ route, navigation }) => {
         isFavorite={getFavoriteStatus(masterExerciseId, false)}
         onFavoriteToggle={handleFavoriteToggle}
         favoriteLoading={getLoadingStatus(masterExerciseId)}
+        patternAnalysis={patternAnalysis}
+        onNavigateToRecommendedExercise={handleNavigateToRecommendedExercise}
       />
 
       <Snackbar
@@ -378,24 +642,131 @@ const styles = StyleSheet.create({
   dialogContent: {
     alignItems: 'center',
     gap: SPACING.md,
+    width: '100%',
   },
   dialogText: {
     textAlign: 'center',
     color: COLORS.textLight,
     lineHeight: 22,
+    marginBottom: SPACING.sm,
+  },
+  insightsScrollContainer: {
+    maxHeight: 120, // Limit insights height to keep dialog manageable
+    width: '100%',
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    padding: SPACING.sm,
+  },
+  insightsLabel: {
+    color: COLORS.text,
+    fontWeight: FONT.weight.bold,
+    marginBottom: SPACING.xs,
+    fontSize: FONT.size.sm,
   },
   insightsText: {
-    textAlign: 'left',
     color: COLORS.text,
-    lineHeight: 24,
+    lineHeight: 20,
+    fontSize: FONT.size.sm,
+  },
+  readMoreText: {
+    color: COLORS.textLight,
     fontStyle: 'italic',
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    padding: SPACING.md,
-    borderRadius: RADIUS.sm,
-    width: '100%',
+    marginTop: SPACING.xs,
+    fontSize: FONT.size.xs,
+    textAlign: 'center',
   },
   snackbar: {
     bottom: SPACING.md,
+  },
+  creditBalanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.primary}10`,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING.md,
+    width: '100%',
+  },
+  creditIcon: {
+    marginRight: SPACING.xs,
+  },
+  creditBalanceText: {
+    color: COLORS.text,
+    fontWeight: FONT.weight.semiBold,
+    fontSize: FONT.size.sm,
+  },
+  aiAnalysisSection: {
+    alignItems: 'center',
+    gap: SPACING.md,
+    width: '100%',
+    padding: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: RADIUS.md,
+  },
+  aiAnalysisTitle: {
+    color: COLORS.text,
+    fontWeight: FONT.weight.bold,
+    fontSize: FONT.size.md,
+    textAlign: 'center',
+  },
+  aiAnalysisDescription: {
+    color: COLORS.textLight,
+    textAlign: 'center',
+    fontSize: FONT.size.sm,
+    lineHeight: 20,
+  },
+  costEstimateContainer: {
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  costEstimateText: {
+    color: COLORS.text,
+    fontWeight: FONT.weight.semiBold,
+    fontSize: FONT.size.sm,
+  },
+  costEstimateSubtext: {
+    color: COLORS.textLight,
+    fontStyle: 'italic',
+    fontSize: FONT.size.xs,
+    textAlign: 'center',
+  },
+  lowCreditsWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.warning}15`,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    gap: SPACING.xs,
+    width: '100%',
+  },
+  lowCreditsText: {
+    flex: 1,
+    color: COLORS.warning,
+    fontWeight: FONT.weight.semiBold,
+    fontSize: FONT.size.xs,
+  },
+  aiActionButtons: {
+    flexDirection: 'column',
+    gap: SPACING.sm,
+    width: '100%',
+  },
+  aiAnalysisButton: {
+    backgroundColor: COLORS.primary,
+  },
+  aiAnalysisButtonText: {
+    color: COLORS.surface,
+    fontWeight: FONT.weight.semiBold,
+  },
+  disabledButton: {
+    backgroundColor: COLORS.textLight,
+    opacity: 0.5,
+  },
+  purchaseCreditsButton: {
+    borderColor: COLORS.primary,
+  },
+  purchaseCreditsButtonText: {
+    color: COLORS.primary,
+    fontWeight: FONT.weight.semiBold,
   },
 });
 
