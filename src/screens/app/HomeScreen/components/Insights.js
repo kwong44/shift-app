@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Title, Text, IconButton, Paragraph, Chip, Button } from 'react-native-paper';
+import { Card, Title, Text, IconButton, Paragraph, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
-import PatternRecommendationCard from '../../../exercises/JournalingScreen/components/PatternRecommendationCard';
 import { supabase } from '../../../../config/supabase';
 
 const formatDate = (dateString) => {
@@ -74,16 +73,19 @@ const Insights = ({ insights, journalDate, navigation }) => {
     }
   };
 
-  const handleNavigateToRecommendedExercise = (recommendation) => {
+  const handleNavigateToRecommendedExercise = () => {
+    if (!patternRecommendations?.recommendation) {
+      console.warn('[Insights] No pattern recommendation available');
+      return;
+    }
+
+    const recommendation = patternRecommendations.recommendation;
     console.debug('[Insights] Navigating to recommended exercise:', recommendation);
     
     // Extract exerciseId and exerciseType from the recommendation object
     const { exercise_id: exerciseId, exercise_type: exerciseType } = recommendation;
     
     console.debug('[Insights] Extracted navigation params:', { exerciseId, exerciseType });
-    
-    // Dismiss the pattern recommendation
-    setPatternRecommendations(null);
     
     // Navigate based on exercise type - same navigation logic as PatternRecommendationCard
     switch (exerciseType) {
@@ -115,12 +117,7 @@ const Insights = ({ insights, journalDate, navigation }) => {
     }
   };
 
-  const handleDismissPatternRecommendation = () => {
-    console.debug('[Insights] Dismissing pattern recommendation');
-    setPatternRecommendations(null);
-  };
-
-  if (!insights && !patternRecommendations) return null;
+  if (!insights) return null;
 
   // Debug log
   console.debug('[Insights] Rendering insights:', { 
@@ -135,86 +132,74 @@ const Insights = ({ insights, journalDate, navigation }) => {
   const displayText = shouldTruncate ? insights.substring(0, 100) + '...' : insights;
 
   return (
-    <View>
-      {/* Pattern Recommendations Card - Show above regular insights */}
-      {patternRecommendations && (
-        <View style={styles.patternContainer}>
-          <PatternRecommendationCard
-            patternAnalysis={patternRecommendations}
-            onNavigateToExercise={handleNavigateToRecommendedExercise}
-            onDismiss={handleDismissPatternRecommendation}
-            visible={true}
-          />
-        </View>
-      )}
-
-      {/* Regular AI Insights Card */}
-      {insights && (
-        <Card style={styles.insightCard} elevation={2}>
-          <LinearGradient
-            colors={['#e9e6ff', '#d8d4fc']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.insightGradient}
-          >
-            <Card.Content>
-              <View style={styles.cardHeader}>
-                <View style={styles.titleContainer}>
-                  <Title style={styles.cardTitle}>AI Coach Insights</Title>
-                  {journalDate && (
-                    <Text style={styles.timestamp}>
-                      from your journal on {formatDate(journalDate)}
-                    </Text>
-                  )}
-                </View>
-                <IconButton 
-                  icon="robot" 
-                  size={24}
-                  iconColor={COLORS.primary}
-                  style={styles.insightIcon}
-                  accessibilityLabel="AI generated insights"
-                />
-              </View>
-              
-              <Paragraph style={styles.insightText}>
-                {displayText}
-              </Paragraph>
-              
-              {insights.length > 100 && (
-                <Button 
-                  mode="text" 
-                  onPress={toggleExpanded}
-                  style={styles.expandButton}
-                  labelStyle={styles.expandButtonText}
-                  icon={expanded ? "chevron-up" : "chevron-down"}
-                  accessibilityLabel={expanded ? "Collapse insight" : "Expand insight"}
-                  accessibilityHint={expanded ? "Collapses the full insight text" : "Expands to show the full insight text"}
-                >
-                  {expanded ? "Show less" : "Read more"}
-                </Button>
+    <Card style={styles.insightCard} elevation={2}>
+      <LinearGradient
+        colors={['#e9e6ff', '#d8d4fc']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.insightGradient}
+      >
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <View style={styles.titleContainer}>
+              <Title style={styles.cardTitle}>AI Coach Insights</Title>
+              {journalDate && (
+                <Text style={styles.timestamp}>
+                  from your journal on {formatDate(journalDate)}
+                </Text>
               )}
-              
-              <View style={styles.tagsContainer}>
-                <Chip 
-                  icon="brain" 
-                  style={styles.aiTag}
-                  textStyle={styles.aiTagText}
-                >
-                  AI Generated
-                </Chip>
-              </View>
-            </Card.Content>
-          </LinearGradient>
-        </Card>
-      )}
-    </View>
+            </View>
+            <IconButton 
+              icon="robot" 
+              size={24}
+              iconColor={COLORS.primary}
+              style={styles.insightIcon}
+              accessibilityLabel="AI generated insights"
+            />
+          </View>
+          
+          <Paragraph style={styles.insightText}>
+            {displayText}
+          </Paragraph>
+          
+          <View style={styles.buttonsContainer}>
+            {insights.length > 100 && (
+              <Button 
+                mode="text" 
+                onPress={toggleExpanded}
+                style={styles.expandButton}
+                labelStyle={styles.expandButtonText}
+                icon={expanded ? "chevron-up" : "chevron-down"}
+                accessibilityLabel={expanded ? "Collapse insight" : "Expand insight"}
+                accessibilityHint={expanded ? "Collapses the full insight text" : "Expands to show the full insight text"}
+              >
+                {expanded ? "Show less" : "Read more"}
+              </Button>
+            )}
+            
+            {/* AI Recommended Exercise Button */}
+            {patternRecommendations?.recommendation && (
+              <Button 
+                mode="contained-tonal" 
+                onPress={handleNavigateToRecommendedExercise}
+                style={styles.recommendedExerciseButton}
+                labelStyle={styles.recommendedExerciseButtonText}
+                icon="lightbulb-outline"
+                accessibilityLabel="Try recommended exercise"
+                accessibilityHint={`Navigate to recommended ${patternRecommendations.recommendation.exercise_type} exercise`}
+              >
+                Try {patternRecommendations.recommendation.exercise_type}
+              </Button>
+            )}
+          </View>
+          
+        </Card.Content>
+      </LinearGradient>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  patternContainer: {
-    marginBottom: SPACING.md,
-  },
   insightCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -263,19 +248,22 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: FONT.size.sm,
   },
-  tagsContainer: {
-    flexDirection: 'row',
-    marginTop: SPACING.md,
-    flexWrap: 'wrap',
+  buttonsContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginTop: SPACING.sm,
   },
-  aiTag: {
-    backgroundColor: COLORS.primary + '20',
-    marginRight: SPACING.xs,
+  recommendedExerciseButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.sm,
+    marginTop: SPACING.sm,
     marginBottom: SPACING.md,
+    alignSelf: 'flex-start',
   },
-  aiTagText: {
-    color: COLORS.primary,
+  recommendedExerciseButtonText: {
+    color: COLORS.surface,
     fontSize: FONT.size.sm,
+    fontWeight: FONT.weight.semiBold,
   },
 });
 

@@ -449,12 +449,12 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.backgroundLight,
     borderRadius: RADIUS.xl,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
     ...SHADOWS.small,
   },
   scrollContainer: {
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
   },
   scrollContentContainer: {
     paddingBottom: SPACING.lg,
