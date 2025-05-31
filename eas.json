@@ -4,15 +4,37 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "node": "18.18.0",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "production"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "development"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "staging"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "extends": "base",
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "production"
+      }
     }
   },
   "submit": {
