@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   recommendedExerciseButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.sm,
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,

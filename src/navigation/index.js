@@ -44,6 +44,7 @@ import DeepWorkSetupScreen from '../screens/exercises/DeepWorkScreen/SetupScreen
 import { PlayerScreen as DeepWorkPlayerScreen } from '../screens/exercises/DeepWorkScreen/PlayerScreen';
 import JournalingSetupScreen from '../screens/exercises/JournalingScreen/JournalingSetupScreen';
 import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEntry';
+import JournalingHistoryScreen from '../screens/exercises/JournalingScreen/JournalingHistoryScreen';
 import AICoachScreen from '../screens/app/AICoachScreen';
 import CreditsPurchaseScreen from '../screens/CreditsPurchaseScreen';
 
@@ -282,6 +283,7 @@ const Navigation = () => {
             <Stack.Screen name="DeepWorkPlayer" component={DeepWorkPlayerScreen} />
             <Stack.Screen name="Journaling" component={JournalingSetupScreen} />
             <Stack.Screen name="JournalingEntry" component={JournalingEntry} />
+            <Stack.Screen name="JournalingHistoryScreen" component={JournalingHistoryScreen} />
             <Stack.Screen 
               name="AICoachChat"
               component={AICoachScreen}

@@ -93,11 +93,12 @@ const JournalingSetupScreen = ({ navigation, route }) => {
             subtitleStyle={styles.appbarSubtitle}
           />
           <IconButton
-            icon="information"
+            icon="history"
             iconColor={COLORS.text}
             size={24}
-            onPress={() => {
-              // TODO: Show info modal about journaling
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('JournalingHistoryScreen');
             }}
           />
         </Appbar.Header>

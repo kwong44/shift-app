@@ -99,20 +99,33 @@ export const updateJournalEntry = async (entryId, insights) => {
  * @param {string} userId - The user's ID
  * @param {number} limit - Number of entries to fetch
  * @param {number} offset - Offset for pagination
+ * @param {string} [searchQuery] - Optional search query to filter by content
  * @returns {Promise} - Array of entries
  */
-export const getJournalEntries = async (userId, limit = 10, offset = 0) => {
+export const getJournalEntries = async (userId, limit = 10, offset = 0, searchQuery = '') => {
   try {
-    console.debug('[getJournalEntries] Fetching entries:', { userId, limit, offset });
+    console.debug('[getJournalEntries] Fetching entries:', { userId, limit, offset, searchQuery });
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('journal_entries')
       .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .eq('user_id', userId);
+
+    // If a search query is provided, add a filter for the content
+    // We use ilike for case-insensitive partial matching.
+    // Ensure the column 'content' exists and is of a text type in your 'journal_entries' table.
+    if (searchQuery && searchQuery.trim() !== '') {
+      query = query.ilike('content', `%${searchQuery.trim()}%`);
+    }
+
+    // Add ordering and pagination
+    query = query.order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
+    const { data, error } = await query;
+
     if (error) throw error;
+    console.debug('[getJournalEntries] Successfully fetched entries:', data?.length);
     return data;
   } catch (error) {
     console.error('Error fetching journal entries:', error.message);
