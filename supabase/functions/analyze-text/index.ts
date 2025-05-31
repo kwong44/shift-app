@@ -1,34 +1,47 @@
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { OpenAI } from 'https://esm.sh/openai@4.20.0';
+// OpenAI (Future Use)
+// import { OpenAI } from 'https://esm.sh/openai@4.20.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+// Import Google Generative AI SDK
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai';
 
-console.log('Initializing analyze-text function');
+console.log('Initializing analyze-text function with Gemini');
 
 // Get environment variables
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+// const openaiApiKey = Deno.env.get('OPENAI_API_KEY'); // OpenAI (Future Use)
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY'); // For Google Gemini
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // Verify environment variables
-if (!openaiApiKey) {
-  console.error('Missing OPENAI_API_KEY environment variable');
+// if (!openaiApiKey) { // OpenAI (Future Use)
+//   console.error('Missing OPENAI_API_KEY environment variable'); // OpenAI (Future Use)
+// } // OpenAI (Future Use)
+
+if (!geminiApiKey) {
+  console.error('Missing GEMINI_API_KEY environment variable');
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: openaiApiKey,
-});
+// Initialize OpenAI client (Future Use)
+// const openai = new OpenAI({ // OpenAI (Future Use)
+//   apiKey: openaiApiKey, // OpenAI (Future Use)
+// }); // OpenAI (Future Use)
 
-// Initialize Supabase admin client (with service role for direct DB access)
-const supabaseAdmin = createClient(
-  supabaseUrl || '',
-  supabaseServiceKey || ''
-);
+// Initialize Google Generative AI client
+let genAI;
+let geminiModel;
+if (geminiApiKey) {
+  genAI = new GoogleGenerativeAI(geminiApiKey);
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); 
+  console.log('Google Generative AI client initialized with gemini-2.0-flash');
+} else {
+  console.error('Gemini API Key not found, Google AI client not initialized.');
+}
 
 /**
  * Master Exercise List - Available exercises for recommendations
@@ -307,19 +320,21 @@ async function getRecentExerciseHistory(userId: string, days: number = 14) {
  * Analyze patterns and generate exercise recommendations
  */
 async function analyzeJournalingPatterns(userId: string, currentEntry: string, context: any) {
-  console.log(`[PatternAnalysis] Starting pattern analysis for user ${userId}`);
+  console.log(`[PatternAnalysis] Starting pattern analysis for user ${userId} (USING GEMINI)`);
   
-  // Get recent data
+  if (!geminiModel) {
+    console.error('[PatternAnalysis] Gemini model not initialized. Skipping pattern analysis.');
+    return null;
+  }
+
   const recentEntries = await getRecentJournalEntries(userId, 7);
   const exerciseHistory = await getRecentExerciseHistory(userId, 14);
   
-  // Only analyze patterns if we have sufficient data (at least 2 recent entries)
   if (recentEntries.length < 2) {
     console.log(`[PatternAnalysis] Insufficient data for pattern analysis (${recentEntries.length} entries)`);
     return null;
   }
 
-  // Extract emotional themes and time patterns
   const entryAnalysis = recentEntries.map(entry => ({
     content: entry.content.toLowerCase(),
     insights: entry.insights || '',
@@ -328,14 +343,12 @@ async function analyzeJournalingPatterns(userId: string, currentEntry: string, c
     emotions: context?.emotions || []
   }));
 
-  // Analyze exercise sequences and patterns
   const exerciseSequences = exerciseHistory.reduce((acc, exercise, index) => {
     if (index > 0) {
       const prevExercise = exerciseHistory[index - 1];
       const timeDiff = new Date(prevExercise.completed_at).getTime() - new Date(exercise.completed_at).getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
       
-      // Look for exercises completed within 24 hours of each other
       if (hoursDiff <= 24) {
         acc.push({
           first: exercise.exercise_type,
@@ -348,6 +361,9 @@ async function analyzeJournalingPatterns(userId: string, currentEntry: string, c
     }
     return acc;
   }, []);
+
+  // System prompt for the Gemini model
+  const systemInstructionForPatterns = 'You are an expert pattern analyst for personalized exercise recommendations. Respond only with valid JSON.';
 
   // Construct enhanced prompt for pattern analysis
   const patternPrompt = `
@@ -369,7 +385,7 @@ ${exerciseHistory.map(ex =>
 
 EXERCISE SEQUENCE PATTERNS:
 ${exerciseSequences.map(seq => 
-  `${seq.first} → ${seq.second} (${seq.hours_between.toFixed(1)}h apart)`
+  `${seq.first} -> ${seq.second} (${seq.hours_between.toFixed(1)}h apart)`
 ).join('\n')}
 
 AVAILABLE EXERCISES (YOU MUST ONLY RECOMMEND FROM THIS LIST):
@@ -416,33 +432,65 @@ RESPOND ONLY WITH THE JSON - NO OTHER TEXT.
   `;
 
   try {
-    console.log('[PatternAnalysis] Making OpenAI call for pattern analysis');
-    const completion = await openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are an expert pattern analyst for personalized exercise recommendations. Respond only with valid JSON.' },
-        { role: 'user', content: patternPrompt }
-      ],
-      model: 'gpt-4o-mini',
-      max_tokens: 500,
+    console.log('[PatternAnalysis] Making Gemini API call for pattern analysis');
+    
+    // Estimate prompt tokens (Gemini doesn't return used tokens directly in generateContent response for output)
+    let promptTokens = 0;
+    try {
+      const countResult = await geminiModel.countTokens(patternPrompt);
+      promptTokens = countResult.totalTokens;
+      console.log(`[PatternAnalysis] Estimated prompt tokens for Gemini: ${promptTokens}`);
+    } catch (countError) {
+      console.warn('[PatternAnalysis] Could not count prompt tokens for Gemini:', countError.message);
+    }
+
+    const generationConfig = {
       temperature: 0.3, // Lower temperature for more consistent pattern detection
+      maxOutputTokens: 500, // Ensure this is a supported parameter and adjust as needed
+      // responseMimeType: "application/json", // If forcing JSON output (might require model that supports it well)
+    };
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+    
+    // Constructing the request for Gemini
+    // The systemInstructionForPatterns provides overall guidance, patternPrompt is the user query with specific data
+    const result = await geminiModel.generateContent({
+      contents: [
+          { role: "user", parts: [{text: systemInstructionForPatterns}, {text: patternPrompt}] }
+      ],
+      generationConfig,
+      safetySettings,
     });
 
-    const response = completion.choices[0].message.content;
-    console.log('[PatternAnalysis] Raw pattern analysis response:', response);
+    const response = result.response;
+    const analysisText = response.text();
+    console.log('[PatternAnalysis] Raw pattern analysis response (Gemini):', analysisText);
     
     try {
-      const patterns = JSON.parse(response);
-      console.log('[PatternAnalysis] Parsed pattern analysis:', patterns);
+      const patterns = JSON.parse(analysisText);
+      console.log('[PatternAnalysis] Parsed pattern analysis (Gemini):', patterns);
       return {
         patterns,
-        tokens_used: completion.usage?.total_tokens || 0
+        tokens_used: promptTokens // Using promptTokens as a proxy. Actual total tokens depend on output length.
       };
     } catch (parseError) {
-      console.error('[PatternAnalysis] Failed to parse pattern analysis JSON:', parseError);
+      console.error('[PatternAnalysis] Failed to parse pattern analysis JSON (Gemini):', parseError, "Raw response:", analysisText);
       return null;
     }
   } catch (error) {
-    console.error('[PatternAnalysis] Error in pattern analysis:', error);
+    console.error('[PatternAnalysis] Error in pattern analysis (Gemini):', error);
+    if (error.message.includes('SAFETY')) {
+        console.warn('[PatternAnalysis] Gemini content blocked due to safety settings.');
+        // Potentially return a specific structure indicating blockage
+        return {
+            patterns: { pattern_detected: false, reason: "Content generation blocked by safety filters.", safety_blocked: true },
+            tokens_used: promptTokens
+        };
+    }
     return null;
   }
 }
@@ -453,10 +501,10 @@ serve(async (req) => {
     const { text, context, maxTokens = 75, userId, enablePatternAnalysis = false } = await req.json();
     
     // Debug log the request (excluding sensitive data)
-    console.log('Analyzing text:', { 
+    console.log('Analyzing text (Gemini):', { 
       textLength: text?.length,
       contextKeys: context ? Object.keys(context) : [],
-      maxTokens,
+      maxTokens, // Note: maxTokens might be handled differently by Gemini
       userId,
       enablePatternAnalysis
     });
@@ -475,6 +523,14 @@ serve(async (req) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    
+    if (!geminiModel) {
+      console.error('Gemini model not initialized. Check GEMINI_API_KEY.');
+      return new Response(
+        JSON.stringify({ error: 'AI model not available' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 3. Construct the prompt based on context
     let systemPrompt = 'You are an AI life coach assistant. Analyze the following text and provide insights.';
@@ -483,46 +539,99 @@ serve(async (req) => {
     } else if (context?.type === 'goal') {
       systemPrompt += ' Evaluate if the goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound) and suggest improvements.';
     }
-
-    // 4. Make the OpenAI API call for basic analysis
-    console.log('Making OpenAI API call with gpt-4o-mini model');
-    const completion = await openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ],
-      model: 'gpt-4o-mini',
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    });
-
-    // 5. Process basic analysis
-    const analysis = completion.choices[0].message.content;
-    let tokensUsed = completion.usage?.total_tokens || 0;
     
-    console.log('Basic analysis complete:', { 
-      analysisLength: analysis.length,
-      tokensUsed,
-      model: 'gpt-4o-mini'
+    const fullPrompt = `${systemPrompt}\n\nUser text: "${text}"`;
+    console.log('Constructed prompt for Gemini:', fullPrompt);
+
+    // 4. Make the Gemini API call
+    let analysis = '';
+    let tokensUsed = 0; // Placeholder for token usage, Gemini might not provide this directly or in the same way for free tier
+
+    try {
+      console.log('Making Gemini API call with gemini-2.0-flash model');
+      const generationConfig = {
+        // temperature: 0.7, // Adjust as needed
+        // maxOutputTokens: maxTokens, // Ensure this is a supported parameter for gemini-2.0-flash
+      };
+      const safetySettings = [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      ];
+
+      const result = await geminiModel.generateContent({
+        contents: [{ role: "user", parts: [{text: fullPrompt}]}],
+        generationConfig,
+        safetySettings,
+      });
+      const response = result.response;
+      analysis = response.text();
+      
+      // Token counting with Gemini can be done with model.countTokens() if needed before generation,
+      // but generateContent response does not directly include tokensUsed like OpenAI.
+      // For free tier, this might be less critical. We'll estimate or omit for now.
+      // const tokenCountResult = await geminiModel.countTokens(fullPrompt);
+      // tokensUsed = tokenCountResult.totalTokens; 
+      console.log('Gemini analysis length:', analysis?.length);
+
+    } catch (geminiError) {
+      console.error('Error during Gemini API call:', geminiError);
+      // Fallback or specific error handling for Gemini
+      if (geminiError.message.includes('SAFETY')) {
+         analysis = "The generated content was blocked due to safety concerns. Please rephrase your input or try a different topic.";
+      } else {
+         analysis = "There was an issue generating the analysis with the AI model.";
+      }
+      // Potentially return an error response directly if it's a critical failure
+       return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to get analysis from AI model',
+          detail: geminiError.message 
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // --- OpenAI API Call (Commented out for future use) ---
+    // console.log('Making OpenAI API call with gpt-4o-mini model');
+    // const completion = await openai.chat.completions.create({
+    //   messages: [
+    //     { role: 'system', content: systemPrompt },
+    //     { role: 'user', content: text }
+    //   ],
+    //   model: 'gpt-4o-mini', 
+    //   max_tokens: maxTokens,
+    //   temperature: 0.7,
+    // });
+    // analysis = completion.choices[0].message.content;
+    // tokensUsed = completion.usage?.total_tokens || 0;
+    // --- End of OpenAI Code ---
+
+    // 5. Process basic analysis (Gemini response is already in 'analysis')
+    console.log('Basic analysis complete (Gemini):', { 
+      analysisLength: analysis?.length,
+      tokensUsed, // Note: This is currently a placeholder for Gemini
+      model: 'gemini-2.0-flash' // Updated model name in metadata
     });
 
     // 6. Pattern analysis for journaling (if enabled and is journal context)
     let patternAnalysis = null;
     if (enablePatternAnalysis && context?.type === 'journal') {
-      console.log('[PatternAnalysis] Starting pattern analysis for journal entry');
+      console.log('[PatternAnalysis] Starting pattern analysis for journal entry (still uses OpenAI gpt-4o-mini)');
       const patternResult = await analyzeJournalingPatterns(userId, text, context);
       if (patternResult) {
         patternAnalysis = patternResult.patterns;
-        tokensUsed += patternResult.tokens_used;
-        console.log('[PatternAnalysis] Pattern analysis completed, total tokens:', tokensUsed);
+        console.log('[PatternAnalysis] Pattern analysis completed, total tokens:', patternResult.tokens_used);
       }
     }
 
     // 7. Deduct tokens used from the user's balance
-    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed);
+    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed); 
     
     if (!tokenUpdateResult.success) {
-      console.error('Failed to update token balance after usage:', tokenUpdateResult.error);
+      console.error('Failed to update token balance after usage (Gemini):', tokenUpdateResult.error);
       // Continue anyway and return the response, but include the error
     }
 
@@ -533,13 +642,13 @@ serve(async (req) => {
           analysis,
           patternAnalysis,
           metadata: {
-            tokensUsed,
-            model: 'gpt-4o-mini',
+            tokensUsed: tokensUsed, // Placeholder for Gemini
+            model: 'gemini-2.0-flash', // Updated model name in metadata
             hasPatternAnalysis: !!patternAnalysis,
-            processingTimeMs: Date.now() % 10000 // Simple processing time indicator
+            processingTimeMs: Date.now() % 10000 
           }
         },
-        tokens: {
+        tokens: { // This section might become less relevant with Gemini free tier
           used: tokensUsed,
           remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
           error: tokenUpdateResult.success ? null : tokenUpdateResult.error
@@ -550,7 +659,7 @@ serve(async (req) => {
 
   } catch (error) {
     // Log the error details
-    console.error('Error in analyze-text:', error);
+    console.error('Error in analyze-text (Gemini):', error);
 
     return new Response(
       JSON.stringify({

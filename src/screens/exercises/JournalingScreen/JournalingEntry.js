@@ -316,6 +316,7 @@ const JournalingEntry = ({ route, navigation }) => {
       
       // Update daily_exercise_logs to reflect AI analysis
       if (masterExerciseId) {
+        console.debug(`[JournalingEntry] Attempting to update daily_exercise_logs for journal entry ID: ${savedEntryId}`);
         const { error: logUpdateError } = await supabase
           .from('daily_exercise_logs')
           .update({
@@ -326,15 +327,17 @@ const JournalingEntry = ({ route, navigation }) => {
               emotions_selected_count: selectedEmotions?.length || 0,
               has_ai_analysis: true,
               ai_tokens_used: aiResponse.data.metadata.tokensUsed,
-              journal_entry_id: savedEntryId
+              journal_entry_id: savedEntryId // This is correct for storing within metadata
             }
           })
-          .eq('journal_entry_id', savedEntryId);
+          // Corrected filter: Query within the JSONB metadata column
+          // Assumes savedEntryId is a string (UUID or text). If it's a number, casting might be needed.
+          .eq('metadata->>journal_entry_id', savedEntryId);
 
         if (logUpdateError) {
           console.warn('[JournalingEntry] Warning: Could not update daily_exercise_logs with AI analysis data:', logUpdateError);
         } else {
-          console.debug('[JournalingEntry] Updated daily_exercise_logs with AI analysis data');
+          console.debug('[JournalingEntry] Updated daily_exercise_logs with AI analysis data for journal_entry_id:', savedEntryId);
         }
       }
       
