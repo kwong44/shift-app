@@ -106,6 +106,17 @@ const Insights = ({ insights, journalDate, navigation }) => {
           source: 'pattern_recommendation' 
         });
         break;
+      case 'Journaling':
+        navigation?.navigate('JournalingSetup', { 
+          source: 'pattern_recommendation' 
+        });
+        break;
+      case 'Binaural Beats':
+        navigation?.navigate('BinauralSetup', { 
+          preselectedExercise: exerciseId,
+          source: 'pattern_recommendation' 
+        });
+        break;
       case 'Task Planning':
         navigation?.navigate('TaskPlanner', { 
           source: 'pattern_recommendation' 

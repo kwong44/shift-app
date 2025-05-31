@@ -491,7 +491,7 @@ const JournalingEntry = ({ route, navigation }) => {
       <CustomDialog
         visible={showDialog}
         onDismiss={handleFinish}
-        title="Entry Saved!"
+        title="Entry Saved"
         content={
           <View style={styles.dialogContent}>
             <Text style={styles.dialogText}>
@@ -522,7 +522,7 @@ const JournalingEntry = ({ route, navigation }) => {
                 {/* Cost Estimate */}
                 <View style={styles.costEstimateContainer}>
                   <Text style={styles.costEstimateText}>
-                    Estimated cost: 5-15 credits
+                    Estimated cost: 3-5 credits
                   </Text>
                   <Text style={styles.costEstimateSubtext}>
                     (Varies by entry length and analysis complexity)
