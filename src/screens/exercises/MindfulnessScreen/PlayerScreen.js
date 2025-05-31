@@ -11,6 +11,7 @@ import { SPACING, COLORS, RADIUS, SHADOWS, FONT } from '../../../config/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import { logMindfulnessSession } from '../../../api/exercises';
 import { useUser } from '../../../hooks/useUser';
 import { supabase } from '../../../config/supabase';
@@ -35,6 +36,7 @@ const PlayerScreen = ({ navigation, route }) => {
   const [showDialog, setShowDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [sound, setSound] = useState();
 
   // Favorites functionality
   const { 
@@ -74,6 +76,16 @@ const PlayerScreen = ({ navigation, route }) => {
     loadFavoriteStatus();
   }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
 
+  // Load and unload sound
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.debug('[MindfulnessPlayerScreen] Unloading sound');
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
   const handleFavoriteToggle = async () => {
     if (!masterExerciseId) {
       console.warn('[MindfulnessPlayerScreen] No masterExerciseId available for favorite toggle');
@@ -93,11 +105,28 @@ const PlayerScreen = ({ navigation, route }) => {
 
   const handleComplete = async (actualDurationSpent) => {
     if (!user) {
-      console.error('MindfulnessPlayerScreen] User not found, cannot log session.');
+      console.error('[MindfulnessPlayerScreen] User not found, cannot log session.');
       setSnackbarMessage('User not identified. Cannot save session.');
       setSnackbarVisible(true);
       return;
     }
+
+    // Play completion sound
+    console.debug('[MindfulnessPlayerScreen] Playing completion sound');
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+         require('../../../../assets/audio/mindfulness/finish-gong.mp3')
+      );
+      setSound(newSound); // Store the sound object in state, so it can be unloaded later
+      await newSound.playAsync();
+      console.debug('[MindfulnessPlayerScreen] Completion sound played successfully.');
+    } catch (error) {
+      console.error('[MindfulnessPlayerScreen] Error playing completion sound:', error);
+      // Optionally, show a snackbar message if the sound fails to play
+      // setSnackbarMessage('Error playing completion sound.');
+      // setSnackbarVisible(true);
+    }
+
     // Ensure actualDurationSpent is a valid number, default to planned duration if undefined
     const durationToLog = typeof actualDurationSpent === 'number' ? actualDurationSpent : typeData?.duration;
     console.debug(`[MindfulnessPlayerScreen] Session complete. Actual duration received: ${actualDurationSpent}, Duration to log: ${durationToLog}s. Planned: ${typeData?.duration}s. Master ID: ${masterExerciseId}`);

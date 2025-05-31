@@ -23,7 +23,7 @@ const { height: screenHeight } = Dimensions.get('window');
  * @param {string} props.confirmMode - Button mode for confirm button (default: 'contained')
  * @param {string} props.cancelText - Text for optional cancel button
  * @param {function} props.onCancel - Callback when cancel button is pressed
- * @param {boolean} props.showIcon - Whether to show the icon (default: true)
+ * @param {boolean} props.showIcon - Whether to show the icon (default: false)
  * @param {boolean} props.showFavoriteButton - Whether to show the favorite button (default: false)
  * @param {boolean} props.isFavorite - Current favorite status (default: false)
  * @param {function} props.onFavoriteToggle - Callback when favorite button is pressed
@@ -45,7 +45,7 @@ const CustomDialog = ({
   confirmMode = 'contained',
   cancelText,
   onCancel,
-  showIcon = true,
+  showIcon = false,
   showFavoriteButton = false,
   isFavorite = false,
   onFavoriteToggle,
@@ -95,22 +95,8 @@ const CustomDialog = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header with Icon and Title */}
+          {/* Header with Title */}
           <View style={styles.header}>
-            {showIcon && (
-              <View style={[
-                styles.iconContainer, 
-                { backgroundColor: iconBackgroundColor || COLORS.primary + '20' }
-              ]}>
-                <IconButton
-                  icon={icon}
-                  size={iconSize}
-                  iconColor={iconColor || COLORS.primary}
-                  style={styles.headerIcon}
-                />
-              </View>
-            )}
-            
             <View style={styles.titleContainer}>
               <Text style={styles.title}>{title}</Text>
             </View>
@@ -180,7 +166,7 @@ const CustomDialog = ({
             <Button
               mode={confirmMode}
               onPress={onConfirm || onDismiss}
-              style={[styles.button, styles.confirmButton]}
+              style={[styles.button, styles.confirmButton, styles.fullWidthButton]}
               labelStyle={styles.confirmButtonText}
             >
               {confirmText}
@@ -222,7 +208,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: FONT.size.xl,
+    fontSize: FONT.size.lg,
     fontWeight: FONT.weight.bold,
     color: COLORS.text,
     lineHeight: 28,
@@ -271,9 +257,13 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: COLORS.primary,
+    flex: 1, // Make button take available space
   },
   confirmButtonText: {
     color: COLORS.surface,
+  },
+  fullWidthButton: {
+    flex: 1, // Ensure it takes full width in the actions container if it's the only button
   },
 });
 
