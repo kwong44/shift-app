@@ -433,6 +433,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    flexDirection: 'column',
+    minHeight: 120,
   },
   appbar: {
     backgroundColor: COLORS.background,
@@ -459,16 +461,16 @@ const styles = StyleSheet.create({
   },
   progressInfo: {
     flex: 1,
-    marginRight: SPACING.md,
+    marginRight: SPACING.sm,
   },
   progressText: {
     fontSize: FONT.size.sm,
     color: COLORS.textLight,
-    marginBottom: 4,
+    marginBottom: SPACING.sm,
   },
   progressBar: {
     height: 6,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.sm,
   },
   keyboardAvoidingView: {
     flex: 1,

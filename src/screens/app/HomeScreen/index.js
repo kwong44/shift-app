@@ -20,9 +20,11 @@ import {
   GrowthRoadmap, 
   DailyFocus,
   Insights,
-  EMOTIONS
+  EMOTIONS,
+  PhaseUpModal
 } from './components';
 import { chatWithCoach } from '../../../api/aiCoach';
+import { checkAndAdvancePhase } from '../../../api/roadmap';
 
 // Debug logging
 console.debug('HomeScreen mounted');
@@ -39,6 +41,10 @@ const HomeScreen = ({ navigation }) => {
   const [scrollY] = useState(new Animated.Value(0));
   const [insights, setInsights] = useState(null);
   const [journalDate, setJournalDate] = useState(null);
+
+  // State for Phase Up Modal
+  const [showPhaseUpModal, setShowPhaseUpModal] = useState(false);
+  const [newPhaseDetails, setNewPhaseDetails] = useState({ name: '', description: '' });
 
   // Transformed roadmap data for GrowthRoadmap component
   const [allUserWeeklyGoals, setAllUserWeeklyGoals] = useState([]);
@@ -233,6 +239,24 @@ const HomeScreen = ({ navigation }) => {
       console.debug('[HomeScreen] Calculated daily progress:', progress);
       setDailyProgress(progress);
 
+      // After all main data is loaded, check for phase advancement
+      if (user && roadmapData) {
+        console.debug('[HomeScreen] Checking for phase advancement for user:', user.id);
+        const advancementResult = await checkAndAdvancePhase(user.id, roadmapData);
+        if (advancementResult && advancementResult.advanced) {
+          console.log('[HomeScreen] User advanced to a new phase! Details:', advancementResult.newPhase);
+          setRoadmap(advancementResult.updatedRoadmap); // Update roadmap state with the new one
+          setNewPhaseDetails({
+            name: advancementResult.newPhase.name,
+            description: advancementResult.newPhase.description // Or a specific celebratory message
+          });
+          setShowPhaseUpModal(true);
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Phase up haptic
+        } else {
+          console.debug('[HomeScreen] No phase advancement this time.');
+        }
+      }
+
       console.debug("[HomeScreen] User data loaded successfully");
 
     } catch (error) {
@@ -352,6 +376,13 @@ const HomeScreen = ({ navigation }) => {
         visible={showMoodModal}
         onDismiss={() => setShowMoodModal(false)}
         onMoodSelect={handleMoodSelect}
+      />
+      
+      <PhaseUpModal
+        visible={showPhaseUpModal}
+        onDismiss={() => setShowPhaseUpModal(false)}
+        newPhaseName={newPhaseDetails.name}
+        newPhaseDescription={newPhaseDetails.description}
       />
     </SafeAreaView>
   );

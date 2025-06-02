@@ -60,3 +60,14 @@ export const getAffirmationPlaceholder = (visualizationType) => {
       return 'Enter your positive affirmation';
   }
 }; 
+
+// Mapping of visualization types to their audio files
+// This will be used by SetupScreen to fetch duration and useVisualizationAudio to play
+export const VISUALIZATION_AUDIO_FILES = {
+  goals: require('../../../../assets/audio/visualization/goals.mp3'),
+  ideal_life: require('../../../../assets/audio/visualization/ideal_life.mp3'),
+  confidence: require('../../../../assets/audio/visualization/confidence.mp3'),
+  contentment: require('../../../../assets/audio/visualization/contentment.mp3'),
+  calm: require('../../../../assets/audio/visualization/calm.mp3'),
+  placeholder: require('../../../../assets/audio/silence.mp3'), // Fallback or for types without specific audio
+}; 

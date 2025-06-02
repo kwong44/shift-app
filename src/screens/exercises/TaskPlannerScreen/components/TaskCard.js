@@ -173,16 +173,7 @@ export const TaskCard = ({
           </View>
           
           <View style={styles.rightContent}>
-            {/* Quick action button for high priority tasks */}
-            {priority?.value === 'high' && !task.completed && (
-              <View style={styles.quickActionButton}>
-                <MaterialCommunityIcons 
-                  name="lightning-bolt" 
-                  size={14} 
-                  color={priority.color}
-                />
-              </View>
-            )}
+            
             
             <Menu
               visible={menuVisible && selectedTaskId === task.id}

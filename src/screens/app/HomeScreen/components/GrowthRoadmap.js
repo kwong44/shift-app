@@ -139,26 +139,59 @@ const GrowthRoadmap = ({
   };
 
   const renderPhaseIndicator = () => {
-    if (!roadmap || !roadmap.current_phase) {
-      debug.log('No roadmap or current phase data to render phase indicator.');
+    if (!roadmap || !roadmap.current_phase || !roadmap.phases || roadmap.phases.length === 0) {
+      debug.log('No roadmap, current_phase, or phases array to render phase indicator.');
       return <Text style={styles.infoText}>Loading roadmap phase...</Text>;
     }
 
+    const currentPhaseNumber = roadmap.current_phase;
+    const currentPhaseData = roadmap.phases.find(p => p.number === currentPhaseNumber);
+
+    if (!currentPhaseData) {
+      debug.error(`Could not find phase data for phase number: ${currentPhaseNumber}`);
+      return <Text style={styles.infoText}>Error loading current phase details.</Text>;
+    }
+
+    // Find next phase for advancement summary, if not the last phase
+    let nextPhaseAdvancementSummary = currentPhaseData.advancement_summary || "You are in the latest phase!";
+    if (currentPhaseNumber < roadmap.phases.length) {
+        const nextPhaseData = roadmap.phases.find(p => p.number === currentPhaseNumber + 1);
+        if (nextPhaseData && nextPhaseData.advancement_summary) {
+            // This is a bit redundant if currentPhaseData.advancement_summary is already forward-looking
+            // But good if we want to explicitly state "To reach Phase X..."
+            // For now, assuming currentPhaseData.advancement_summary IS the text for how to get to next phase.
+        } else if (nextPhaseData) {
+            // If next phase exists but has no summary, use a generic message for it.
+            nextPhaseAdvancementSummary = `Continue consistent effort to progress beyond ${currentPhaseData.name}.`;
+        } 
+        // If currentPhaseData.advancement_summary is already set, it will be used.
+    } else {
+        nextPhaseAdvancementSummary = currentPhaseData.advancement_summary || "You've reached the pinnacle of your current roadmap! Continue practicing consistently.";
+    }
+
+
     const pendingMilestones = roadmap.milestones?.filter(m => m.status === 'pending');
-    const nextConcreteMilestone = pendingMilestones?.length > 0 ? pendingMilestones[0].description : 'Continue making progress!';
+    const nextConcreteMilestone = pendingMilestones?.length > 0 ? pendingMilestones[0].description : 'Continue making progress on your goals!';
 
     return (
     <View style={styles.phaseContainer}>
       <View style={styles.phaseHeader}>
         <MaterialCommunityIcons name="map-marker-path" size={24} color={COLORS.text} />
-        <Text style={styles.phaseTitle}>Current Phase: {roadmap.current_phase.name || 'Getting Started'}</Text>
+        <Text style={styles.phaseTitle}>Current Phase: {currentPhaseData.name || 'Unnamed Phase'}</Text>
       </View>
       <View style={styles.phaseDetails}>
-        <Text style={styles.phaseDescription}>{roadmap.current_phase.description}</Text>
-        <View style={styles.nextMilestone}>
-          <MaterialCommunityIcons name="flag" size={16} color={COLORS.text} />
-          <Text style={styles.milestoneText}>Next Up: {nextConcreteMilestone}</Text>
+        <Text style={styles.phaseDescription}>{currentPhaseData.description || 'No description available.'}</Text>
+        
+        <View style={styles.nextMilestone}> 
+          <MaterialCommunityIcons name="stairs-up" size={16} color={COLORS.accentBlue} />
+          <Text style={styles.milestoneText}>{nextPhaseAdvancementSummary}</Text>
         </View>
+
+        {/* We can re-introduce concrete milestones if they are added back to roadmap structure */}
+        {/* <View style={styles.nextMilestone}> 
+          <MaterialCommunityIcons name="flag" size={16} color={COLORS.text} />
+          <Text style={styles.milestoneText}>Next Concrete Step: {nextConcreteMilestone}</Text>
+        </View> */}
       </View>
     </View>
     );

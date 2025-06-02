@@ -21,9 +21,7 @@ console.debug('VisualizationPlayerScreen mounted');
 const PlayerScreen = ({ route, navigation }) => {
   const { 
     visualizationId, 
-    visualizationType, 
-    duration, 
-    typeData, 
+    typeData,
     content,
     masterExerciseId,
     exerciseType,
@@ -31,6 +29,8 @@ const PlayerScreen = ({ route, navigation }) => {
   } = route.params;
   const { user } = useUser();
   const selectedType = typeData;
+  const duration = typeData?.duration;
+  const visualizationType = typeData?.value;
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');

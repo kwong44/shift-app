@@ -10,10 +10,11 @@ import {
 } from 'react-native-paper';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av'; // Import Audio
 
 // Import local components and constants
 import VisualizationTypeSelector from './components/VisualizationTypeSelector';
-import { VISUALIZATION_TYPES, SESSION_DURATION } from './constants';
+import { VISUALIZATION_TYPES, SESSION_DURATION, VISUALIZATION_AUDIO_FILES } from './constants';
 import SetupScreenButton from '../../../components/common/SetupScreenButton';
 import SetupScreenButtonContainer from '../../../components/common/SetupScreenButtonContainer';
 
@@ -33,34 +34,96 @@ const SetupScreen = ({ navigation, route }) => {
   // Initial state from masterExerciseId or params or defaults
   const initialExerciseDetails = masterExerciseId ? getExerciseById(masterExerciseId) : null;
   const defaultInitialVisualizationType = initialExerciseDetails?.defaultSettings?.visualizationType || 'goals';
-  const defaultInitialDuration = initialExerciseDetails?.defaultSettings?.duration || SESSION_DURATION; // SESSION_DURATION is from ./constants
+  // Default duration from master list or constant fallback. This will be refined by fetched audio duration.
+  const fallbackDuration = initialExerciseDetails?.defaultSettings?.duration || SESSION_DURATION;
 
   const [visualizationType, setVisualizationType] = useState(
     params.visualizationType || defaultInitialVisualizationType
   );
+  // Initialize sessionDuration. It will be updated by fetched duration or params.duration.
   const [sessionDuration, setSessionDuration] = useState(
-    params.duration || defaultInitialDuration
+    params.duration || fallbackDuration 
   );
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For the main start action
+  const [isFetchingDuration, setIsFetchingDuration] = useState(false); // For audio duration fetching
 
+  // Effect to handle updates from route params
   useEffect(() => {
     console.debug('[VisualizationSetupScreen] Received params on mount/update:', params);
     if (params.masterExerciseId) {
         console.debug('[VisualizationSetupScreen] Master Exercise ID received:', params.masterExerciseId);
     }
-    if (params.originRouteName) { // Log originRouteName
+    if (params.originRouteName) {
         console.debug('[VisualizationSetupScreen] Origin route name received:', params.originRouteName);
     }
     if (params.visualizationType && params.visualizationType !== visualizationType) {
-      setVisualizationType(params.visualizationType);
+      // If type changes via params, this will trigger the fetchAudioDurationEffect
+      setVisualizationType(params.visualizationType); 
     }
+    // If a duration is explicitly passed via params, it takes precedence.
+    // The fetchAudioDurationEffect will respect this if params.duration is set.
     if (params.duration && params.duration !== sessionDuration) {
+      console.debug(`[VisualizationSetupScreen] Overriding session duration with params.duration: ${params.duration}s`);
       setSessionDuration(params.duration);
     }
-    // Note: if MASTER_EXERCISE_LIST defaultSettings included affirmationText, it could be handled here.
-  }, [params]);
+  }, [params]); // visualizationType removed from deps to avoid re-triggering fetch from this effect
+
+  // Effect to fetch audio duration when visualizationType changes,
+  // unless a duration is already provided by params.
+  useEffect(() => {
+    const fetchAudioDuration = async () => {
+      // If params.duration is already set, respect it and don't fetch.
+      if (params.duration) {
+        console.debug('[VisualizationSetupScreen] Using duration from params, skipping fetch:', params.duration);
+        setSessionDuration(params.duration); // Ensure it's set if params changed.
+        return;
+      }
+
+      const audioSource = VISUALIZATION_AUDIO_FILES[visualizationType];
+      if (!audioSource) {
+        console.warn(`[VisualizationSetupScreen] No audio source found for type: ${visualizationType}. Using fallback duration: ${fallbackDuration}s.`);
+        setSessionDuration(fallbackDuration);
+        return;
+      }
+
+      console.debug(`[VisualizationSetupScreen] Fetching duration for type: ${visualizationType}`);
+      setIsFetchingDuration(true);
+      let soundObject = null;
+      try {
+        // Load sound minimally to get status
+        soundObject = new Audio.Sound();
+        const status = await soundObject.loadAsync(audioSource, { shouldPlay: false });
+        
+        if (status && status.isLoaded && status.durationMillis) {
+          const durationInSeconds = Math.round(status.durationMillis / 1000);
+          console.debug(`[VisualizationSetupScreen] Fetched audio duration: ${durationInSeconds}s for ${visualizationType}.`);
+          setSessionDuration(durationInSeconds);
+        } else {
+          console.warn(`[VisualizationSetupScreen] Could not get duration for ${visualizationType}. Using fallback: ${fallbackDuration}s.`);
+          setSessionDuration(fallbackDuration);
+        }
+      } catch (error) {
+        console.error(`[VisualizationSetupScreen] Error fetching audio duration for ${visualizationType}:`, error.message);
+        setSessionDuration(fallbackDuration); // Fallback on error
+        setSnackbarMessage('Could not load audio information. Using default duration.');
+        setSnackbarVisible(true);
+      } finally {
+        if (soundObject) {
+          await soundObject.unloadAsync().catch(e => console.warn('[VisualizationSetupScreen] Error unloading sound object during duration fetch:', e.message));
+        }
+        setIsFetchingDuration(false);
+      }
+    };
+
+    fetchAudioDuration();
+    // Cleanup function to ensure sound is unloaded if component unmounts during fetch
+    // This is mostly handled by the finally block, but good practice.
+    return () => {
+        // Any specific cleanup if needed, though unload is in finally.
+    };
+  }, [visualizationType, params.duration, fallbackDuration]); // Re-fetch if type changes or params.duration is removed
 
   // Get the selected visualization type data based on the current state
   const selectedTypeData = VISUALIZATION_TYPES.find(t => t.value === visualizationType);
@@ -206,8 +269,8 @@ const SetupScreen = ({ navigation, route }) => {
             onPress={handleStart}
             icon="meditation"
             backgroundColor={COLORS.coralGradient.start}
-            disabled={isLoading}
-            loading={isLoading}
+            disabled={isLoading || isFetchingDuration} // Disable if fetching duration or starting
+            loading={isLoading || isFetchingDuration} // Show loading if fetching or starting
           />
         </SetupScreenButtonContainer>
 

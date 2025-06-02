@@ -43,6 +43,11 @@ export const COLORS = {
   mediumGray: '#E0E0E0',       // Medium gray for progress bars
   primaryMuted: '#F3F1FF',     // Very light purple
   
+  // Greyscale for disabled states or subtle UI elements
+  greyLight: '#F5F5F5',    // Very light grey, almost white
+  greyMedium: '#E0E0E0',   // Light grey, for borders or disabled backgrounds
+  greyDark: '#BDBDBD',     // Medium grey, for disabled text or icons
+  
   // Card Gradient Colors - Based on screenshot
   blueGradient: {
     start: '#5AC8FA',

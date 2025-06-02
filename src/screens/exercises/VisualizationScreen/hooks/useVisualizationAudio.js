@@ -4,17 +4,18 @@ import * as Haptics from 'expo-haptics';
 import { completeVisualization } from '../../../../api/exercises';
 import { useUser } from '../../../../hooks/useUser';
 import { supabase } from '../../../../config/supabase';
+import { VISUALIZATION_AUDIO_FILES } from '../constants'; // Import the shared audio file mapping
 
 // Audio placeholders for different visualization types
 // Will replace these with actual guided visualization audio files later
-const VISUALIZATION_AUDIO = {
-  goals: require('../../../../../assets/audio/visualization/goals.mp3'),
-  ideal_life: require('../../../../../assets/audio/visualization/ideal_life.mp3'),
-  confidence: require('../../../../../assets/audio/visualization/confidence.mp3'),
-  contentment: require('../../../../../assets/audio/visualization/contentment.mp3'),
-  calm: require('../../../../../assets/audio/visualization/calm.mp3'),
-  placeholder: require('../../../../../assets/audio/silence.mp3'),
-};
+// const VISUALIZATION_AUDIO = { // This local constant is no longer needed
+//   goals: require('../../../../../assets/audio/visualization/goals.mp3'),
+//   ideal_life: require('../../../../../assets/audio/visualization/ideal_life.mp3'),
+//   confidence: require('../../../../../assets/audio/visualization/confidence.mp3'),
+//   contentment: require('../../../../../assets/audio/visualization/contentment.mp3'),
+//   calm: require('../../../../../assets/audio/visualization/calm.mp3'),
+//   placeholder: require('../../../../../assets/audio/silence.mp3'),
+// };
 
 export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, masterExerciseId, exerciseType, onSessionCompleteCallback) => {
   const { user } = useUser();
@@ -139,7 +140,7 @@ export const useVisualizationAudio = (selectedType, duration, vizIdFromProps, ma
       }
       
       // Get the audio file for this visualization type
-      const audioSource = VISUALIZATION_AUDIO[selectedType.value] || VISUALIZATION_AUDIO.placeholder;
+      const audioSource = VISUALIZATION_AUDIO_FILES[selectedType.value] || VISUALIZATION_AUDIO_FILES.placeholder;
       
       if (!audioSource) {
         console.error('No audio file found for:', selectedType.value);
