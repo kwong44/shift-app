@@ -161,7 +161,7 @@ const Insights = ({ insights, journalDate, navigation }) => {
               )}
             </View>
             <IconButton 
-              icon="robot" 
+              icon="robot-love-outline" 
               size={24}
               iconColor={COLORS.primary}
               style={styles.insightIcon}

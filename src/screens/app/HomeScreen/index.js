@@ -200,7 +200,7 @@ const HomeScreen = ({ navigation }) => {
         getTasks(user.id),
         getVisualizations(user.id),
         supabase.from('users').select('name').eq('id', user.id).single(),
-        supabase.from('progress_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('daily_exercise_logs').select('created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
         fetchAllUserWeeklyGoals(user.id), // TRANSITIONAL: Contains old system goals
         getLongTermGoalsWithWeeklyGoals(user.id) // NEW: Primary long-term goals system
       ]);

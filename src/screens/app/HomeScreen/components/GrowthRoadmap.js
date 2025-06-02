@@ -190,7 +190,7 @@ const GrowthRoadmap = ({
           <TouchableRipple onPress={() => toggleLtaSection(longTermGoal.id)} style={styles.ltaHeaderTouchable}>
             <View style={styles.ltaHeader}>
               <MaterialCommunityIcons 
-                name={longTermGoal.source === 'ai_coach' ? 'robot-outline' : 'bullseye-arrow'} 
+                name={longTermGoal.source === 'ai_coach' ? 'robot-love-outline' : 'bullseye-arrow'} 
                 size={20} 
                 color={longTermGoal.source === 'ai_coach' ? COLORS.accent : COLORS.primary} 
               />
@@ -282,11 +282,11 @@ const GrowthRoadmap = ({
     return (
       <View style={styles.aiCoachContainer}>
         <View style={styles.aiCoachHeader}>
-          <MaterialCommunityIcons name="robot-outline" size={20} color={COLORS.accent} />
+          <MaterialCommunityIcons name="robot-love-outline" size={20} color={COLORS.accent} />
           <Text style={styles.aiCoachTitle}>Standalone Goals</Text>
         </View>
         <Text style={styles.aiCoachDescription}>
-          Weekly goals not linked to specific long-term goals
+          These are goals not linked to specific long-term goals
         </Text>
         
         {aiCoachGoals.map((goal) => (
@@ -448,13 +448,15 @@ const GrowthRoadmap = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.backgroundLight,
-    borderRadius: RADIUS.xl,
-    marginHorizontal: SPACING.lg,
+    borderBottomLeftRadius: RADIUS.lg,
+    borderBottomRightRadius: RADIUS.lg,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     marginBottom: SPACING.md,
     ...SHADOWS.small,
   },
   scrollContainer: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   scrollContentContainer: {
     paddingBottom: SPACING.lg,

@@ -126,15 +126,19 @@ const Navigation = () => {
 
   const checkOnboardingStatus = useCallback(async (userId) => {
     try {
+      // Attempt to get onboarding status
+      console.debug(`[checkOnboardingStatus] Attempting to fetch onboarding status for user: ${userId}`);
       const completed = await hasCompletedAssessment(userId);
-      console.debug('Onboarding status check:', { userId, completed });
-      setHasCompletedOnboarding(completed);
+      console.debug('[checkOnboardingStatus] Onboarding status fetched:', { userId, completed });
+      setHasCompletedOnboarding(completed); // Update state on success
       return completed;
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
-      return false;
+      console.error('[checkOnboardingStatus] Error checking onboarding status:', error);
+      // Ensure onboarding status is set to false on error to prevent incorrect state
+      setHasCompletedOnboarding(false);
+      return false; // Return false as before
     }
-  }, []);
+  }, []); // Keep dependencies empty as setHasCompletedOnboarding is stable
 
   // Add a function to update onboarding status
   const updateOnboardingStatus = useCallback(async () => {
