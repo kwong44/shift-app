@@ -8,6 +8,7 @@ import { paperTheme } from './src/config/theme';
 import { initializeRevenueCat } from './src/config/revenuecat';
 import { registerDeviceForPushAsync } from './src/services/notificationService';
 import { useUser } from './src/hooks/useUser';
+import { DailyFocusProvider } from './src/contexts/DailyFocusContext';
 
 console.debug('[App] Application starting');
 
@@ -39,10 +40,12 @@ export default function App() {
 
   return (
     <PaperProvider theme={paperTheme}>
-      <SafeAreaProvider>
-        <StatusBar style="auto" />
-        <Navigation />
-      </SafeAreaProvider>
+      <DailyFocusProvider>
+        <SafeAreaProvider>
+          <StatusBar style="auto" />
+          <Navigation />
+        </SafeAreaProvider>
+      </DailyFocusProvider>
     </PaperProvider>
   );
 }

@@ -51,6 +51,7 @@ import CreditsPurchaseScreen from '../screens/CreditsPurchaseScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import SubscriptionSettingsScreen from '../screens/SubscriptionSettingsScreen';
 import { View, ActivityIndicator } from 'react-native';
+import { setNavigationRefForNotifications } from '../services/notificationService';
 
 const Stack = createStackNavigator();
 
@@ -127,6 +128,7 @@ const Navigation = () => {
   const [userSession, setUserSession] = useState(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const theme = useTheme();
+  const navigationRef = React.useRef();
   
   // Credit-based system - no hard paywall, users can access main app after onboarding
   console.debug('[Navigation] Using credit-based system - no subscription paywall');
@@ -187,6 +189,12 @@ const Navigation = () => {
       } else {
         setHasCompletedOnboarding(false);
       }
+
+      // SAFETY: In some edge cases `checkSession` may hang (e.g. network
+      // latency), leaving `isLoading` stuck at `true` which blocks rendering.
+      // We explicitly clear the loading flag here once we have *any*
+      // auth-state information.
+      setIsLoading(false);
     });
 
     return () => {
@@ -223,6 +231,12 @@ const Navigation = () => {
     });
   }, [isLoading, userSession, hasCompletedOnboarding]);
 
+  useEffect(() => {
+    if (navigationRef.current) {
+      setNavigationRefForNotifications(navigationRef.current);
+    }
+  }, [navigationRef.current]);
+
   if (isLoading) {
     // Display a branded loading screen instead of returning null to prevent blank white screen.
     return (
@@ -234,6 +248,7 @@ const Navigation = () => {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         colors: {
           background: 'white',

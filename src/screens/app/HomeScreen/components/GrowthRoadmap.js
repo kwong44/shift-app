@@ -28,7 +28,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const GrowthRoadmap = ({ 
-  dailyProgress, 
   streak, 
   currentMood, 
   onMoodPress,
@@ -60,15 +59,41 @@ const GrowthRoadmap = ({
     debug.log(`Long-term goals (NEW SYSTEM) received: ${longTermGoals.length}`);
   }, [roadmap, allUserWeeklyGoals, longTermGoals]);
 
+  // Calculate true roadmap progress based on weekly goals completion
+  const calculateRoadmapProgress = () => {
+    let totalWeeklyGoals = 0;
+    let completedWeeklyGoals = 0;
+
+    // Count goals from new long-term goals system
+    longTermGoals.forEach(ltg => {
+      if (ltg.weekly_goals && ltg.weekly_goals.length > 0) {
+        totalWeeklyGoals += ltg.weekly_goals.length;
+        completedWeeklyGoals += ltg.weekly_goals.filter(wg => wg.completed).length;
+      }
+    });
+
+    // Count standalone/AI Coach goals (not linked to long-term goals)
+    const standaloneGoals = allUserWeeklyGoals.filter(wg => !wg.long_term_goal_id);
+    totalWeeklyGoals += standaloneGoals.length;
+    completedWeeklyGoals += standaloneGoals.filter(wg => wg.completed).length;
+
+    const progress = totalWeeklyGoals > 0 ? completedWeeklyGoals / totalWeeklyGoals : 0;
+    debug.log(`Calculated TRUE roadmap progress: ${completedWeeklyGoals}/${totalWeeklyGoals} = ${progress} (${Math.round(progress * 100)}%)`);
+    
+    return progress;
+  };
+
+  const roadmapProgress = calculateRoadmapProgress();
+
   useEffect(() => {
-    const progressToAnimate = dailyProgress || (roadmap?.progress?.total_goals ? (roadmap.progress.completed_goals / roadmap.progress.total_goals) : 0);
-    debug.log(`Animating overall progress bar to: ${progressToAnimate}`);
+    // Use actual roadmap progress instead of daily task progress
+    debug.log(`Animating roadmap progress bar to: ${roadmapProgress}`);
     Animated.timing(animatedProgress, {
-      toValue: progressToAnimate,
+      toValue: roadmapProgress,
       duration: 1000,
       useNativeDriver: false
     }).start();
-  }, [dailyProgress, roadmap]);
+  }, [roadmapProgress, allUserWeeklyGoals, longTermGoals]);
 
   const toggleLtaSection = (ltaId) => {
     debug.log(`Toggling LTA section: ${ltaId}`);
@@ -223,14 +248,12 @@ const GrowthRoadmap = ({
           <TouchableRipple onPress={() => toggleLtaSection(longTermGoal.id)} style={styles.ltaHeaderTouchable}>
             <View style={styles.ltaHeader}>
               <MaterialCommunityIcons 
-                name={longTermGoal.source === 'ai_coach' ? 'robot-love-outline' : 'bullseye-arrow'} 
+                name={longTermGoal.source === 'ai_coach' ? 'robot-outline' : 'bullseye-arrow'} 
                 size={20} 
                 color={longTermGoal.source === 'ai_coach' ? COLORS.accent : COLORS.primary} 
               />
               <Text style={styles.ltaTitle}>{longTermGoal.title}</Text>
-              {longTermGoal.source === 'ai_coach' && (
-                <Text style={styles.aiCoachBadge}>AI</Text>
-              )}
+              
               <MaterialCommunityIcons 
                 name={expandedLtaId === longTermGoal.id ? "chevron-up" : "chevron-down"} 
                 size={24} 
@@ -315,7 +338,7 @@ const GrowthRoadmap = ({
     return (
       <View style={styles.aiCoachContainer}>
         <View style={styles.aiCoachHeader}>
-          <MaterialCommunityIcons name="robot-love-outline" size={20} color={COLORS.accent} />
+          <MaterialCommunityIcons name="robot-outline" size={20} color={COLORS.accent} />
           <Text style={styles.aiCoachTitle}>Standalone Goals</Text>
         </View>
         <Text style={styles.aiCoachDescription}>
@@ -354,13 +377,6 @@ const GrowthRoadmap = ({
 
   // Get the current emotion object
   const currentEmotionData = getCurrentEmotion();
-
-  // Calculate overall progress from roadmap or daily progress - Rule: Always add debug logs  
-  const overallProgressValue = roadmap?.progress?.total_goals 
-    ? (roadmap.progress.completed_goals / roadmap.progress.total_goals) 
-    : 0;
-    
-  debug.log(`Calculated overall progress value for top bar: ${overallProgressValue}`);
 
   const addWeeklyGoalToLongTermGoal = async (longTermGoalId) => {
     const goalText = newGoalTexts[longTermGoalId]?.trim();
@@ -466,7 +482,7 @@ const GrowthRoadmap = ({
             />
           </View>
           <View style={styles.progressCircle}>
-            <Text style={styles.progressCircleText}>{Math.round((dailyProgress || overallProgressValue || 0) * 100)}%</Text>
+            <Text style={styles.progressCircleText}>{Math.round(roadmapProgress * 100)}%</Text>
           </View>
         </View>
 
@@ -613,13 +629,13 @@ const styles = StyleSheet.create({
   nextMilestone: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: COLORS.backgroundLight,
     padding: SPACING.xs,
     borderRadius: RADIUS.sm,
     marginTop: SPACING.xs,
   },
   milestoneText: {
-    color: COLORS.text,
+    color: COLORS.textLight,
     fontSize: FONT.size.xs,
     marginLeft: SPACING.xs,
   },
@@ -731,7 +747,7 @@ const styles = StyleSheet.create({
     lineHeight: FONT.size.xs * 1.4,
   },
   aiCoachBadge: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.xs,
     paddingVertical: SPACING.xxs,

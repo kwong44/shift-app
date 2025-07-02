@@ -144,12 +144,7 @@ const Insights = ({ insights, journalDate, navigation }) => {
 
   return (
     <Card style={styles.insightCard} elevation={2}>
-      <LinearGradient
-        colors={['#e9e6ff', '#d8d4fc']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.insightGradient}
-      >
+      
         <Card.Content>
           <View style={styles.cardHeader}>
             <View style={styles.titleContainer}>
@@ -160,13 +155,6 @@ const Insights = ({ insights, journalDate, navigation }) => {
                 </Text>
               )}
             </View>
-            <IconButton 
-              icon="robot-love-outline" 
-              size={24}
-              iconColor={COLORS.primary}
-              style={styles.insightIcon}
-              accessibilityLabel="AI generated insights"
-            />
           </View>
           
           <Paragraph style={styles.insightText}>
@@ -205,7 +193,6 @@ const Insights = ({ insights, journalDate, navigation }) => {
           </View>
           
         </Card.Content>
-      </LinearGradient>
     </Card>
   );
 };
@@ -216,10 +203,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
+    backgroundColor: COLORS.background, // Light coral background for AI components
   },
-  insightGradient: {
-    borderRadius: RADIUS.lg,
-  },
+  
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -240,10 +226,6 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     marginTop: SPACING.xs,
   },
-  insightIcon: {
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: 12,
-  },
   insightText: {
     marginVertical: SPACING.sm,
     color: COLORS.text,
@@ -256,7 +238,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   expandButtonText: {
-    color: COLORS.primary,
+    color: COLORS.accent,
     fontSize: FONT.size.sm,
   },
   buttonsContainer: {
@@ -265,7 +247,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   recommendedExerciseButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.accent,
     borderRadius: RADIUS.sm,
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,

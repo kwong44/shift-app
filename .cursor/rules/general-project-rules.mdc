@@ -12,3 +12,7 @@ alwaysApply: true
 - Every time you choose to apply a rule(s), explicitly state the rule(s) in the output. You can abbreviate the rule(s) to a single word or phrase.
 - Always use the Supabase MCP server to check the database schema or make migrations.
 - Use context7 MCP server to check for latest documentation when creating API routes or using third-party services.
+-We are using React Native Paper for the UI Library. 
+-You can find the current themes in @theme.js.
+-It is okay to add a theme to the @theme.js file if it reduces styling.
+-When shipping production builds, always set EXPO_PUBLIC_LOG_LEVEL=info or 'warn"

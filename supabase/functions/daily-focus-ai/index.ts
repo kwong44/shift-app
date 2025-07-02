@@ -355,36 +355,46 @@ function formatRecommendationsForClient(aiRecommendations: any[], userFavorites:
 }
 
 serve(async (req) => {
+  let payload;
   try {
-    const { userId, requestedCount = 3 } = await req.json();
-    
+    payload = await req.json();
+  } catch (parseErr) {
+    console.error('[DailyFocusAI] Failed to parse JSON body:', parseErr);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    const { userId, requestedCount = 3 } = payload;
+
     console.log(`[DailyFocusAI] Processing request for user: ${userId}, count: ${requestedCount}`);
 
     // Validate request
     if (!userId) {
       return new Response(
-        JSON.stringify({ error: 'User ID is required' }),
+        JSON.stringify({ success: false, error: 'User ID is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     // 1. Gather comprehensive user context
     const userContext = await gatherUserContext(userId);
-    
-    // 2. Generate AI-powered recommendations
+
+    // 2. Generate AI-powered recommendations (handles missing OPENAI key internally)
     const aiResult = await generateAIRecommendations(userContext, requestedCount);
-    
+
+    // 3. If AI failed or env missing, fallback is already prepared
     if (!aiResult.success) {
-      console.warn('[DailyFocusAI] AI recommendation failed, using fallback');
-      
-      // Return fallback recommendations
+      console.warn('[DailyFocusAI] AI recommendation failed or unavailable, using fallback');
       return new Response(
         JSON.stringify({
           success: true,
           fallback: true,
           recommendations: aiResult.recommendations,
           metadata: {
-            fallback_reason: aiResult.error,
+            fallback_reason: aiResult.error || 'AI unavailable',
             model: 'fallback_favorites'
           }
         }),
@@ -392,13 +402,13 @@ serve(async (req) => {
       );
     }
 
-    // 3. Format recommendations for client
+    // 4. Format recommendations for client
     const formattedRecommendations = formatRecommendationsForClient(
-      aiResult.recommendations, 
+      aiResult.recommendations,
       userContext.userFavorites
     );
 
-    // 4. Return successful response
+    // 5. Return successful response
     return new Response(
       JSON.stringify({
         success: true,
@@ -410,13 +420,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[DailyFocusAI] Error in daily focus AI function:', error);
-    
+    // Always respond with 200 to avoid client-side non-2xx errors; indicate failure in JSON
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: false, error: error.message || 'Unknown error' }),
+      { headers: { 'Content-Type': 'application/json' } }
     );
   }
 }); 

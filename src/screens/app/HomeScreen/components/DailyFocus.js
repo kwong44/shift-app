@@ -9,8 +9,44 @@ import * as Haptics from 'expo-haptics';
 import { useUser } from '../../../../hooks/useUser';
 import useDailyFocusCompletion from '../../../../hooks/useDailyFocusCompletion';
 import useAIDailyFocusRecommendations from '../../../../hooks/useAIDailyFocusRecommendations';
+import { MASTER_EXERCISE_LIST } from '../../../../constants/masterExerciseList';
 
 console.debug('[DailyFocus] Component mounted/re-rendered with AI-powered recommendations.');
+
+// Helper function to get gradient colors for an exercise
+const getExerciseGradientColors = (exercise) => {
+  // First, check if exercise already has gradientColors
+  if (exercise.gradientColors && Array.isArray(exercise.gradientColors) && exercise.gradientColors.length === 2) {
+    console.debug('[DailyFocus] Using exercise gradientColors:', exercise.gradientColors, 'for', exercise.id);
+    return exercise.gradientColors;
+  }
+
+  // Fallback: look up in master exercise list
+  const masterExercise = MASTER_EXERCISE_LIST.find(ex => ex.id === exercise.id);
+  if (masterExercise?.gradientColors) {
+    console.debug('[DailyFocus] Using master list gradientColors:', masterExercise.gradientColors, 'for', exercise.id);
+    return masterExercise.gradientColors;
+  }
+
+  // Type-based fallback
+  const typeGradients = {
+    'Mindfulness': ['#00B894', '#007E66'], // teal
+    'Visualization': ['#FF7675', '#FF5D5D'], // coral
+    'Deep Work': ['#5AC8FA', '#4B9EF8'], // blue
+    'Binaural Beats': ['#7D8CC4', '#5D6CAF'], // indigo
+    'Task Planning': ['#6C63FF', '#5F52EE'], // purple
+    'Journaling': ['#F368E0', '#D63AC8'], // pink
+  };
+
+  if (exercise.type && typeGradients[exercise.type]) {
+    console.debug('[DailyFocus] Using type-based gradientColors:', typeGradients[exercise.type], 'for type:', exercise.type);
+    return typeGradients[exercise.type];
+  }
+
+  // Final fallback
+  console.warn('[DailyFocus] No gradientColors found for exercise:', exercise.id, exercise.type, 'using primary/secondary fallback');
+  return [COLORS.primary, COLORS.secondary];
+};
 
 const DailyFocus = ({ onExercisePress }) => {
   const { user } = useUser();
@@ -119,7 +155,7 @@ const DailyFocus = ({ onExercisePress }) => {
     return (
       <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
         <MaterialCommunityIcons name="coffee-outline" size={48} color={COLORS.textLight} />
-        <Text style={styles.loadingOrErrorText}>No focus exercises suggested for today. Perhaps take a break?</Text>
+        <Text style={styles.loadingOrErrorText}>No focus exercises suggested for today.</Text>
       </Card>
     );
   }
@@ -146,22 +182,25 @@ const DailyFocus = ({ onExercisePress }) => {
             mode="flat"
             style={styles.focusChip}
             textStyle={styles.focusChipText}
-            icon="calendar-check-outline"
           >
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Chip>
         </View>
         
-        {focusTheme && (
-          <Text style={styles.focusTheme} numberOfLines={2}>
-            🎯 {focusTheme}
-          </Text>
-        )}
-        
         <View style={styles.exerciseList}>
           {suggestedExercises.map((exercise) => {
             const isCompleted = exercise.id ? (dailyCompletionStatus[exercise.id] || false) : false;
             const isDisabled = isCompleted && exercise.id !== 'tasks_planner';
+            
+            // Debug log to see what gradientColors are being used
+            console.debug('[DailyFocus] Rendering exercise:', {
+              id: exercise.id,
+              title: exercise.title,
+              type: exercise.type,
+              hasGradientColors: !!exercise.gradientColors,
+              gradientColors: exercise.gradientColors,
+              resolvedColors: getExerciseGradientColors(exercise)
+            });
 
             return (
               <TouchableRipple
@@ -174,7 +213,7 @@ const DailyFocus = ({ onExercisePress }) => {
                 accessibilityHint={`${exercise.defaultDurationText || 'Varies'} exercise to ${exercise.description || 'improve well-being'}`}
               >
                 <LinearGradient
-                  colors={isDisabled ? [COLORS.greyLight, COLORS.greyMedium] : (exercise.gradientColors || [COLORS.primary, COLORS.secondary])}
+                  colors={isDisabled ? [COLORS.greyLight, COLORS.greyMedium] : getExerciseGradientColors(exercise)}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.exerciseGradient}
@@ -282,22 +321,15 @@ const styles = StyleSheet.create({
     fontSize: FONT.size.xs,
   },
   focusChip: {
-    backgroundColor: '#e9e6ff',
+    backgroundColor: COLORS.backgroundLight,
     borderRadius: RADIUS.md,
   },
   focusChipText: {
-    color: '#6C63FF',
+    color: COLORS.textLight,
     fontWeight: FONT.weight.medium,
     fontSize: FONT.size.xs,
   },
-  focusTheme: {
-    color: COLORS.textMedium,
-    fontSize: FONT.size.sm,
-    fontStyle: 'italic',
-    marginBottom: SPACING.md,
-    marginTop: SPACING.xs,
-    lineHeight: 20,
-  },
+
   exerciseList: {
     marginTop: SPACING.md,
   },

@@ -6,7 +6,9 @@ export const COLORS = {
   primary: '#5F52EE',       // Purple (main brand color)
   primaryLight: '#E8DFFF',  // Light purple for add goal prompt
   secondary: '#6C63FF',     // Slightly lighter purple
-  accent: '#FF5757',        // Coral/red accent (for fire icon)
+  accent: '#FF5757',        // Coral/red accent (for AI coach related components)
+  accentLight: '#FFEBEB',   // Very light coral for AI component backgrounds
+  accentMuted: '#FF7070',   // Light coral for subtle AI backgrounds
   
   // UI Background colors
   background: '#FFFFFF',    // Pure white background

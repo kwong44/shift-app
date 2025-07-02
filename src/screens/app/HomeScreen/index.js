@@ -227,6 +227,8 @@ const HomeScreen = ({ navigation }) => {
       console.debug('[HomeScreen] Calculated streak:', currentStreak);
       setStreak(currentStreak);
 
+      // Calculate daily task completion (separate from roadmap progress)
+      // This tracks completion of daily tasks/visualizations, not roadmap goals
       const completedTasks = (tasksData || []).filter(task => task.completed).length;
       const completedVisualizations = (visualizationsData || []).filter(viz => viz.completed).length;
       const totalActivitiesToday = (tasksData || []).length + (visualizationsData || []).length;
@@ -236,7 +238,7 @@ const HomeScreen = ({ navigation }) => {
       }
       
       progress = Math.min(Math.max(Number(progress) || 0, 0), 1);
-      console.debug('[HomeScreen] Calculated daily progress:', progress);
+      console.debug('[HomeScreen] Calculated daily task progress (not roadmap progress):', progress);
       setDailyProgress(progress);
 
       // After all main data is loaded, check for phase advancement
@@ -348,7 +350,6 @@ const HomeScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <GrowthRoadmap
-            dailyProgress={dailyProgress}
             streak={streak}
             currentMood={currentMood}
             onMoodPress={() => setShowMoodModal(true)}

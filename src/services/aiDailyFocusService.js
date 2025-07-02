@@ -35,8 +35,9 @@ export const generateAIDailyFocusRecommendations = async (userId, count = 3) => 
     });
 
     if (error) {
+      // Log once at error level and immediately fall back – avoid double logging
       console.error('[aiDailyFocusService] Edge Function error:', error);
-      throw error;
+      return getFallbackRecommendations(count);
     }
 
     if (!data || !data.success) {
@@ -87,15 +88,30 @@ const validateAndEnhanceRecommendations = (aiRecommendations) => {
 
   for (const aiRec of aiRecommendations) {
     try {
-      // Find the exercise in our master list
-      const exercise = MASTER_EXERCISE_LIST.find(ex => ex.id === aiRec.exercise_id);
-      
-      if (!exercise) {
-        console.warn(`[aiDailyFocusService] Exercise not found in master list: ${aiRec.exercise_id}`);
+      // Edge Function may already send fully-formatted exercise objects.
+      // If the object includes an `id` that exists in the master list, we can
+      // accept it as-is (respecting any `ai_metadata` it already contains).
+
+      const exerciseId = aiRec.exercise_id ?? aiRec.id;
+      if (!exerciseId) {
+        console.warn('[aiDailyFocusService] Missing exercise identifier in AI recommendation');
         continue;
       }
 
-      // Enhance with AI metadata
+      // Is this already a full exercise object?
+      if (aiRec.title && aiRec.type && aiRec.ai_metadata) {
+        validatedExercises.push({ ...aiRec, ai_recommendation: aiRec.ai_metadata });
+        console.debug(`[aiDailyFocusService] Accepted pre-formatted exercise: ${aiRec.title}`);
+        continue;
+      }
+
+      // Otherwise, look up in master list and attach metadata
+      const exercise = MASTER_EXERCISE_LIST.find(ex => ex.id === exerciseId);
+      if (!exercise) {
+        console.warn(`[aiDailyFocusService] Exercise not found in master list: ${exerciseId}`);
+        continue;
+      }
+
       const enhancedExercise = {
         ...exercise,
         ai_recommendation: {

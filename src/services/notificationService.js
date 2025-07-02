@@ -15,6 +15,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabase';
 import logger from '../utils/logger';
+import { NavigationContainerRefContext } from '@react-navigation/native';
 
 // Configure the notification handler – let notifications show when app is foregrounded
 Notifications.setNotificationHandler({
@@ -24,6 +25,11 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+let navigationRef = null;
+export const setNavigationRefForNotifications = (ref) => {
+  navigationRef = ref;
+};
 
 /**
  * Request permissions and register device for push notifications.
@@ -84,4 +90,17 @@ export const registerDeviceForPushAsync = async (userId) => {
   } catch (err) {
     logger.error('[notificationService] Failed to register for push', { message: err.message });
   }
-}; 
+};
+
+// Listen for taps on notifications (deep links)
+Notifications.addNotificationResponseReceivedListener(response => {
+  try {
+    const route = response?.notification?.request?.content?.data?.deep_link_route;
+    if (route && navigationRef) {
+      logger.info('[notificationService] Navigating from push', { route });
+      navigationRef.navigate(route);
+    }
+  } catch (e) {
+    logger.error('[notificationService] Error handling notification response', { message: e.message });
+  }
+}); 
