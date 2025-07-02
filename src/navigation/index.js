@@ -5,6 +5,7 @@ import { useTheme } from 'react-native-paper';
 import { supabase } from '../config/supabase';
 import { getSession } from '../api/auth';
 import { hasCompletedAssessment } from '../api/selfAssessment';
+// Removed subscription context import - using credit-based system instead
 
 // Import BottomTabNavigator
 import BottomTabNavigator from './BottomTabNavigator';
@@ -47,6 +48,9 @@ import JournalingEntry from '../screens/exercises/JournalingScreen/JournalingEnt
 import JournalingHistoryScreen from '../screens/exercises/JournalingScreen/JournalingHistoryScreen';
 import AICoachScreen from '../screens/app/AICoachScreen';
 import CreditsPurchaseScreen from '../screens/CreditsPurchaseScreen';
+import PaywallScreen from '../screens/PaywallScreen';
+import SubscriptionSettingsScreen from '../screens/SubscriptionSettingsScreen';
+import { View, ActivityIndicator } from 'react-native';
 
 const Stack = createStackNavigator();
 
@@ -123,6 +127,9 @@ const Navigation = () => {
   const [userSession, setUserSession] = useState(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const theme = useTheme();
+  
+  // Credit-based system - no hard paywall, users can access main app after onboarding
+  console.debug('[Navigation] Using credit-based system - no subscription paywall');
 
   const checkOnboardingStatus = useCallback(async (userId) => {
     try {
@@ -192,9 +199,9 @@ const Navigation = () => {
       const { session } = await getSession();
       console.debug('Session check:', { hasSession: !!session, hasUser: !!session?.user });
       setUserSession(session);
-      
+      // IMPORTANT: Do not block the UI while checking onboarding. We fire-and-forget to avoid white screen hangs.
       if (session?.user) {
-        await checkOnboardingStatus(session.user.id);
+        checkOnboardingStatus(session.user.id); // No await – let it resolve in the background
       }
     } catch (error) {
       console.error('Error checking session:', error);
@@ -202,6 +209,7 @@ const Navigation = () => {
       setUserSession(null);
       setHasCompletedOnboarding(false);
     } finally {
+      // Ensure we always remove the loading state, even if Supabase/network is slow.
       setIsLoading(false);
     }
   };
@@ -211,12 +219,17 @@ const Navigation = () => {
     console.debug('Navigation state updated:', {
       isLoading,
       hasSession: !!userSession,
-      hasCompletedOnboarding
+      hasCompletedOnboarding,
     });
   }, [isLoading, userSession, hasCompletedOnboarding]);
 
   if (isLoading) {
-    return null; // Or return a loading screen
+    // Display a branded loading screen instead of returning null to prevent blank white screen.
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -271,7 +284,7 @@ const Navigation = () => {
             </Stack.Group>
           </>
         ) : (
-          // Main App Stack
+          // Main App Stack - Credit-based system allows access after onboarding
           <Stack.Group screenOptions={screenOptions}>
             <Stack.Screen name="App" component={BottomTabNavigator} />
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
@@ -298,7 +311,17 @@ const Navigation = () => {
                 cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
               }}
             />
-            <Stack.Screen name="CreditsPurchase" component={CreditsPurchaseScreen} />
+            <Stack.Screen 
+              name="CreditsPurchase" 
+              component={CreditsPurchaseScreen}
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+                cardStyleInterpolator: CardStyleInterpolators.forModalPresentationIOS,
+                gestureEnabled: true,
+                gestureDirection: 'vertical',
+              }}
+            />
           </Stack.Group>
         )}
       </Stack.Navigator>

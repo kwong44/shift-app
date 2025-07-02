@@ -8,16 +8,28 @@ import { SPACING, COLORS, RADIUS, FONT } from '../../../../config/theme';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '../../../../hooks/useUser';
 import useDailyFocusCompletion from '../../../../hooks/useDailyFocusCompletion';
-import { getDailyFocusSuggestions } from '../../../../api/dailyFocus';
+import useAIDailyFocusRecommendations from '../../../../hooks/useAIDailyFocusRecommendations';
 
-console.debug('[DailyFocus] Component mounted/re-rendered.');
+console.debug('[DailyFocus] Component mounted/re-rendered with AI-powered recommendations.');
 
 const DailyFocus = ({ onExercisePress }) => {
   const { user } = useUser();
-  const isFocused = useIsFocused();
-  const [suggestedExercises, setSuggestedExercises] = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [suggestionsError, setSuggestionsError] = useState(null);
+
+  // Use AI-powered recommendations hook with smart caching and auto-refresh
+  const {
+    recommendations: suggestedExercises,
+    loading: loadingSuggestions,
+    error: suggestionsError,
+    aiPowered,
+    focusTheme,
+    refresh: refreshRecommendations,
+    getExplanation,
+    isAIPowered
+  } = useAIDailyFocusRecommendations({
+    count: 3,
+    autoRefresh: true,
+    cacheTimeout: 30 * 60 * 1000 // 30 minutes cache
+  });
 
   const exerciseIdsToTrack = useMemo(() => {
     return suggestedExercises.map(ex => ex.id);
@@ -26,37 +38,17 @@ const DailyFocus = ({ onExercisePress }) => {
   const { dailyCompletionStatus, loadingCompletion, completionError, refreshDailyStatus } = 
     useDailyFocusCompletion(exerciseIdsToTrack);
 
-  const fetchSuggestions = useCallback(async () => {
-    if (user?.id) {
-      console.debug('[DailyFocus] User found, fetching suggestions for:', user.id);
-      setLoadingSuggestions(true);
-      setSuggestionsError(null);
-      try {
-        const suggestions = await getDailyFocusSuggestions(user.id, 3);
-        setSuggestedExercises(suggestions);
-        console.debug('[DailyFocus] Suggestions fetched:', suggestions.map(s => s.id));
-      } catch (err) {
-        console.error('[DailyFocus] Error fetching suggestions:', err);
-        setSuggestionsError('Failed to load daily focus suggestions.');
-        setSuggestedExercises([]);
-      } finally {
-        setLoadingSuggestions(false);
+  // Log AI-powered status and focus theme for debugging
+  useEffect(() => {
+    if (aiPowered) {
+      console.debug('[DailyFocus] Using AI-powered recommendations');
+      if (focusTheme) {
+        console.debug('[DailyFocus] Daily focus theme:', focusTheme);
       }
     } else {
-      console.debug('[DailyFocus] No user, or user ID not available yet. Clearing suggestions.');
-      setSuggestedExercises([]);
-      setLoadingSuggestions(false);
+      console.debug('[DailyFocus] Using fallback recommendations');
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (isFocused) {
-      console.debug('[DailyFocus] Screen is focused, calling fetchSuggestions.');
-      fetchSuggestions();
-    } else {
-      console.debug('[DailyFocus] Screen is NOT focused. Suggestions will not be fetched by focus trigger.');
-    }
-  }, [user, isFocused, fetchSuggestions]);
+  }, [aiPowered, focusTheme]);
 
   useEffect(() => {
     if (completionError) {
@@ -64,12 +56,13 @@ const DailyFocus = ({ onExercisePress }) => {
     }
   }, [completionError]);
 
+  // Refresh completion status when suggestions change
   useEffect(() => {
-    if (isFocused && suggestedExercises.length > 0) {
-        console.debug('[DailyFocus] Screen focused or suggestions changed, refreshing daily completion status.');
-        refreshDailyStatus();
+    if (suggestedExercises.length > 0) {
+      console.debug('[DailyFocus] Suggestions updated, refreshing completion status.');
+      refreshDailyStatus();
     }
-  }, [isFocused, suggestedExercises, refreshDailyStatus]);
+  }, [suggestedExercises, refreshDailyStatus]);
 
   console.debug('[DailyFocus] Rendering. Suggestions Count:', suggestedExercises.length, 'Loading Suggestions:', loadingSuggestions, 'Loading Completions:', loadingCompletion);
   console.debug('[DailyFocus] Completion Status from hook:', dailyCompletionStatus);
@@ -98,7 +91,9 @@ const DailyFocus = ({ onExercisePress }) => {
     return (
       <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingOrErrorText}>Loading your focus for today...</Text>
+        <Text style={styles.loadingOrErrorText}>
+          {aiPowered ? 'AI is personalizing your focus...' : 'Loading your focus for today...'}
+        </Text>
       </Card>
     );
   }
@@ -107,7 +102,15 @@ const DailyFocus = ({ onExercisePress }) => {
     return (
       <Card style={[styles.focusCard, styles.centeredContent]} elevation={2}>
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={COLORS.error} />
-        <Text style={styles.loadingOrErrorText}>{suggestionsError}</Text>
+        <Text style={styles.loadingOrErrorText}>
+          {suggestionsError}
+        </Text>
+        <TouchableRipple
+          onPress={refreshRecommendations}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryText}>Tap to retry</Text>
+        </TouchableRipple>
       </Card>
     );
   }
@@ -125,7 +128,20 @@ const DailyFocus = ({ onExercisePress }) => {
     <Card style={styles.focusCard} elevation={2}>
       <Card.Content>
         <View style={styles.cardHeader}>
-          <Title style={styles.cardTitle}>Today's Focus</Title>
+          <View style={styles.titleContainer}>
+            <Title style={styles.cardTitle}>Today's Focus</Title>
+            {aiPowered && (
+              <Chip 
+                mode="flat"
+                style={styles.aiChip}
+                textStyle={styles.aiChipText}
+                icon="brain"
+                compact
+              >
+                AI
+              </Chip>
+            )}
+          </View>
           <Chip 
             mode="flat"
             style={styles.focusChip}
@@ -135,6 +151,12 @@ const DailyFocus = ({ onExercisePress }) => {
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Chip>
         </View>
+        
+        {focusTheme && (
+          <Text style={styles.focusTheme} numberOfLines={2}>
+            🎯 {focusTheme}
+          </Text>
+        )}
         
         <View style={styles.exerciseList}>
           {suggestedExercises.map((exercise) => {
@@ -220,16 +242,44 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
+  retryButton: {
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight,
+  },
+  retryText: {
+    color: COLORS.primary,
+    fontSize: FONT.size.sm,
+    fontWeight: FONT.weight.medium,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: SPACING.md,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   cardTitle: {
     fontSize: FONT.size.xl,
     fontWeight: FONT.weight.bold,
     color: COLORS.text,
+    marginRight: SPACING.sm,
+  },
+  aiChip: {
+    backgroundColor: '#e3f2fd',
+    borderRadius: RADIUS.sm,
+    marginLeft: SPACING.xs,
+  },
+  aiChipText: {
+    color: '#1976d2',
+    fontWeight: FONT.weight.bold,
+    fontSize: FONT.size.xs,
   },
   focusChip: {
     backgroundColor: '#e9e6ff',
@@ -239,6 +289,14 @@ const styles = StyleSheet.create({
     color: '#6C63FF',
     fontWeight: FONT.weight.medium,
     fontSize: FONT.size.xs,
+  },
+  focusTheme: {
+    color: COLORS.textMedium,
+    fontSize: FONT.size.sm,
+    fontStyle: 'italic',
+    marginBottom: SPACING.md,
+    marginTop: SPACING.xs,
+    lineHeight: 20,
   },
   exerciseList: {
     marginTop: SPACING.md,

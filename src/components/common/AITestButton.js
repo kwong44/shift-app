@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import CustomButton from './CustomButton';
 import { testAiConnection, analyzeText } from '../../api/aiCoach';
+import { Button } from 'react-native';
 
 /**
  * A button component that tests the AI connection and text analysis
@@ -9,6 +10,9 @@ import { testAiConnection, analyzeText } from '../../api/aiCoach';
 const AITestButton = () => {
   const [testResult, setTestResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [testResults, setTestResults] = useState({
+    aiDailyFocus: null,
+  });
 
   // Debug log: Component mounted
   console.debug('[AITestButton] Component mounted');
@@ -58,6 +62,49 @@ const AITestButton = () => {
     }
   };
 
+  // Test AI Daily Focus Recommendations
+  const testAIDailyFocus = async () => {
+    try {
+      console.log('[AITestButton] Testing AI Daily Focus Recommendations...');
+      setTestResults(prev => ({
+        ...prev,
+        aiDailyFocus: { status: 'testing', message: 'Testing AI Daily Focus...' }
+      }));
+
+      const { generateAIDailyFocusRecommendations } = await import('../../services/aiDailyFocusService');
+      
+      if (!user?.id) {
+        throw new Error('No user ID available for testing');
+      }
+
+      const recommendations = await generateAIDailyFocusRecommendations(user.id, 3);
+      
+      if (recommendations && recommendations.length > 0) {
+        const aiPowered = recommendations.some(rec => rec.ai_recommendation?.is_ai_powered);
+        setTestResults(prev => ({
+          ...prev,
+          aiDailyFocus: { 
+            status: 'success', 
+            message: `✅ Generated ${recommendations.length} recommendations (AI: ${aiPowered ? 'Yes' : 'Fallback'})`,
+            data: recommendations.map(r => ({
+              title: r.title,
+              aiPowered: !!r.ai_recommendation?.is_ai_powered,
+              score: r.ai_recommendation?.priority_score || 'N/A'
+            }))
+          }
+        }));
+      } else {
+        throw new Error('No recommendations returned');
+      }
+    } catch (error) {
+      console.error('[AITestButton] AI Daily Focus test failed:', error);
+      setTestResults(prev => ({
+        ...prev,
+        aiDailyFocus: { status: 'error', message: `❌ ${error.message}` }
+      }));
+    }
+  };
+
   return (
     <View style={styles.container}>
       <CustomButton
@@ -72,9 +119,31 @@ const AITestButton = () => {
         loading={isLoading}
         style={styles.button}
       />
-      {testResult ? (
-        <Text style={styles.resultText}>{testResult}</Text>
-      ) : null}
+      <Button 
+        mode="outlined" 
+        onPress={testAIDailyFocus}
+        style={styles.testButton}
+        loading={testResults.aiDailyFocus?.status === 'testing'}
+      >
+        Test AI Daily Focus
+      </Button>
+      {testResults.aiDailyFocus && (
+        <Text style={[
+          styles.resultText,
+          testResults.aiDailyFocus.status === 'success' ? styles.successText : styles.errorText
+        ]}>
+          {testResults.aiDailyFocus.message}
+        </Text>
+      )}
+      {testResults.aiDailyFocus?.data && (
+        <View style={styles.dataContainer}>
+          {testResults.aiDailyFocus.data.map((rec, index) => (
+            <Text key={index} style={styles.dataText}>
+              {rec.title} - AI: {rec.aiPowered ? 'Yes' : 'No'} - Score: {rec.score}
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -91,6 +160,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 16,
     textAlign: 'center',
+  },
+  testButton: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  successText: {
+    color: 'green',
+  },
+  errorText: {
+    color: 'red',
+  },
+  dataContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  dataText: {
+    marginBottom: 8,
   },
 });
 

@@ -319,4 +319,13 @@ export const GRADIENTS = {
   coral: createGradient([COLORS.coralGradient.start, COLORS.coralGradient.end]),
   purple: createGradient([COLORS.purpleGradient.start, COLORS.purpleGradient.end]),
   indigo: createGradient([COLORS.indigoGradient.start, COLORS.indigoGradient.end]),
-}; 
+};
+
+// Attach commonly-used gradients (simple color arrays) directly on the custom paper theme
+paperTheme.gradients = {
+  // Primary brand gradient (purple → light purple)
+  primary: [COLORS.primary, COLORS.primaryLight],
+};
+
+// Provide backwards-compatibility alias so screens can `import { theme }`
+export const theme = paperTheme; // eslint-disable-line import/prefer-default-export 

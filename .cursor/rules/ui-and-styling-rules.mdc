@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+We are using React Native Paper for the UI Library. 
+You can find the current themes in [theme.js](mdc:src/config/theme.js).
+It is okay to add a theme to the [theme.js](mdc:src/config/theme.js) file if it reduces styling.

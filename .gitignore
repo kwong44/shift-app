@@ -34,10 +34,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-# cursor
-.cursorrules
-.cursor
-
-# Instructions
-instructions/

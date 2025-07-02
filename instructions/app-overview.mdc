@@ -1,0 +1,260 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Shift App - Comprehensive Project Overview
+
+## 1. Core Purpose & Vision
+
+**Shift-app** is a mobile personal transformation application designed to guide users through a structured, science-based journey of self-improvement. The core functionality revolves around a personalized "Growth Roadmap" built from an initial self-assessment. Users engage with daily exercises, set and track goals, and interact with an AI coach to build habits, gain insights, and achieve their long-term aspirations.
+
+The app's philosophy is rooted in neuroscience, psychology (CBT), and mindfulness principles, inspired by thinkers like Tony Robbins and Eckhart Tolle.
+
+## 2. Technology Stack
+
+### Frontend
+- **Framework**: React Native with Expo
+- **UI Library**: React Native Paper (Material Design 3)
+- **Navigation**: React Navigation (Stack, Bottom Tabs)
+- **State Management**: React Hooks & Context (`useUser`, `useDailyFocusCompletion`)
+- **Language**: JavaScript
+- **Audio**: Expo AV for binaural beats and guided meditations
+
+### Backend (Serverless)
+- **Provider**: Supabase
+- **Authentication**: Supabase Auth (Email/Password)
+- **Database**: Supabase Postgres with Row Level Security (RLS)
+- **Serverless Functions**: Supabase Edge Functions (Deno, TypeScript)
+- **Storage**: Supabase Storage (for user avatars)
+
+### Artificial Intelligence
+- **AI Coaching**: OpenAI (gpt-4o-mini) for conversational AI coach ("Samantha")
+- **Text Analysis**: Google Gemini (gemini-2.0-flash) for journal entry analysis and pattern detection
+
+## 3. High-Level Architecture
+
+### Client Architecture (`src/`)
+```
+src/
+├── api/           # Supabase client interface layer
+├── screens/       # UI views organized by function
+├── components/    # Reusable UI components
+├── navigation/    # App navigation management
+├── hooks/         # Custom React hooks
+├── config/        # Configuration files (theme, supabase)
+├── constants/     # App constants and master lists
+└── utils/         # Utility functions
+```
+
+### Backend Architecture (`supabase/`)
+```
+supabase/
+├── functions/     # Deno-based serverless functions
+└── migrations/    # Database schema and RLS policies
+```
+
+## 4. Core Features & Implementation
+
+### 4.1. Authentication & Onboarding
+**Description**: Multi-step onboarding process that captures user's life satisfaction, growth areas, and aspirations to create a personalized Growth Roadmap.
+
+**Key Files**:
+- Auth Logic: `src/api/auth.js`, `src/screens/auth/`
+- Onboarding Flow: `src/screens/onboarding/`
+- Data APIs: `src/api/selfAssessment.js`, `src/api/roadmap.js`, `src/api/longTermGoals.js`
+- DB Tables: `profiles`, `self_assessments`, `roadmaps`, `long_term_goals`
+
+**Features**:
+- Email/password authentication
+- 12-step onboarding with psychological assessment
+- Life satisfaction scoring across multiple domains
+- Areas for growth identification
+- Long-term aspiration capture
+- Personalized roadmap generation
+
+### 4.2. AI Coach ("Samantha") & Credit System
+**Description**: Core feature providing "tough love" coaching conversations powered by OpenAI, with a token-based credit system for usage management.
+
+**Key Files**:
+- Client APIs: `src/api/aiCoach.js`, `src/api/credits.js`, `src/api/conversationHistory.js`
+- UI: `src/screens/app/AICoachScreen/`
+- Backend: `supabase/functions/coach-conversation/`, `supabase/functions/purchase-credits/`
+- DB Tables: `user_credits`, `conversation_history`
+
+**Features**:
+- Conversational AI with personalized coaching style
+- Credit-based usage system
+- Conversation history tracking
+- Goal creation and refinement assistance
+- Emotional support and motivation
+
+### 4.3. Exercise System
+**Description**: Comprehensive suite of guided exercises for personal development, with centralized progress tracking.
+
+**Key Files**:
+- Master List: `src/constants/masterExerciseList.js`
+- Dashboard: `src/screens/exercises/ExercisesDashboard/`
+- Exercise Screens: `src/screens/exercises/[ExerciseType]Screen/`
+- APIs: `src/api/exercises/` (individual files per exercise type)
+- DB Tables: `daily_exercise_logs` (central), plus individual session tables
+
+**Exercise Types**:
+
+#### 4.3.1. Binaural Beats & Brainwave Optimization
+- **Files**: `BinauralScreen/`, `src/api/exercises/binaural.js`
+- **Features**: Science-backed frequencies for focus (Gamma/Beta), relaxation (Alpha/Delta), and subconscious reprogramming (Theta)
+- **Audio Library**: Creativity, Focus, Meditation, Sleep frequencies
+- **Sessions**: Customizable duration, background play capability
+
+#### 4.3.2. Mindfulness & Meditation
+- **Files**: `MindfulnessScreen/`, `src/api/exercises/mindfulness.js`
+- **Features**: Guided breathwork, body scan, loving-kindness meditations
+- **Techniques**: Box breathing, diaphragmatic breathing, alternate nostril breathing
+- **Audio**: Guided sessions with finish gong
+
+#### 4.3.3. Visualization & Mental Rehearsal
+- **Files**: `VisualizationScreen/`, `src/api/exercises/visualization.js`
+- **Features**: Neural pathway strengthening through mental rehearsal
+- **Types**: Calm, Confidence, Contentment, Goals, Ideal Life visualizations
+- **Custom Affirmations**: User-generated affirmation integration
+
+#### 4.3.4. Deep Work & Flow State
+- **Files**: `DeepWorkScreen/`, `src/api/exercises/deepWork.js`
+- **Features**: Ultradian rhythm-based work sessions with focus enhancement
+- **Productivity Tools**: Task prioritization, time-blocking, flow state triggers
+- **Integration**: Binaural beats background during work sessions
+
+#### 4.3.5. Journaling & Self-Reflection
+- **Files**: `JournalingScreen/`, `src/api/exercises/journaling.js`
+- **Features**: AI-powered analysis of journal entries using Google Gemini
+- **Analysis**: Cognitive distortion detection, emotional pattern recognition
+- **Feedback**: Personalized insights and reframe exercise suggestions
+- **History**: Full journal entry tracking and pattern analysis
+
+#### 4.3.6. Task Planning & Goal Setting
+- **Files**: `TaskPlannerScreen/`, `src/api/exercises/tasks.js`, `src/api/exercises/goals.js`
+- **Features**: Daily task management with completion tracking
+- **Goal System**: Weekly goals linked to long-term aspirations
+- **AI Integration**: Coach can help create and refine goals
+
+### 4.4. Growth Roadmap & Phase System
+**Description**: Central feature providing structured personal development journey with phase-based progression.
+
+**Key Files**:
+- Client APIs: `src/api/roadmap.js`, `src/api/longTermGoals.js`
+- UI: `src/screens/app/HomeScreen/components/GrowthRoadmap.js`
+- DB Tables: `roadmaps`, `long_term_goals`, `weekly_goals`
+
+**Features**:
+- Phase-based progression system
+- Adaptive personalization based on user engagement
+- Long-term goal tracking with weekly actionable steps
+- AI-assisted goal refinement and recommendation
+
+### 4.5. Progress Tracking & Analytics
+**Description**: Comprehensive user statistics and progress visualization across all app activities.
+
+**Key Files**:
+- UI: `src/screens/app/ProgressScreen/`
+- APIs: `src/api/progress.js`, `src/api/profile.js`
+- Helpers: `src/screens/app/ProgressScreen/helpers/`
+
+**Features**:
+- Exercise type breakdowns and statistics
+- Total focus time and session tracking
+- Favorite exercise identification
+- Mood tracking and trend analysis
+- Visual progress reports and charts
+- Weekly/monthly reflection prompts
+
+## 5. Database Schema Overview
+
+### Core Tables
+- **`profiles`**: User profile info (name, avatar) linked to `auth.users`
+- **`user_credits`**: AI feature usage tracking and credit balance
+- **`self_assessments`**: Raw onboarding assessment data (JSONB)
+- **`roadmaps`**: User's growth roadmap and current phase
+- **`long_term_goals`**: Primary aspirations storage (new system)
+- **`weekly_goals`**: Actionable weekly goals linked to long-term goals
+- **`daily_exercise_logs`**: Central exercise completion tracking
+- **`conversation_history`**: AI Coach conversation storage
+
+### Session Tables (Exercise-Specific)
+- **`journal_entries`**: Journaling sessions with AI analysis
+- **`deep_work_sessions`**: Focus work session details
+- **`binaural_sessions`**: Binaural beat listening sessions
+- **`visualizations`**: Visualization exercise sessions
+- **`mindfulness_sessions`**: Meditation and mindfulness sessions
+
+## 6. Backend Edge Functions
+
+### Core Functions
+- **`coach-conversation`**: OpenAI-powered AI Coach interactions
+- **`analyze-text`**: Google Gemini text analysis for journaling
+- **`purchase-credits`**: Secure credit purchasing and balance updates
+- **`test-ai-connection`**: AI service connectivity verification
+
+## 7. Development Guidelines
+
+### Code Standards
+- **Comments**: JSDoc3 style, focus on "why" and "how"
+- **Logging**: Winston-based logging for all logical workflows
+- **Error Handling**: Comprehensive error catching with user-friendly messages
+- **State Management**: React Context for global state, local state for component-specific data
+
+### File Organization
+- **API Layer**: All Supabase interactions through `src/api/` modules
+- **Component Structure**: Reusable components in `src/components/`, screen-specific in screen folders
+- **Theme Management**: Centralized styling in `src/config/theme.js`
+- **Constants**: Master lists and constants in `src/constants/`
+
+### Database Patterns
+- **Row Level Security (RLS)**: All tables have user-based access policies
+- **Audit Trails**: Timestamps and user tracking on all user-generated content
+- **Data Integrity**: Foreign key constraints and validation rules
+- **Performance**: Indexed columns for common queries
+
+## 8. Key Integrations
+
+### External Services
+- **OpenAI API**: GPT-4o-mini for AI coaching conversations
+- **Google Gemini**: Text analysis and pattern recognition
+- **Expo AV**: Audio playback for binaural beats and guided sessions
+- **Supabase**: Full backend-as-a-service integration
+
+### Security Features
+- **Authentication**: Supabase Auth with email verification
+- **Authorization**: Row Level Security on all user data
+- **Data Privacy**: Personal data encryption and secure storage
+- **API Security**: Function-level security and rate limiting
+
+## 9. Performance Considerations
+
+### Mobile Optimization
+- **Lazy Loading**: Screen and component lazy loading
+- **Audio Streaming**: Efficient audio file management
+- **Image Optimization**: Compressed assets and adaptive loading
+- **Database Queries**: Optimized queries with proper indexing
+
+### Scalability
+- **Serverless Architecture**: Auto-scaling backend functions
+- **CDN Integration**: Asset delivery optimization
+- **Caching Strategy**: Client-side caching for frequently accessed data
+- **Modular Design**: Easy feature addition and modification
+
+## 10. Future Development Roadmap
+
+### Planned Features
+- **Social Features**: Community sharing and peer support
+- **Advanced Analytics**: Machine learning-powered insights
+- **Wearable Integration**: Fitness tracker and smartwatch connectivity
+- **Voice Integration**: Voice-activated exercises and coaching
+- **Offline Mode**: Core functionality without internet connectivity
+
+### Technical Improvements
+- **TypeScript Migration**: Gradual migration from JavaScript
+- **Testing Suite**: Comprehensive unit and integration testing
+- **CI/CD Pipeline**: Automated testing and deployment
+- **Performance Monitoring**: Real-time performance analytics
+- **Accessibility**: Enhanced accessibility features and compliance

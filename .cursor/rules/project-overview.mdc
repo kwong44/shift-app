@@ -1,0 +1,166 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+1. Core Purpose
+shift-app is a mobile personal transformation application designed to guide users through a structured, science-based journey of self-improvement. The core functionality revolves around a personalized "Growth Roadmap" built from an initial self-assessment. Users engage with daily exercises, set and track goals, and interact with an AI coach to build habits, gain insights, and achieve their long-term aspirations.
+
+The app's philosophy is rooted in neuroscience, psychology (CBT), and mindfulness principles, inspired by thinkers like Tony Robbins and Eckhart Tolle.
+
+2. Technology Stack
+Frontend:
+
+Framework: React Native with Expo
+
+UI Library: React Native Paper
+
+Navigation: React Navigation (Stack, Bottom Tabs)
+
+State Management: React Hooks & Context (useUser, useDailyFocusCompletion)
+
+Language: JavaScript
+
+Backend (Serverless):
+
+Provider: Supabase
+
+Services:
+
+Authentication: Supabase Auth (Email/Password)
+
+Database: Supabase Postgres
+
+Serverless Functions: Supabase Edge Functions (Deno, TypeScript)
+
+Storage: Supabase Storage (for user avatars)
+
+Artificial Intelligence:
+
+AI Coaching: OpenAI (gpt-4o-mini) is used for the conversational AI coach ("Samantha").
+
+Text Analysis: Google Gemini (gemini-2.0-flash) is used for analyzing journal entries to provide insights and detect user patterns.
+
+3. High-Level Architecture
+The application follows a standard client-server model using a mobile frontend and a Supabase backend.
+
+Client (src/): This is the React Native/Expo application.
+
+src/screens: Contains all UI views, organized by function (auth, onboarding, app, exercises).
+
+src/components: Holds reusable UI components.
+
+src/api: A crucial layer that acts as the client-side interface to the Supabase backend. All interactions with Supabase (database queries, auth calls, function invocations) are handled here.
+
+src/navigation: Manages all app navigation, including the authentication flow, onboarding stack, and the main app's bottom tab navigator.
+
+src/hooks: Custom React hooks for managing user state, exercise favorites, and completion status.
+
+Backend (supabase/): This contains all the server-side logic and database structure.
+
+supabase/functions: Deno-based serverless functions that handle complex or secure logic, especially AI interactions.
+
+supabase/migrations: SQL files that define the entire database schema, including tables, policies (RLS), and RPC functions.
+
+4. Key Feature Breakdown
+4.1. Authentication & Onboarding
+
+Description: A multi-step onboarding process captures a user's life satisfaction, areas for growth, and long-term aspirations. This data is used to create their initial, personalized "Growth Roadmap".
+
+Key Files:
+
+Auth Logic: src/api/auth.js, src/screens/auth/
+
+Onboarding Flow: src/screens/onboarding/
+
+Data Submission: src/api/selfAssessment.js, src/api/roadmap.js, src/api/longTermGoals.js
+
+DB Schema: supabase/migrations/*_self_assessments.sql, *roadmaps.sql
+
+4.2. AI Coach ("Samantha") & Credit System
+
+Description: A core feature where users can have "tough love" coaching conversations. Interactions are powered by OpenAI and are metered by a token/credit system. The system also uses Google Gemini for text analysis in other parts of the app.
+
+Key Files:
+
+Client API: src/api/aiCoach.js, src/api/credits.js, src/api/conversationHistory.js
+
+UI: src/screens/app/AICoachScreen/
+
+Backend Logic (OpenAI): supabase/functions/coach-conversation/index.ts
+
+Backend Logic (Gemini): supabase/functions/analyze-text/index.ts
+
+Backend Logic (Purchase): supabase/functions/purchase-credits/index.ts
+
+DB Schema: supabase/migrations/*_user_credits_table.sql, *_create_conversation_history_table.sql
+
+4.3. Exercises
+
+Description: The app offers a variety of guided exercises. A master list defines all available exercises, and separate screens handle the setup and player UI for each type. Progress is logged to a central daily_exercise_logs table.
+
+Key Files:
+
+Master List: src/constants/masterExerciseList.js
+
+Dashboard: src/screens/exercises/ExercisesDashboard/
+
+Exercise-Specific Screens: src/screens/exercises/[ExerciseType]Screen/
+
+Client API: src/api/exercises/ (contains files for each exercise type)
+
+DB Schema: daily_exercise_logs (central log), and individual tables like binaural_sessions, journal_entries, etc.
+
+4.4. Goal Setting & Roadmap
+
+Description: This is a central feature. The system has transitioned from a JSON-based goal system within the roadmaps table to a more robust, relational system using long_term_goals and weekly_goals tables. The AI Coach can help users create and refine these goals. The roadmap also features a phase-based progression system to guide the user's journey.
+
+Key Files:
+
+Client API: src/api/longTermGoals.js (new system), src/api/exercises/goals.js (weekly goals), src/api/roadmap.js (phases/legacy)
+
+UI: src/screens/app/HomeScreen/components/GrowthRoadmap.js
+
+DB Schema: long_term_goals, weekly_goals, roadmaps tables.
+
+4.5. Progress Tracking
+
+Description: The "Profile" tab provides users with a comprehensive overview of their statistics, including breakdowns of exercise types, total focus time, and favorite exercises.
+
+Key Files:
+
+UI: src/screens/app/ProgressScreen/
+
+Client API: src/api/progress.js, src/api/profile.js
+
+Data Sources: Primarily aggregates data from daily_exercise_logs and other session tables.
+
+5. Database Schema Highlights
+The database is structured around user activities and profiles. Key tables include:
+
+profiles: Stores user profile information like name and avatar URL, linked to auth.users.
+
+user_credits: Tracks the token/credit balance for each user for AI features.
+
+self_assessments: Stores the raw JSON data from the initial onboarding assessment.
+
+roadmaps: Stores the user's high-level roadmap, including their current phase of the journey. (Note: The goals JSONB column here is part of a legacy system).
+
+long_term_goals: The primary table for storing user aspirations (the new system).
+
+weekly_goals: Stores actionable weekly goals, linked to long_term_goals.
+
+daily_exercise_logs: A central table that records every completed exercise session for easy progress tracking and analysis.
+
+conversation_history: Stores the back-and-forth between the user and the AI Coach.
+
+Session Tables: Individual tables log details for specific exercises (e.g., journal_entries, deep_work_sessions, binaural_sessions, visualizations).
+
+6. Backend Edge Functions
+coach-conversation: (OpenAI) Powers the main AI Coach chat. It receives the user's message and conversation history, constructs a "tough love" persona system prompt, and returns a response from gpt-4o-mini.
+
+analyze-text: (Google Gemini) Analyzes user's journal entries. It identifies emotional themes and can detect recurring patterns to provide intelligent exercise recommendations.
+
+purchase-credits: A secure endpoint for processing (simulated) credit purchases and updating the user's balance in the user_credits table.
+
+test-ai-connection / test-coach: Simple functions for verifying connectivity and basic logic.

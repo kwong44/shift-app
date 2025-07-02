@@ -1,415 +1,659 @@
+/**
+ * Credits Purchase Screen
+ * 
+ * Displays available credit packages for purchase using RevenueCat
+ * Shows when user needs to buy more credits for AI Coach or other premium features
+ * 
+ * Features:
+ * - Beautiful gradient UI matching app theme
+ * - Credit package selection with token amounts
+ * - Purchase flow integration with RevenueCat
+ * - Real-time token balance display
+ * - Error handling and loading states
+ */
+
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { Text, Button, Card, IconButton, ActivityIndicator } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  Dimensions,
+  Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, RADIUS, FONT } from '../config/theme';
-import { checkUserTokens } from '../api/aiCoach';
-import { useUser } from '../hooks/useUser';
-import * as Haptics from 'expo-haptics';
+import {
+  Text,
+  Button,
+  Card,
+  ActivityIndicator,
+  Portal,
+  Modal,
+  IconButton,
+  Chip,
+} from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
+// Config and API imports
+import { theme } from '../config/theme';
+import { 
+  getAvailableOfferings, 
+  purchaseCredits, 
+  restoreCreditPurchases,
+  CREDIT_PRODUCTS,
+  CREDIT_CONFIG,
+} from '../config/revenuecat';
+import { addUserTokens, getUserTokens } from '../api/credits';
+
+const { width } = Dimensions.get('window');
+
+// Debug logging
+console.debug('[CreditsPurchaseScreen] Screen module loaded');
+
+/**
+ * Credits Purchase Screen Component
+ * 
+ * @param {Object} navigation - React Navigation object
+ * @param {Object} route - Route parameters
+ */
 const CreditsPurchaseScreen = ({ navigation, route }) => {
-  const { user } = useUser();
-  const [userCredits, setUserCredits] = useState(null);
-  const [loadingCredits, setLoadingCredits] = useState(true);
+  // State management
+  const [offerings, setOfferings] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [currentTokens, setCurrentTokens] = useState(0);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
-  // Load user's credit balance
+  // Extract route params
+  const { 
+    showCloseButton = true, 
+    minimumCreditsRequired = 0,
+    onPurchaseComplete = null,
+  } = route?.params || {};
+
+  console.debug('[CreditsPurchaseScreen] Component initialized', {
+    showCloseButton,
+    minimumCreditsRequired,
+    hasOnPurchaseCallback: !!onPurchaseComplete,
+  });
+
+  /**
+   * Initialize screen data
+   */
   useEffect(() => {
-    const loadUserCredits = async () => {
-      if (!user?.id) return;
-      
-      setLoadingCredits(true);
-      try {
-        const creditsResponse = await checkUserTokens();
-        if (creditsResponse.success) {
-          setUserCredits(creditsResponse.credits);
-          console.debug('[CreditsPurchaseScreen] User credits loaded:', creditsResponse.credits);
-        } else {
-          console.warn('[CreditsPurchaseScreen] Failed to load user credits:', creditsResponse.error);
-        }
-      } catch (error) {
-        console.error('[CreditsPurchaseScreen] Error loading user credits:', error);
-      } finally {
-        setLoadingCredits(false);
-      }
-    };
+    initializeScreen();
+  }, []);
 
-    loadUserCredits();
-  }, [user?.id]);
-
-  const handlePurchaseCredits = async (packageType) => {
-    setPurchasing(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+  /**
+   * Load offerings and user token balance
+   */
+  const initializeScreen = async () => {
     try {
-      // TODO: Integrate with purchase-credits Edge Function
-      console.log('Purchasing credits package:', packageType);
-      
-      // For now, simulate purchase
-      setTimeout(() => {
-        setPurchasing(false);
-        // Navigate back or show success
-        navigation.goBack();
-      }, 2000);
-      
+      console.debug('[CreditsPurchaseScreen] Initializing screen data');
+      setLoading(true);
+
+      // Load current token balance
+      const tokens = await getUserTokens();
+      setCurrentTokens(tokens);
+
+      // Load RevenueCat offerings
+      const availableOfferings = await getAvailableOfferings();
+      setOfferings(availableOfferings);
+
+      // Auto-select first package if available
+      if (availableOfferings?.current?.availablePackages?.length > 0) {
+        setSelectedPackage(availableOfferings.current.availablePackages[0]);
+        console.debug('[CreditsPurchaseScreen] Auto-selected first package');
+      }
+
+      console.debug('[CreditsPurchaseScreen] Screen initialized successfully', {
+        currentTokens: tokens,
+        packagesAvailable: availableOfferings?.current?.availablePackages?.length || 0,
+      });
+
+    } catch (error) {
+      console.error('[CreditsPurchaseScreen] Failed to initialize:', error);
+      Alert.alert(
+        'Loading Error',
+        'Failed to load credit packages. Please try again.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handle credit package purchase
+   */
+  const handlePurchase = async () => {
+    if (!selectedPackage) {
+      Alert.alert('Selection Required', 'Please select a credit package first.');
+      return;
+    }
+
+    try {
+      console.debug('[CreditsPurchaseScreen] Starting purchase process', {
+        packageId: selectedPackage.identifier,
+        productId: selectedPackage.product.identifier,
+      });
+
+      setPurchasing(true);
+      setShowPurchaseModal(true);
+
+      // Handle token addition callback
+      const onTokensAdded = async (tokensToAdd, creditPackage) => {
+        console.debug('[CreditsPurchaseScreen] Adding tokens to user account', {
+          tokensToAdd,
+          creditPackage: creditPackage?.displayName,
+        });
+        
+        await addUserTokens(tokensToAdd);
+        
+        // Update local token count
+        const newTokens = await getUserTokens();
+        setCurrentTokens(newTokens);
+        
+        console.debug('[CreditsPurchaseScreen] Tokens added successfully', {
+          newBalance: newTokens,
+        });
+      };
+
+      // Make the purchase
+      const result = await purchaseCredits(selectedPackage, onTokensAdded);
+
+      if (result.success) {
+        console.debug('[CreditsPurchaseScreen] Purchase completed successfully', {
+          tokensAdded: result.tokensAdded,
+          newBalance: currentTokens + (result.tokensAdded || 0),
+        });
+
+        setShowPurchaseModal(false);
+        
+        // Show success message
+        Alert.alert(
+          'Purchase Successful! 🎉',
+          `${result.creditPackage?.displayName || 'Credits'} added to your account!\n\nYou now have ${currentTokens + (result.tokensAdded || 0)} tokens.`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Call completion callback if provided
+                if (onPurchaseComplete) {
+                  onPurchaseComplete(result);
+                }
+                navigation.goBack();
+              },
+            },
+          ]
+        );
+
+      } else if (result.cancelled) {
+        console.debug('[CreditsPurchaseScreen] Purchase cancelled by user');
+        setShowPurchaseModal(false);
+        
+      } else {
+        console.error('[CreditsPurchaseScreen] Purchase failed:', result.error);
+        setShowPurchaseModal(false);
+        Alert.alert(
+          'Purchase Failed',
+          result.error || 'Something went wrong. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+
     } catch (error) {
       console.error('[CreditsPurchaseScreen] Purchase error:', error);
+      setShowPurchaseModal(false);
+      Alert.alert(
+        'Purchase Error',
+        'Failed to complete purchase. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
       setPurchasing(false);
     }
   };
 
-  const benefitsData = [
-    {
-      icon: 'brain',
-      title: 'Personalized AI Insights',
-      description: 'Get tailored analysis of your journal entries to understand emotional patterns and growth opportunities.',
-      impact: 'Increase self-awareness by 3x faster'
-    },
-    {
-      icon: 'chart-line',
-      title: 'Smart Pattern Detection',
-      description: 'AI identifies recurring themes and recommends specific exercises when you need them most.',
-      impact: 'Achieve goals 40% more effectively'
-    },
-    {
-      icon: 'target',
-      title: 'Intelligent Recommendations',
-      description: 'Receive exercise suggestions based on your emotional state, history, and proven success patterns.',
-      impact: 'Save 2+ hours per week on planning'
-    },
-    {
-      icon: 'robot',
-      title: 'AI Life Coach',
-      description: 'Access personalized coaching conversations to overcome challenges and maintain motivation.',
-      impact: 'Stay motivated 5x longer'
-    }
-  ];
+  /**
+   * Handle restore purchases
+   */
+  const handleRestorePurchases = async () => {
+    try {
+      console.debug('[CreditsPurchaseScreen] Restoring purchases');
+      setRestoring(true);
 
-  const creditPackages = [
-    {
-      id: 'starter',
-      credits: 5000,
-      price: '$4.99',
-      value: 'Best for trying AI features',
-      popular: false
-    },
-    {
-      id: 'power_user',
-      credits: 15000,
-      price: '$9.99',
-      value: 'Most popular - Great value',
-      popular: true
-    },
-    {
-      id: 'unlimited',
-      credits: 50000,
-      price: '$19.99',
-      value: 'Ultimate AI experience',
-      popular: false
+      const result = await restoreCreditPurchases();
+
+      if (result.success) {
+        console.debug('[CreditsPurchaseScreen] Purchases restored successfully', {
+          transactionCount: result.creditTransactions?.length || 0,
+        });
+
+        // Refresh token balance in case transactions were restored
+        const newTokens = await getUserTokens();
+        setCurrentTokens(newTokens);
+
+        Alert.alert(
+          'Restore Complete',
+          result.creditTransactions?.length > 0
+            ? `Found ${result.creditTransactions.length} previous purchases.`
+            : 'No previous purchases found.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        console.error('[CreditsPurchaseScreen] Restore failed:', result.error);
+        Alert.alert(
+          'Restore Failed',
+          result.error || 'Failed to restore purchases.',
+          [{ text: 'OK' }]
+        );
+      }
+
+    } catch (error) {
+      console.error('[CreditsPurchaseScreen] Restore error:', error);
+      Alert.alert(
+        'Restore Error',
+        'Failed to restore purchases. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setRestoring(false);
     }
-  ];
+  };
+
+  /**
+   * Get credit package info from product ID
+   */
+  const getCreditPackageInfo = (productId) => {
+    return Object.values(CREDIT_PRODUCTS).find(pkg => pkg.productId === productId);
+  };
+
+  /**
+   * Render credit package card
+   */
+  const renderCreditPackage = (pkg) => {
+    const packageInfo = getCreditPackageInfo(pkg.product.identifier);
+    const isSelected = selectedPackage?.identifier === pkg.identifier;
+    
+    return (
+      <Card
+        key={pkg.identifier}
+        style={[
+          styles.packageCard,
+          isSelected && styles.selectedPackageCard,
+        ]}
+        onPress={() => setSelectedPackage(pkg)}
+      >
+        <Card.Content style={styles.packageContent}>
+          {/* Package header */}
+          <View style={styles.packageHeader}>
+            <Text variant="titleMedium" style={styles.packageTitle}>
+              {packageInfo?.displayName || pkg.product.title}
+            </Text>
+            
+            {packageInfo?.savings && (
+              <Chip 
+                style={styles.savingsChip}
+                textStyle={styles.savingsText}
+                compact
+              >
+                {packageInfo.savings}
+              </Chip>
+            )}
+          </View>
+
+          {/* Token amount */}
+          <Text variant="headlineSmall" style={styles.tokenAmount}>
+            {packageInfo?.tokens?.toLocaleString() || '0'} tokens
+          </Text>
+
+          {/* Description */}
+          <Text variant="bodyMedium" style={styles.packageDescription}>
+            {packageInfo?.description || pkg.product.description}
+          </Text>
+
+          {/* Best for */}
+          {packageInfo?.bestFor && (
+            <Text variant="bodySmall" style={styles.bestForText}>
+              Best for: {packageInfo.bestFor}
+            </Text>
+          )}
+
+          {/* Price */}
+          <View style={styles.priceContainer}>
+            <Text variant="titleLarge" style={styles.priceText}>
+              {pkg.product.priceString || packageInfo?.price || 'N/A'}
+            </Text>
+            <Text variant="bodySmall" style={styles.priceSubtext}>
+              ≈ {Math.round((packageInfo?.tokens || 0) / CREDIT_CONFIG.tokensPerCredit)} credits
+            </Text>
+          </View>
+
+          {/* Selection indicator */}
+          {isSelected && (
+            <MaterialIcons 
+              name="check-circle" 
+              size={24} 
+              color={theme.colors.primary}
+              style={styles.selectionIcon}
+            />
+          )}
+        </Card.Content>
+      </Card>
+    );
+  };
+
+  // Loading screen
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={theme.gradients.primary}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.onPrimary} />
+            <Text 
+              variant="titleMedium" 
+              style={[styles.loadingText, { color: theme.colors.onPrimary }]}
+            >
+              Loading credit packages...
+            </Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[COLORS.primary + '20', COLORS.background]}
-        style={styles.gradient}
-      >
+    <LinearGradient
+      colors={theme.gradients.primary}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            iconColor={COLORS.text}
-            onPress={() => navigation.goBack()}
-          />
-          <Text style={styles.headerTitle}>AI Features</Text>
-          <View style={styles.headerRight}>
-            {loadingCredits ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : (
-              <View style={styles.creditsBadge}>
-                <MaterialCommunityIcons name="coin" size={16} color={COLORS.primary} />
-                <Text style={styles.creditsText}>{userCredits || 0}</Text>
-              </View>
-            )}
+          {showCloseButton && (
+            <IconButton
+              icon="close"
+              iconColor={theme.colors.onPrimary}
+              size={24}
+              onPress={() => navigation.goBack()}
+              style={styles.closeButton}
+            />
+          )}
+          
+          <View style={styles.headerContent}>
+            <Text variant="headlineMedium" style={styles.headerTitle}>
+              Buy Credits
+            </Text>
+            
+            <Text variant="bodyLarge" style={styles.headerSubtitle}>
+              Power up your AI Coach conversations
+            </Text>
+
+            {/* Current balance */}
+            <View style={styles.balanceContainer}>
+              <MaterialIcons name="account-balance-wallet" size={20} color={theme.colors.onPrimary} />
+              <Text variant="titleMedium" style={styles.balanceText}>
+                {currentTokens.toLocaleString()} tokens
+              </Text>
+            </View>
           </View>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Benefits Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Unlock Your Full Potential</Text>
-            <Text style={styles.sectionSubtitle}>
-              AI features are designed to accelerate your personal growth and help you achieve your goals faster.
-            </Text>
+        {/* Credit packages */}
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {offerings?.current?.availablePackages?.map(renderCreditPackage)}
 
-            {benefitsData.map((benefit, index) => (
-              <Card key={index} style={styles.benefitCard}>
-                <Card.Content style={styles.benefitContent}>
-                  <View style={styles.benefitIconContainer}>
-                    <MaterialCommunityIcons
-                      name={benefit.icon}
-                      size={24}
-                      color={COLORS.primary}
-                    />
-                  </View>
-                  <View style={styles.benefitTextContainer}>
-                    <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                    <Text style={styles.benefitDescription}>{benefit.description}</Text>
-                    <Text style={styles.benefitImpact}>✨ {benefit.impact}</Text>
-                  </View>
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
+          {/* Restore button */}
+          <Button
+            mode="outlined"
+            onPress={handleRestorePurchases}
+            loading={restoring}
+            disabled={restoring || purchasing}
+            style={styles.restoreButton}
+            labelStyle={styles.restoreButtonText}
+          >
+            Restore Purchases
+          </Button>
 
-          {/* Pricing Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Choose Your Package</Text>
-            
-            {creditPackages.map((pkg) => (
-              <Card 
-                key={pkg.id} 
-                style={[
-                  styles.packageCard,
-                  pkg.popular && styles.popularPackage
-                ]}
-              >
-                {pkg.popular && (
-                  <View style={styles.popularBadge}>
-                    <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
-                  </View>
-                )}
-                
-                <Card.Content style={styles.packageContent}>
-                  <View style={styles.packageHeader}>
-                    <Text style={styles.packageCredits}>{pkg.credits.toLocaleString()} Credits</Text>
-                    <Text style={styles.packagePrice}>{pkg.price}</Text>
-                  </View>
-                  
-                  <Text style={styles.packageValue}>{pkg.value}</Text>
-                  
-                  <Button
-                    mode="contained"
-                    onPress={() => handlePurchaseCredits(pkg.id)}
-                    loading={purchasing}
-                    disabled={purchasing}
-                    style={[
-                      styles.purchaseButton,
-                      pkg.popular && styles.popularPurchaseButton
-                    ]}
-                    labelStyle={styles.purchaseButtonText}
-                  >
-                    {purchasing ? 'Processing...' : 'Purchase'}
-                  </Button>
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
-
-          {/* FAQ Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>How Credits Work</Text>
-            
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>💡 What do credits do?</Text>
-              <Text style={styles.faqAnswer}>
-                Credits power AI analysis of your journal entries, pattern detection, and coaching conversations. Each feature uses credits based on complexity.
-              </Text>
-            </View>
-            
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>📊 How many credits do I need?</Text>
-              <Text style={styles.faqAnswer}>
-                Journal analysis: 5-15 credits • AI coaching: 10-30 credits • Pattern analysis: 15-25 credits
-              </Text>
-            </View>
-            
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>⚡ Do credits expire?</Text>
-              <Text style={styles.faqAnswer}>
-                No! Your credits never expire and roll over indefinitely.
-              </Text>
-            </View>
-          </View>
+          {/* Info text */}
+          <Text variant="bodySmall" style={styles.infoText}>
+            Credits are used for AI Coach conversations and premium features. 
+            Purchases are processed securely through your app store.
+          </Text>
         </ScrollView>
-      </LinearGradient>
-    </SafeAreaView>
+
+        {/* Purchase button */}
+        <View style={styles.purchaseContainer}>
+          <Button
+            mode="contained"
+            onPress={handlePurchase}
+            disabled={!selectedPackage || purchasing}
+            loading={purchasing}
+            style={styles.purchaseButton}
+            labelStyle={styles.purchaseButtonText}
+            contentStyle={styles.purchaseButtonContent}
+          >
+            {selectedPackage 
+              ? `Buy ${getCreditPackageInfo(selectedPackage.product.identifier)?.displayName || 'Credits'}`
+              : 'Select a package'
+            }
+          </Button>
+        </View>
+
+        {/* Purchase modal */}
+        <Portal>
+          <Modal
+            visible={showPurchaseModal}
+            dismissable={false}
+            contentContainerStyle={styles.purchaseModal}
+          >
+            <View style={styles.modalContent}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text variant="titleMedium" style={styles.modalText}>
+                Processing purchase...
+              </Text>
+              <Text variant="bodyMedium" style={styles.modalSubtext}>
+                Please don't close the app
+              </Text>
+            </View>
+          </Modal>
+        </Portal>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
+/**
+ * Styles
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
-  gradient: {
+  safeArea: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  closeButton: {
+    alignSelf: 'flex-end',
+    margin: 0,
+  },
+  headerContent: {
+    alignItems: 'center',
+    marginTop: -10,
   },
   headerTitle: {
-    fontSize: FONT.size.xl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
+    color: theme.colors.onPrimary,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  headerRight: {
-    width: 60,
-    alignItems: 'flex-end',
+  headerSubtitle: {
+    color: theme.colors.onPrimary,
+    textAlign: 'center',
+    opacity: 0.9,
+    marginBottom: 16,
   },
-  creditsBadge: {
+  balanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${COLORS.primary}15`,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.md,
-    gap: SPACING.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  creditsText: {
-    color: COLORS.primary,
-    fontWeight: FONT.weight.semiBold,
-    fontSize: FONT.size.sm,
+  balanceText: {
+    color: theme.colors.onPrimary,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   scrollView: {
     flex: 1,
   },
-  section: {
-    padding: SPACING.lg,
-  },
-  sectionTitle: {
-    fontSize: FONT.size.xl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-    textAlign: 'center',
-  },
-  sectionSubtitle: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: SPACING.lg,
-  },
-  benefitCard: {
-    marginBottom: SPACING.md,
-    elevation: 2,
-    borderRadius: RADIUS.lg,
-  },
-  benefitContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.md,
-  },
-  benefitIconContainer: {
-    backgroundColor: `${COLORS.primary}15`,
-    padding: SPACING.sm,
-    borderRadius: RADIUS.md,
-  },
-  benefitTextContainer: {
-    flex: 1,
-  },
-  benefitTitle: {
-    fontSize: FONT.size.lg,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  benefitDescription: {
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
-    lineHeight: 20,
-    marginBottom: SPACING.xs,
-  },
-  benefitImpact: {
-    fontSize: FONT.size.sm,
-    color: COLORS.primary,
-    fontWeight: FONT.weight.semiBold,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   packageCard: {
-    marginBottom: SPACING.md,
-    elevation: 3,
-    borderRadius: RADIUS.lg,
+    marginBottom: 16,
+    backgroundColor: theme.colors.surface,
+    elevation: 4,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  popularPackage: {
-    borderColor: COLORS.primary,
-    elevation: 5,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -1,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.xs,
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-    zIndex: 1,
-  },
-  popularBadgeText: {
-    color: COLORS.surface,
-    fontWeight: FONT.weight.bold,
-    fontSize: FONT.size.xs,
-    textAlign: 'center',
+  selectedPackageCard: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryContainer,
   },
   packageContent: {
-    paddingTop: SPACING.lg,
+    padding: 20,
+    position: 'relative',
   },
   packageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: 8,
   },
-  packageCredits: {
-    fontSize: FONT.size.xxl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
+  packageTitle: {
+    fontWeight: '700',
+    flex: 1,
   },
-  packagePrice: {
-    fontSize: FONT.size.xl,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.primary,
+  savingsChip: {
+    backgroundColor: theme.colors.tertiary,
+    marginLeft: 12,
   },
-  packageValue: {
-    fontSize: FONT.size.md,
-    color: COLORS.textLight,
+  savingsText: {
+    color: theme.colors.onTertiary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tokenAmount: {
+    fontWeight: '700',
+    color: theme.colors.primary,
+    marginBottom: 8,
+  },
+  packageDescription: {
+    color: theme.colors.onSurfaceVariant,
+    marginBottom: 8,
+  },
+  bestForText: {
+    color: theme.colors.tertiary,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  priceContainer: {
+    alignItems: 'flex-start',
+  },
+  priceText: {
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+  },
+  priceSubtext: {
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  selectionIcon: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+  },
+  restoreButton: {
+    marginVertical: 16,
+    borderColor: theme.colors.onPrimary,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  restoreButtonText: {
+    color: theme.colors.onPrimary,
+  },
+  infoText: {
     textAlign: 'center',
-    marginBottom: SPACING.lg,
+    color: theme.colors.onPrimary,
+    opacity: 0.8,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  purchaseContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 10,
   },
   purchaseButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.secondary,
+    borderRadius: 12,
   },
-  popularPurchaseButton: {
-    backgroundColor: COLORS.secondary,
+  purchaseButtonContent: {
+    paddingVertical: 8,
   },
   purchaseButtonText: {
-    color: COLORS.surface,
-    fontWeight: FONT.weight.bold,
+    color: theme.colors.onSecondary,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  faqItem: {
-    marginBottom: SPACING.lg,
+  purchaseModal: {
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 40,
+    borderRadius: 16,
+    elevation: 8,
   },
-  faqQuestion: {
-    fontSize: FONT.size.md,
-    fontWeight: FONT.weight.bold,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+  modalContent: {
+    padding: 32,
+    alignItems: 'center',
   },
-  faqAnswer: {
-    fontSize: FONT.size.sm,
-    color: COLORS.textLight,
-    lineHeight: 20,
+  modalText: {
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  modalSubtext: {
+    marginTop: 8,
+    textAlign: 'center',
+    color: theme.colors.onSurfaceVariant,
   },
 });
 
