@@ -1,28 +1,34 @@
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { OpenAI } from 'https://esm.sh/openai@4.20.0';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 console.log('Initializing coach-conversation function');
 
 // Get environment variables
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // Verify environment variables
-if (!openaiApiKey) {
-  console.error('Missing OPENAI_API_KEY environment variable');
+if (!geminiApiKey) {
+  console.error('Missing GEMINI_API_KEY environment variable');
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: openaiApiKey,
-});
+// Initialize Google Generative AI client
+let genAI;
+let geminiModel;
+if (geminiApiKey) {
+  genAI = new GoogleGenerativeAI(geminiApiKey);
+  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  console.log('Google Generative AI client initialized with gemini-2.0-flash');
+} else {
+  console.error('Gemini API client not initialized.');
+}
 
 // Initialize Supabase admin client (with service role for direct DB access)
 const supabaseAdmin = createClient(
@@ -212,6 +218,7 @@ CRITICAL INSTRUCTIONS:
 - Be direct, somewhat cold, and challenging
 - Do NOT be supportive or gentle - that's not your role
 - Question everything they tell you initially, but transition to ACTION COMMANDS
+- Avoid paralysis by analysis - push the user to take action
 - Point out their self-deception and excuses
 - Make them uncomfortable with their current behavior
 - Use psychological pressure to motivate action
@@ -261,25 +268,39 @@ Remember: You are NOT a supportive coach. You are a psychological pressure-enfor
       { role: 'user', content: message }
     ];
 
-    console.log('Sending request to OpenAI with message count:', messages.length);
-    console.log('System prompt being used:', systemPrompt.substring(0, 200) + '...');
-    console.log('Filtered past messages count:', filteredPastMessages.length);
-    
-    // Make OpenAI API call
-    // Debug: Using gpt-4o-mini for better performance and cost efficiency
-    console.log('Making OpenAI API call with gpt-4o-mini model');
-    const completion = await openai.chat.completions.create({
-      messages,
-      model: 'gpt-4o-mini', // Updated from gpt-3.5-turbo to gpt-4o-mini
-      max_tokens: 250,
+    console.log('Preparing prompt for Gemini');
+    const conversationPrompt = `SYSTEM INSTRUCTIONS:\n${systemPrompt}\n\nCONVERSATION HISTORY:\n${filteredPastMessages.map(pm => `${pm.role.toUpperCase()}: ${pm.content}`).join('\n')}\n\nUSER: ${message}`;
+
+    // Estimate tokens for deduction
+    let tokensUsed = 0;
+    try {
+      const countResult = await geminiModel.countTokens(conversationPrompt);
+      tokensUsed = countResult.totalTokens;
+      console.log('Estimated prompt tokens for Gemini:', tokensUsed);
+    } catch (countErr) {
+      console.warn('Could not count tokens for Gemini prompt:', countErr.message);
+    }
+
+    const generationConfig = {
       temperature: 0.8,
+      maxOutputTokens: 250,
+    };
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+
+    console.log('Making Gemini API call with gemini-2.0-flash model');
+    const geminiResult = await geminiModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: conversationPrompt }] }],
+      generationConfig,
+      safetySettings,
     });
 
-    // Get the response
-    const response = completion.choices[0].message.content;
-    
-    // Get token usage 
-    const tokensUsed = completion.usage?.total_tokens || 0;
+    const response = geminiResult.response.text();
+    console.log('Gemini response length:', response.length);
     
     // No longer updating conversation history in memory
     // The client will save these messages to the database
@@ -289,7 +310,7 @@ Remember: You are NOT a supportive coach. You are a psychological pressure-enfor
       responseLength: response.length,
       tokensUsed,
       userId,
-      model: 'gpt-4o-mini' // Updated debug log
+      model: 'gemini-2.0-flash'
     });
     
     // Deduct tokens used from the user's balance
@@ -308,7 +329,7 @@ Remember: You are NOT a supportive coach. You are a psychological pressure-enfor
           response,
           metadata: {
             tokensUsed,
-            model: 'gpt-4o-mini' // Updated metadata
+            model: 'gemini-2.0-flash'
           }
         },
         tokens: {

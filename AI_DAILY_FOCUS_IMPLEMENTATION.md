@@ -65,7 +65,7 @@ This document details the implementation of the AI-powered Daily Focus Recommend
 
 4. **UI Update**: Refactored `DailyFocus.js`:
    - Switched from static/favorites to AI-powered recommendations
-   - Added AI chip, focus theme, and improved error/loading UI
+   - Added AI chip, and improved error/loading UI
    - Integrated retry and refresh logic
    - Maintained completion tracking
 
@@ -83,8 +83,6 @@ This document details the implementation of the AI-powered Daily Focus Recommend
   - Recommendations are cached for 30 minutes by default to reduce API calls and improve performance.
 - **AI Metadata:**
   - Each recommendation includes AI metadata (score, reasoning, personalization, benefit) when available.
-- **Focus Theme:**
-  - The AI coach can provide a daily focus theme, displayed in the UI for extra context.
 - **Manual Refresh:**
   - Users/devs can manually refresh recommendations if needed.
 - **Extensibility:**

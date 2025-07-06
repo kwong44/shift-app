@@ -185,7 +185,9 @@ const Navigation = () => {
       setUserSession(session);
       
       if (session?.user) {
-        await checkOnboardingStatus(session.user.id);
+        // Do NOT await → avoid blocking the UI on potentially slow network I/O.
+        // The onboarding status will update state when it resolves.
+        checkOnboardingStatus(session.user.id);
       } else {
         setHasCompletedOnboarding(false);
       }

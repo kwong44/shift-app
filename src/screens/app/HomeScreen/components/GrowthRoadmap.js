@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Animated, ScrollView, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Text, TouchableRipple, ProgressBar, Button, IconButton } from 'react-native-paper';
+import { View, StyleSheet, Animated, ScrollView, TextInput, LayoutAnimation, Platform, UIManager, Alert } from 'react-native';
+import { Text, TouchableRipple, ProgressBar, Button, IconButton, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../../config/theme';
 import { updateWeeklyGoal, deleteWeeklyGoal } from '../../../../api/exercises';
 import { createWeeklyGoalForLongTermGoal } from '../../../../api/exercises/goals';
+import { deleteLongTermGoal, createLongTermGoal } from '../../../../api/longTermGoals';
 import { supabase } from '../../../../config/supabase';
 import * as Haptics from 'expo-haptics';
+import CustomDialog from '../../../../components/common/CustomDialog';
 
 // Debug logger for tracking component lifecycle and user interactions
 const debug = {
@@ -42,6 +44,14 @@ const GrowthRoadmap = ({
   const [expandedLtaId, setExpandedLtaId] = useState(null);
   const [newGoalTexts, setNewGoalTexts] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // State for new long-term goal creation - Rule: Always add debug logs and comments
+  const [showAddLongTermGoal, setShowAddLongTermGoal] = useState(false);
+  const [newLongTermGoalTitle, setNewLongTermGoalTitle] = useState('');
+  
+  // State for delete confirmation dialog
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [goalToDelete, setGoalToDelete] = useState(null);
 
   // Debug current mood state
   useEffect(() => {
@@ -223,105 +233,181 @@ const GrowthRoadmap = ({
   };
 
   const renderNewLongTermGoals = () => {
-    if (!longTermGoals || longTermGoals.length === 0) {
-      debug.log('No long-term goals (NEW SYSTEM) to render.');
-      return (
-        <View style={styles.emptyGoalsSection}>
-          <Text style={styles.infoText}>
-            Create long-term goals through the AI Coach to track your progress!
-          </Text>
-        </View>
-      );
-    }
+    debug.log(`Rendering long-term goals section. Count: ${longTermGoals?.length || 0}`);
 
-    debug.log(`Rendering ${longTermGoals.length} long-term goals from NEW SYSTEM`);
-
-    return longTermGoals.map((longTermGoal) => {
-      const weeklyGoals = longTermGoal.weekly_goals || [];
-      const completedWeeklyGoals = weeklyGoals.filter(wg => wg.completed).length;
-      const goalProgress = weeklyGoals.length > 0 ? completedWeeklyGoals / weeklyGoals.length : 0;
-
-      debug.log(`Rendering Long-term Goal: ${longTermGoal.id} (${longTermGoal.title}). Progress: ${goalProgress}. Weekly Goals: ${weeklyGoals.length}`);
-
-      return (
-        <View key={longTermGoal.id} style={styles.ltaContainer}>
-          <TouchableRipple onPress={() => toggleLtaSection(longTermGoal.id)} style={styles.ltaHeaderTouchable}>
-            <View style={styles.ltaHeader}>
-              <MaterialCommunityIcons 
-                name={longTermGoal.source === 'ai_coach' ? 'robot-outline' : 'bullseye-arrow'} 
-                size={20} 
-                color={longTermGoal.source === 'ai_coach' ? COLORS.accent : COLORS.primary} 
-              />
-              <Text style={styles.ltaTitle}>{longTermGoal.title}</Text>
-              
-              <MaterialCommunityIcons 
-                name={expandedLtaId === longTermGoal.id ? "chevron-up" : "chevron-down"} 
-                size={24} 
-                color={COLORS.text} 
-              />
-            </View>
-          </TouchableRipple>
-          <ProgressBar progress={goalProgress} color={COLORS.accent} style={styles.ltaProgress} />
-
-          {expandedLtaId === longTermGoal.id && (
-            <View style={styles.ltaDetails}>
-              {longTermGoal.description && (
-                <Text style={styles.goalDescription}>{longTermGoal.description}</Text>
-              )}
-              
-              <View style={styles.addGoalContainer}>
-                <TextInput
-                  style={styles.goalInput}
-                  value={newGoalTexts[longTermGoal.id] || ''}
-                  onChangeText={(text) => handleNewGoalTextChange(longTermGoal.id, text)}
-                  placeholder="Add a new weekly goal for this long-term goal..."
-                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                  editable={!isLoading}
+    return (
+      <View>
+        {/* Add New Long-Term Goal Section - Rule: Always add debug logs and comments */}
+        <View style={styles.addLongTermGoalContainer}>
+          {!showAddLongTermGoal ? (
+            <TouchableRipple
+              onPress={() => {
+                debug.log('Opening add new long-term goal form');
+                setShowAddLongTermGoal(true);
+              }}
+              style={styles.addLongTermGoalButton}
+              disabled={isLoading}
+            >
+              <View style={styles.addLongTermGoalButtonContent}>
+                <MaterialCommunityIcons 
+                  name="plus-circle-outline" 
+                  size={24} 
+                  color={COLORS.primary} 
                 />
-                <IconButton
-                  icon="plus-circle"
-                  size={24}
-                  color={COLORS.primary}
-                  onPress={() => addWeeklyGoalToLongTermGoal(longTermGoal.id)}
-                  disabled={!(newGoalTexts[longTermGoal.id]?.trim()) || isLoading}
-                />
+                <Text style={styles.addLongTermGoalButtonText}>Add New Long-Term Goal</Text>
               </View>
+            </TouchableRipple>
+          ) : (
+            <View style={styles.addLongTermGoalForm}>
+              <Text style={styles.addLongTermGoalFormTitle}>Create New Long-Term Goal</Text>
               
-              {weeklyGoals.length > 0 ? weeklyGoals.map((goal) => (
-                <View key={goal.id} style={styles.goalItem}>
-                  <TouchableRipple
-                    onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
-                    style={styles.goalCheckbox}
-                    disabled={isLoading}
-                  >
-                    <MaterialCommunityIcons 
-                      name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
-                      size={16} 
-                      color={COLORS.text} 
-                    />
-                  </TouchableRipple>
-                  <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
-                    {goal.text}
-                  </Text>
-                  <IconButton
-                    icon="close-circle"
-                    size={16}
-                    color="rgba(0, 0, 0, 0.5)"
-                    onPress={() => removeGoal(goal.id)}
-                    style={styles.removeGoalButton}
-                    disabled={isLoading}
-                  />
-                </View>
-              )) : (
-                <Text style={styles.emptyGoalsText}>
-                  Break down this long-term goal into weekly action steps!
-                </Text>
-              )}
+              <TextInput
+                style={styles.longTermGoalInput}
+                value={newLongTermGoalTitle}
+                onChangeText={setNewLongTermGoalTitle}
+                placeholder="What do you want to achieve long-term?"
+                placeholderTextColor={COLORS.textSecondary}
+                editable={!isLoading}
+                multiline={false}
+              />
+              
+              <View style={styles.addLongTermGoalFormButtons}>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    debug.log('Canceling add new long-term goal');
+                    setShowAddLongTermGoal(false);
+                    setNewLongTermGoalTitle('');
+                  }}
+                  disabled={isLoading}
+                  style={styles.cancelButton}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleCreateLongTermGoal}
+                  disabled={!newLongTermGoalTitle.trim() || isLoading}
+                  loading={isLoading}
+                  style={styles.createButton}
+                >
+                  Create Goal
+                </Button>
+              </View>
             </View>
           )}
         </View>
-      );
-    });
+
+        {/* Existing Long-Term Goals */}
+        {(!longTermGoals || longTermGoals.length === 0) ? (
+          <View style={styles.emptyGoalsSection}>
+            <Text style={styles.infoText}>
+              {showAddLongTermGoal 
+                ? "Create your first long-term goal above to start tracking progress!"
+                : "Create long-term goals to track your progress!"
+              }
+            </Text>
+          </View>
+        ) : (
+          longTermGoals.map((longTermGoal) => {
+            const weeklyGoals = longTermGoal.weekly_goals || [];
+            const completedWeeklyGoals = weeklyGoals.filter(wg => wg.completed).length;
+            const goalProgress = weeklyGoals.length > 0 ? completedWeeklyGoals / weeklyGoals.length : 0;
+
+            debug.log(`Rendering Long-term Goal: ${longTermGoal.id} (${longTermGoal.title}). Progress: ${goalProgress}. Weekly Goals: ${weeklyGoals.length}`);
+
+            return (
+              <View key={longTermGoal.id} style={styles.ltaContainer}>
+                <TouchableRipple onPress={() => toggleLtaSection(longTermGoal.id)} style={styles.ltaHeaderTouchable}>
+                  <View style={styles.ltaHeader}>
+                    <MaterialCommunityIcons 
+                      name={longTermGoal.source === 'ai_coach' ? 'robot-outline' : 'bullseye-arrow'} 
+                      size={20} 
+                      color={longTermGoal.source === 'ai_coach' ? COLORS.accent : COLORS.primary} 
+                    />
+                    <Text style={styles.ltaTitle}>{longTermGoal.title}</Text>
+                    
+                    {/* Delete button for long-term goal - Rule: Always add debug logs and comments */}
+                    <IconButton
+                      icon="delete-outline"
+                      size={20}
+                      color={COLORS.textSecondary}
+                      onPress={() => confirmDeleteLongTermGoal(longTermGoal)}
+                      style={styles.deleteLongTermGoalButton}
+                      disabled={isLoading}
+                    />
+                    
+                    <MaterialCommunityIcons 
+                      name={expandedLtaId === longTermGoal.id ? "chevron-up" : "chevron-down"} 
+                      size={24} 
+                      color={COLORS.text} 
+                    />
+                  </View>
+                </TouchableRipple>
+                <ProgressBar progress={goalProgress} color={COLORS.accent} style={styles.ltaProgress} />
+
+                {expandedLtaId === longTermGoal.id && (
+                  <View style={styles.ltaDetails}>
+                    {longTermGoal.description && (
+                      <Text style={styles.goalDescription}>{longTermGoal.description}</Text>
+                    )}
+                    
+                    <View style={styles.addGoalContainer}>
+                      <TextInput
+                        style={styles.goalInput}
+                        value={newGoalTexts[longTermGoal.id] || ''}
+                        onChangeText={(text) => handleNewGoalTextChange(longTermGoal.id, text)}
+                        placeholder="Add a new weekly goal for this long-term goal..."
+                        placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                        editable={!isLoading}
+                      />
+                      <IconButton
+                        icon="plus-circle"
+                        size={24}
+                        color={COLORS.primary}
+                        onPress={() => addWeeklyGoalToLongTermGoal(longTermGoal.id)}
+                        disabled={!(newGoalTexts[longTermGoal.id]?.trim()) || isLoading}
+                      />
+                    </View>
+                    
+                    {weeklyGoals.length > 0 ? weeklyGoals.map((goal) => (
+                      <View key={goal.id} style={styles.goalItem}>
+                        <TouchableRipple
+                          onPress={() => toggleGoalCompletion(goal.id, goal.completed)}
+                          style={styles.goalCheckbox}
+                          disabled={isLoading}
+                        >
+                          <MaterialCommunityIcons 
+                            name={goal.completed ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"} 
+                            size={16} 
+                            color={COLORS.text} 
+                          />
+                        </TouchableRipple>
+                        <Text style={[styles.goalText, goal.completed && styles.completedGoalText]}>
+                          {goal.text}
+                        </Text>
+                        <IconButton
+                          icon="close-circle"
+                          size={16}
+                          color="rgba(0, 0, 0, 0.5)"
+                          onPress={() => removeGoal(goal.id)}
+                          style={styles.removeGoalButton}
+                          disabled={isLoading}
+                        />
+                      </View>
+                    )) : (
+                      <Text style={styles.emptyGoalsText}>
+                        Break down this long-term goal into weekly action steps!
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
+      </View>
+    );
   };
 
   const renderAICoachGoals = () => {
@@ -417,6 +503,130 @@ const GrowthRoadmap = ({
     }
   };
 
+  /**
+   * Create a new long-term goal from the roadmap interface
+   * Rule: Always add debug logs and comments for tracking user actions
+   */
+  const handleCreateLongTermGoal = async () => {
+    const title = newLongTermGoalTitle.trim();
+    
+    if (!title) {
+      debug.log('Cannot create long-term goal: title is required');
+      Alert.alert('Title Required', 'Please enter a title for your long-term goal.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      debug.log(`Creating new long-term goal: "${title}"`);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated for creating goal');
+
+      // Create the long-term goal using the API - FIXED: Use valid source value
+      const goalData = {
+        title,
+        // Removed description field per user request - it was causing constraint violation
+        category: 'user_created', // Category for goals created from roadmap
+        priority: 5, // Medium priority for user-created goals
+        source: 'user', // FIXED: Use valid constraint value instead of 'roadmap_interface'
+        target_date: null // User can set this later
+      };
+
+      const createdGoal = await createLongTermGoal(user.id, goalData);
+      debug.log('Long-term goal created successfully:', createdGoal.id);
+
+      // Clear the form
+      setNewLongTermGoalTitle('');
+      setShowAddLongTermGoal(false);
+
+      // Notify parent to refresh data
+      if (onUpdateRoadmapData) {
+        await onUpdateRoadmapData();
+      }
+
+      // Success feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Goal Created!', 
+        `Your long-term goal "${title}" has been created successfully.`,
+        [{ text: 'OK' }]
+      );
+
+    } catch (error) {
+      debug.error('Error creating long-term goal:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Creation Failed', 
+        `Failed to create goal: ${error.message}`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Show confirmation dialog before deleting a long-term goal
+   * Rule: Always confirm destructive actions with users
+   */
+  const confirmDeleteLongTermGoal = (longTermGoal) => {
+    debug.log(`Showing delete confirmation for long-term goal: ${longTermGoal.id} (${longTermGoal.title})`);
+    setGoalToDelete(longTermGoal);
+    setDeleteDialogVisible(true);
+  };
+
+  /**
+   * Delete a long-term goal after user confirmation
+   * This will also delete all associated weekly goals via cascade
+   */
+  const handleDeleteLongTermGoal = async () => {
+    if (!goalToDelete) {
+      debug.error('No goal selected for deletion');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      debug.log(`Deleting long-term goal: ${goalToDelete.id} (${goalToDelete.title})`);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated for deleting goal');
+
+      // Delete the long-term goal using the API
+      await deleteLongTermGoal(user.id, goalToDelete.id);
+      debug.log('Long-term goal deleted successfully');
+
+      // Close dialog and clear state
+      setDeleteDialogVisible(false);
+      setGoalToDelete(null);
+
+      // Notify parent to refresh data
+      if (onUpdateRoadmapData) {
+        await onUpdateRoadmapData();
+      }
+
+      // Success feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Goal Deleted', 
+        `"${goalToDelete.title}" and all its weekly goals have been removed.`,
+        [{ text: 'OK' }]
+      );
+
+    } catch (error) {
+      debug.error('Error deleting long-term goal:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Deletion Failed', 
+        `Failed to delete goal: ${error.message}`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
@@ -490,6 +700,24 @@ const GrowthRoadmap = ({
         {renderNewLongTermGoals()}
         {renderAICoachGoals()}
       </ScrollView>
+
+      {/* Delete Confirmation Dialog - Rule: Always add debug logs and comments */}
+      <Portal>
+        <CustomDialog
+          visible={deleteDialogVisible}
+          onDismiss={() => setDeleteDialogVisible(false)}
+          title="Delete Long-Term Goal?"
+          content={`Are you sure you want to delete "${goalToDelete?.title}"? This will also remove all associated weekly goals. This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteLongTermGoal}
+          onCancel={() => setDeleteDialogVisible(false)}
+          confirmMode="contained"
+          icon="delete-alert"
+          iconColor={COLORS.error}
+          showIcon={true}
+        />
+      </Portal>
     </View>
   );
 };
@@ -768,6 +996,68 @@ const styles = StyleSheet.create({
     borderColor: COLORS.divider,
     borderRadius: RADIUS.md,
     marginVertical: SPACING.sm,
+  },
+  deleteLongTermGoalButton: {
+    margin: 0,
+    padding: 2,
+  },
+  addLongTermGoalContainer: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  addLongTermGoalButton: {
+    borderRadius: RADIUS.lg,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  addLongTermGoalButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addLongTermGoalButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT.size.sm,
+    fontWeight: FONT.weight.semiBold,
+    marginLeft: SPACING.sm,
+  },
+  addLongTermGoalForm: {
+    padding: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  addLongTermGoalFormTitle: {
+    color: COLORS.textHeader,
+    fontSize: FONT.size.md,
+    fontWeight: FONT.weight.bold,
+    marginBottom: SPACING.sm,
+  },
+  longTermGoalInput: {
+    padding: SPACING.xs,
+    color: COLORS.textInput,
+    fontSize: FONT.size.xs,
+    marginBottom: SPACING.sm,
+    backgroundColor: COLORS.backgroundInput,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  addLongTermGoalFormButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.xs,
+  },
+  createButton: {
+    padding: SPACING.xs,
   },
 });
 

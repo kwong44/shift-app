@@ -38,7 +38,8 @@ const ProgressScreen = () => {
   const { user } = useUser();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('profile');
+  // Set default tab to 'progress' because users should see Progress first (Rule: always_applied - Adjust UI order)
+  const [activeTab, setActiveTab] = useState('progress');
   const [profileData, setProfileData] = useState(null);
   const [stats, setStats] = useState({
     totalExercises: 0,

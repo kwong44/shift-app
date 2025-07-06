@@ -22,6 +22,7 @@ export const DailyFocusProvider = ({ children, defaultCount = 3 }) => {
     error: null,
     aiPowered: false,
     focusTheme: null,
+    coachNote: null,
     lastFetched: null, // JS Date object
   });
 
@@ -72,7 +73,7 @@ export const DailyFocusProvider = ({ children, defaultCount = 3 }) => {
       console.debug('[DailyFocusContext] Fetch start');
 
       try {
-        const [recs, theme] = await Promise.all([
+        const [recs, themeData] = await Promise.all([
           generateAIDailyFocusRecommendations(user.id, count),
           getDailyFocusTheme(user.id),
         ]);
@@ -89,7 +90,8 @@ export const DailyFocusProvider = ({ children, defaultCount = 3 }) => {
           loading: false,
           error: null,
           aiPowered,
-          focusTheme: theme ?? null,
+          focusTheme: themeData?.theme ?? null,
+          coachNote: themeData?.coachNote ?? null,
           lastFetched: new Date(),
         });
         console.debug('[DailyFocusContext] Fetch success', { recs: recs.length, aiPowered });

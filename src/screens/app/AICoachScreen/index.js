@@ -130,7 +130,7 @@ const AICoachScreen = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      title: 'AI Coach',
+      title: 'Samantha',
       headerTintColor: COLORS.text,
       headerTitleStyle: {
         fontSize: 18,
@@ -354,7 +354,7 @@ const AICoachScreen = ({ navigation }) => {
     }
   };
 
-  // Handle sending a message to the AI Coach
+  // Handle sending a message to the AI Coach (Samantha)
   const handleSend = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
@@ -497,7 +497,7 @@ const AICoachScreen = ({ navigation }) => {
                 
                 Alert.alert(
                   'Low Credit Balance',
-                  `You only have ${creditsRemaining} credits (${tokensRemaining.toLocaleString()} tokens) left. Purchase more credits to continue using the AI Coach.`,
+                  `You only have ${creditsRemaining} credits (${tokensRemaining.toLocaleString()} tokens) left. Purchase more credits to continue talking with Samantha.`,
                   [
                     { text: 'Buy Credits', onPress: handleTopUpCredits },
                     { text: 'Not Now', style: 'cancel' }
@@ -542,7 +542,7 @@ const AICoachScreen = ({ navigation }) => {
           setTimeout(() => {
             Alert.alert(
               'Out of Credits',
-              `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to interact with the AI Coach.`,
+              `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to interact with the Samantha.`,
               [
                 { text: 'Buy Credits', onPress: handleTopUpCredits },
                 { text: 'Not Now', style: 'cancel' }
@@ -584,7 +584,7 @@ const AICoachScreen = ({ navigation }) => {
   const handleClearHistory = () => {
     Alert.alert(
       'Clear Conversation History',
-      'Are you sure you want to clear your entire conversation history with the AI Coach? This cannot be undone.',
+      'Are you sure you want to clear your entire conversation history with Samantha? This cannot be undone.',
       [
         {
           text: 'Cancel',

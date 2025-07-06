@@ -100,7 +100,15 @@ const validateAndEnhanceRecommendations = (aiRecommendations) => {
 
       // Is this already a full exercise object?
       if (aiRec.title && aiRec.type && aiRec.ai_metadata) {
-        validatedExercises.push({ ...aiRec, ai_recommendation: aiRec.ai_metadata });
+        // Mark as AI powered to ensure downstream UI reflects it correctly
+        validatedExercises.push({
+          ...aiRec,
+          ai_recommendation: {
+            ...aiRec.ai_metadata,
+            is_ai_powered: true,
+            is_ai_recommended: true // keep both flags for compatibility
+          }
+        });
         console.debug(`[aiDailyFocusService] Accepted pre-formatted exercise: ${aiRec.title}`);
         continue;
       }
@@ -120,6 +128,7 @@ const validateAndEnhanceRecommendations = (aiRecommendations) => {
           personalization: aiRec.ai_metadata?.personalization || '',
           expected_benefit: aiRec.ai_metadata?.expected_benefit || exercise.description,
           is_ai_powered: true,
+          is_ai_recommended: true,
           recommendation_timestamp: new Date().toISOString()
         }
       };
@@ -253,14 +262,17 @@ export const getAIRecommendationExplanation = (exercise) => {
  * @returns {boolean} True if AI-powered
  */
 export const isAIPoweredRecommendation = (exercise) => {
-  return exercise.ai_recommendation?.is_ai_powered === true;
+  const meta = exercise.ai_recommendation;
+  if (!meta) return false;
+  // Accept either field for backward-compatibility
+  return meta.is_ai_powered === true || meta.is_ai_recommended === true;
 };
 
 /**
  * Get the AI coach's focus theme for the day
  * This can be displayed to give users context about their recommendations
  * @param {string} userId - User's ID
- * @returns {Promise<string|null>} The focus theme or null
+ * @returns {Promise<{theme: string|null, coachNote: string|null}>} The focus theme and coach note
  */
 export const getDailyFocusTheme = async (userId) => {
   try {
@@ -278,13 +290,16 @@ export const getDailyFocusTheme = async (userId) => {
 
     if (error || !data?.success) {
       console.debug('[aiDailyFocusService] Could not get focus theme, using fallback');
-      return null;
+      return { theme: null, coachNote: null };
     }
 
-    return data.metadata?.overall_focus_theme || null;
+    return {
+      theme: data.metadata?.overall_focus_theme || null,
+      coachNote: data.metadata?.coach_note || null
+    };
   } catch (error) {
     console.error('[aiDailyFocusService] Error getting daily focus theme:', error);
-    return null;
+    return { theme: null, coachNote: null };
   }
 };
 

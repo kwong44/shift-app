@@ -293,6 +293,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginBottom: SPACING.md,
     borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.background,
     ...SHADOWS.small,
   },
   loadingContent: {

@@ -16,49 +16,55 @@ const ProfileTabHeader = ({ activeTab, setActiveTab }) => {
   
   return (
     <View style={styles.container}>
+      {/* Progress tab first */}
       <TouchableOpacity
         style={[
-          styles.tabButton, 
-          activeTab === 'profile' && styles.activeTabButton
-        ]}
-        onPress={() => {
-          debug.log('Switching to Profile tab');
-          setActiveTab('profile');
-        }}
-      >
-        <Ionicons 
-          name={activeTab === 'profile' ? 'person' : 'person-outline'} 
-          size={22} 
-          color={activeTab === 'profile' ? COLORS.primary : COLORS.textLight} 
-        />
-        <Text style={[
-          styles.tabLabel, 
-          activeTab === 'profile' && styles.activeTabLabel
-        ]}>
-          Profile
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.tabButton, 
-          activeTab === 'progress' && styles.activeTabButton
+          styles.tabButton,
+          activeTab === 'progress' && styles.activeTabButton,
         ]}
         onPress={() => {
           debug.log('Switching to Progress tab');
           setActiveTab('progress');
         }}
       >
-        <Ionicons 
-          name={activeTab === 'progress' ? 'trending-up' : 'trending-up-outline'} 
-          size={22} 
-          color={activeTab === 'progress' ? COLORS.primary : COLORS.textLight} 
+        <Ionicons
+          name={activeTab === 'progress' ? 'trending-up' : 'trending-up-outline'}
+          size={22}
+          color={activeTab === 'progress' ? COLORS.primary : COLORS.textLight}
         />
-        <Text style={[
-          styles.tabLabel, 
-          activeTab === 'progress' && styles.activeTabLabel
-        ]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'progress' && styles.activeTabLabel,
+          ]}
+        >
           Progress
+        </Text>
+      </TouchableOpacity>
+
+      {/* Profile tab second */}
+      <TouchableOpacity
+        style={[
+          styles.tabButton,
+          activeTab === 'profile' && styles.activeTabButton,
+        ]}
+        onPress={() => {
+          debug.log('Switching to Profile tab');
+          setActiveTab('profile');
+        }}
+      >
+        <Ionicons
+          name={activeTab === 'profile' ? 'person' : 'person-outline'}
+          size={22}
+          color={activeTab === 'profile' ? COLORS.primary : COLORS.textLight}
+        />
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'profile' && styles.activeTabLabel,
+          ]}
+        >
+          Profile
         </Text>
       </TouchableOpacity>
     </View>

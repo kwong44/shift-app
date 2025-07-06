@@ -60,7 +60,8 @@ const DailyFocus = ({ onExercisePress }) => {
     focusTheme,
     refresh: refreshRecommendations,
     getExplanation,
-    isAIPowered
+    isAIPowered,
+    coachNote
   } = useAIDailyFocusRecommendations({
     count: 3,
     autoRefresh: true,
@@ -186,6 +187,18 @@ const DailyFocus = ({ onExercisePress }) => {
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Chip>
         </View>
+        
+        {/* Focus Theme & Coach Note */}
+        {(focusTheme || coachNote) && (
+          <View style={styles.metaContainer}>
+            {focusTheme && (
+              <Text style={styles.focusThemeText}>Theme: {focusTheme}</Text>
+            )}
+            {coachNote && (
+              <Text style={styles.coachNoteText}>Coach's Note: {coachNote}</Text>
+            )}
+          </View>
+        )}
         
         <View style={styles.exerciseList}>
           {suggestedExercises.map((exercise) => {
@@ -384,7 +397,18 @@ const styles = StyleSheet.create({
     margin: 0,
     height: 28,
     width: 28,
-  }
+  },
+  metaContainer: {
+    marginBottom: SPACING.md,
+  },
+  focusThemeText: {
+    color: COLORS.text,
+    fontSize: FONT.size.sm,
+  },
+  coachNoteText: {
+    color: COLORS.text,
+    fontSize: FONT.size.sm,
+  },
 });
 
 export default DailyFocus; 

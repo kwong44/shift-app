@@ -38,6 +38,7 @@ const useAIDailyFocusRecommendations = (options = {}) => {
     error,
     aiPowered,
     focusTheme,
+    coachNote,
     lastFetched,
     fetchRecommendations,
     cacheValid,
@@ -96,6 +97,7 @@ const useAIDailyFocusRecommendations = (options = {}) => {
     // AI-specific metadata
     aiPowered,
     focusTheme,
+    coachNote,
     
     // Cache information
     lastFetched,
