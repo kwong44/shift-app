@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { 
   Text, 
   Button, 
   useTheme, 
   Surface,
-  Avatar,
   Card
 } from 'react-native-paper';
 import { SPACING } from '../../config/theme';
@@ -18,7 +17,7 @@ const WelcomeScreen = ({ navigation }) => {
       <Surface style={styles.content} elevation={0}>
         <View style={styles.header}>
           <Text variant="displayMedium" style={[styles.title, { color: theme.colors.primary }]}>
-            RealityShift
+            Shift
           </Text>
           <Text 
             variant="titleMedium" 
@@ -29,13 +28,10 @@ const WelcomeScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.imageContainer}>
-          <Avatar.Icon 
-            size={150} 
-            icon="meditation" 
-            style={{
-              backgroundColor: theme.colors.primaryContainer
-            }}
-            color={theme.colors.onPrimaryContainer}
+          <Image
+            source={require('../../../assets/shift-icon-transparent.png')}
+            style={{ width: 150, height: 150 }}
+            resizeMode="contain"
           />
         </View>
         

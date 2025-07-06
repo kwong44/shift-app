@@ -4,7 +4,7 @@
     "slug": "shift-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icons/appstore.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -17,12 +17,14 @@
       "bundleIdentifier": "com.kwong916999.realityshift",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "icon": "./assets/app-icons/appstore.png"
     },
     "android": {
       "package": "com.kwong916999.realityshift",
+      "icon": "./assets/app-icons/playstore.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/app-icons/playstore.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
