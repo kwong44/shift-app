@@ -42,7 +42,7 @@ const ProfileInfo = ({ profile, onEditProfile, onLogout }) => {
             />
           )}
           <TouchableOpacity style={styles.editAvatarButton} onPress={() => onEditProfile('avatar')}>
-            <Ionicons name="camera" size={16} color={COLORS.textOnColor} />
+            <Ionicons name="add" size={16} color={COLORS.textLight} />
           </TouchableOpacity>
         </View>
         
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.backgroundLight,
     borderRadius: RADIUS.round,
     width: 28,
     height: 28,

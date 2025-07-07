@@ -178,9 +178,9 @@ const ExerciseCard = ({ exercise, isCompleted, onPress, style, isFavorite, onTog
                   <MaterialCommunityIcons 
                     name="clock-outline" 
                     size={14} 
-                    color={enhancedIcon.gradient[0]} 
+                    color={COLORS.textLight}
                   />
-                  <Text style={[styles.durationText, { color: enhancedIcon.gradient[0] }]}>
+                  <Text style={[styles.durationText]}>
                     {exercise.defaultDurationText || exercise.duration}
                   </Text>
                 </View>
@@ -310,11 +310,12 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   durationText: {
+    color: COLORS.textLight,
     fontSize: FONT.size.xs,
     fontWeight: FONT.weight.medium,
   },
   typeChip: {
-    backgroundColor: COLORS.primaryMuted,
+    backgroundColor: COLORS.backgroundLight,
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.sm,
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: FONT.size.xs,
     fontWeight: FONT.weight.medium,
-    color: COLORS.primary,
+    color: COLORS.textLight,
   },
   favoriteContainer: {
     alignItems: 'center',

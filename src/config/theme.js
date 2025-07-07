@@ -3,9 +3,9 @@ import { MD3LightTheme } from 'react-native-paper';
 // Primary palette - core colors
 export const COLORS = {
   // Brand colors
-  primary: '#5F52EE',       // Purple (main brand color)
-  primaryLight: '#E8DFFF',  // Light purple for add goal prompt
-  secondary: '#6C63FF',     // Slightly lighter purple
+  primary: '#FF5757',       // Coral (main brand color)
+  primaryLight: '#FFEBEB',  // Light purple for add goal prompt
+  secondary: '#FF7070',     // Light coral for subtle AI backgrounds
   accent: '#FF5757',        // Coral/red accent (for AI coach related components)
   accentLight: '#FFEBEB',   // Very light coral for AI component backgrounds
   accentMuted: '#FF7070',   // Light coral for subtle AI backgrounds
