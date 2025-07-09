@@ -3,12 +3,12 @@ import { MD3LightTheme } from 'react-native-paper';
 // Primary palette - core colors
 export const COLORS = {
   // Brand colors
-  primary: '#FF5757',       // Coral (main brand color)
-  primaryLight: '#FFEBEB',  // Light purple for add goal prompt
-  secondary: '#FF7070',     // Light coral for subtle AI backgrounds
-  accent: '#FF5757',        // Coral/red accent (for AI coach related components)
-  accentLight: '#FFEBEB',   // Very light coral for AI component backgrounds
-  accentMuted: '#FF7070',   // Light coral for subtle AI backgrounds
+  primary: '#16DB65',       // Green (main brand color)
+  primaryLight: '#8EF0B3',  // Light green for add goal prompt
+  secondary: '#4BA46F',     // Light green for subtle AI backgrounds
+  accent: '#16DB65',        // Green/red accent (for AI coach related components)
+  accentLight: '#8EF0B3',   // Very light green for AI component backgrounds
+  accentMuted: '#4BA46F',   // Light green for subtle AI backgrounds
   
   // UI Background colors
   background: '#FFFFFF',    // Pure white background

@@ -1,18 +1,18 @@
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
-import { OpenAI } from 'https://esm.sh/openai@4.20.0';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai';
 
 console.log('[DailyFocusAI] Initializing AI-powered daily focus recommendation function');
 
 // Environment variables
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // Verify environment variables
-if (!openaiApiKey) {
-  console.error('[DailyFocusAI] Missing OPENAI_API_KEY environment variable');
+if (!geminiApiKey) {
+  console.error('[DailyFocusAI] Missing GEMINI_API_KEY environment variable');
 }
 
 if (!supabaseUrl || !supabaseServiceKey) {
@@ -20,9 +20,14 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 // Initialize clients
-const openai = new OpenAI({
-  apiKey: openaiApiKey,
-});
+let geminiModel: any = null;
+if (geminiApiKey) {
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
+  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  console.log('[DailyFocusAI] Google Generative AI client initialized with gemini-2.0-flash');
+} else {
+  console.error('[DailyFocusAI] Gemini client not initialized due to missing API key');
+}
 
 const supabaseAdmin = createClient(
   supabaseUrl || '',
@@ -99,6 +104,74 @@ const AVAILABLE_EXERCISES = [
   }
   // Add more exercises as needed
 ];
+
+/**
+ * Counts the tokens for a given text using the Gemini model.
+ * @param {string} text The text to count tokens for.
+ * @returns {Promise<number>} The number of tokens.
+ */
+async function countTokens(text: string): Promise<number> {
+  if (!geminiModel || !text) {
+    return 0;
+  }
+  try {
+    const { totalTokens } = await geminiModel.countTokens(text);
+    return totalTokens;
+  } catch (error) {
+    console.warn(`[TokenCounting] Could not count tokens: ${error.message}`);
+    // A rough estimate: 1 token per 4 characters as a fallback.
+    return Math.ceil(text.length / 4);
+  }
+}
+
+/**
+ * Update a user's token balance
+ * @param userId - The user ID to update
+ * @param amount - The amount to adjust (negative to deduct)
+ * @returns The new token balance or error
+ */
+async function updateUserTokens(userId: string, amount: number) {
+    console.log(`[DailyFocusAI] Updating tokens for user ${userId} by ${amount}`);
+
+    if (amount === 0) {
+        console.log(`[DailyFocusAI] Token update amount is 0 for user ${userId}. Skipping database call.`);
+        const { data, error } = await supabaseAdmin.rpc('get_user_tokens', { p_user_id: userId });
+        if (error) {
+            console.error('[DailyFocusAI] Error fetching current token balance when amount is 0:', error);
+            return { success: false, error: 'Failed to fetch token balance', tokens: 0 };
+        }
+        return { success: true, tokens: data };
+    }
+
+    try {
+        const { data, error } = await supabaseAdmin.rpc(
+            'add_user_tokens',
+            { p_user_id: userId, p_amount: amount }
+        );
+
+        if (error) {
+            console.error('[DailyFocusAI] Error updating user tokens:', error);
+            return {
+                success: false,
+                error: 'Failed to update token balance',
+                tokens: 0
+            };
+        }
+
+        console.log(`[DailyFocusAI] Updated token balance for user ${userId} to ${data}`);
+        return {
+            success: true,
+            tokens: data
+        };
+    } catch (error) {
+        console.error('[DailyFocusAI] Error in updateUserTokens:', error);
+        return {
+            success: false,
+            error: String(error),
+            tokens: 0
+        };
+    }
+}
 
 /**
  * Gather comprehensive user context for AI recommendations
@@ -266,21 +339,38 @@ Generate exactly ${requestedCount} recommendations, ranked by priority score (10
 RESPOND ONLY WITH VALID JSON.`;
 
   try {
-    console.log('[DailyFocusAI] Making OpenAI API call for recommendations');
-    
-    const completion = await openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt }
-      ],
-      model: 'gpt-4o-mini',
-      max_tokens: 800,
+    if (!geminiModel) {
+      throw new Error('Gemini model not initialized');
+    }
+
+    console.log('[DailyFocusAI] Making Gemini API call for recommendations');
+
+    const generationConfig = {
       temperature: 0.7,
+      maxOutputTokens: 800,
+    };
+
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ];
+
+    const result = await geminiModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+      generationConfig,
+      safetySettings,
     });
 
-    const responseText = completion.choices[0].message.content;
-    const tokensUsed = completion.usage?.total_tokens || 0;
+    const responseText = result.response.text();
+    console.log('[DailyFocusAI] Gemini response received, length:', responseText.length);
     
-    console.log(`[DailyFocusAI] OpenAI response received, tokens used: ${tokensUsed}`);
+    // Accurately count tokens
+    const promptTokens = await countTokens(systemPrompt);
+    const responseTokens = await countTokens(responseText);
+    const tokensUsed = promptTokens + responseTokens;
+    console.log(`[DailyFocusAI] Tokens used: ${tokensUsed} (Prompt: ${promptTokens}, Response: ${responseTokens})`);
     
     try {
       const aiResult = JSON.parse(responseText);
@@ -293,7 +383,7 @@ RESPOND ONLY WITH VALID JSON.`;
           overall_focus_theme: aiResult.overall_focus_theme,
           coach_note: aiResult.coach_note,
           tokensUsed,
-          model: 'gpt-4o-mini',
+          model: 'gemini-2.0-flash',
           contextFactors: Object.keys(contextSummary)
         }
       };
@@ -306,18 +396,22 @@ RESPOND ONLY WITH VALID JSON.`;
         success: false,
         error: 'Failed to parse AI recommendations',
         fallback: true,
-        recommendations: userContext.userFavorites.slice(0, requestedCount)
+        recommendations: userContext.userFavorites.slice(0, requestedCount),
+        tokensUsed // Pass tokens used even on parse failure
       };
     }
   } catch (error) {
-    console.error('[DailyFocusAI] Error calling OpenAI:', error);
+    console.error('[DailyFocusAI] Error calling Gemini:', error);
     
-    // Fallback to user favorites if AI call fails
+    const promptTokens = await countTokens(systemPrompt); // Still count prompt tokens on failure
+
+    // Fallback to user favorites if Gemini call fails
     return {
       success: false,
-      error: 'AI service unavailable',
+      error: 'Gemini service unavailable',
       fallback: true,
-      recommendations: userContext.userFavorites.slice(0, requestedCount)
+      recommendations: userContext.userFavorites.slice(0, requestedCount),
+      tokensUsed: promptTokens
     };
   }
 }
@@ -382,38 +476,57 @@ serve(async (req) => {
     // 1. Gather comprehensive user context
     const userContext = await gatherUserContext(userId);
 
-    // 2. Generate AI-powered recommendations (handles missing OPENAI key internally)
+    // 2. Generate AI-powered recommendations
     const aiResult = await generateAIRecommendations(userContext, requestedCount);
 
-    // 3. If AI failed or env missing, fallback is already prepared
+    // 3. Deduct tokens used, regardless of success/failure of the AI generation itself.
+    const tokensUsed = aiResult.metadata?.tokensUsed || aiResult.tokensUsed || 0;
+    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed);
+
+    if (!tokenUpdateResult.success) {
+        console.error('[DailyFocusAI] Failed to update token balance after usage:', tokenUpdateResult.error);
+        // This error info will be added to the response.
+    }
+
+    // 4. If AI failed, fallback is already prepared by the generation function
     if (!aiResult.success) {
       console.warn('[DailyFocusAI] AI recommendation failed or unavailable, using fallback');
       return new Response(
         JSON.stringify({
           success: true,
           fallback: true,
-          recommendations: aiResult.recommendations,
+          recommendations: aiResult.recommendations, // Fallback recommendations
           metadata: {
-            fallback_reason: aiResult.error || 'AI unavailable',
+            fallback_reason: aiResult.error || 'Gemini unavailable',
             model: 'fallback_favorites'
+          },
+          tokens: {
+              used: tokensUsed,
+              remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
+              error: tokenUpdateResult.success ? null : tokenUpdateResult.error
           }
         }),
         { headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 4. Format recommendations for client
+    // 5. Format successful recommendations for client
     const formattedRecommendations = formatRecommendationsForClient(
       aiResult.recommendations,
       userContext.userFavorites
     );
 
-    // 5. Return successful response
+    // 6. Return successful response with token info
     return new Response(
       JSON.stringify({
         success: true,
         recommendations: formattedRecommendations,
-        metadata: aiResult.metadata
+        metadata: aiResult.metadata,
+        tokens: {
+            used: tokensUsed,
+            remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
+            error: tokenUpdateResult.success ? null : tokenUpdateResult.error
+        }
       }),
       { headers: { 'Content-Type': 'application/json' } }
     );

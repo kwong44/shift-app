@@ -229,6 +229,23 @@ const AVAILABLE_EXERCISES = [
 async function updateUserTokens(userId: string, amount: number) {
   console.log(`Updating tokens for user ${userId} by ${amount}`);
   
+  // Ensure we don't try to add tokens with this function, only deduct.
+  if (amount > 0) {
+    console.warn(`updateUserTokens called with a positive amount (${amount}). The 'add_user_tokens' RPC is designed for both, but this function wrapper is intended for deductions. Proceeding, but this may be unintentional.`);
+  }
+
+  // If amount is 0, no need to call the database.
+  if (amount === 0) {
+    console.log(`Token update amount is 0 for user ${userId}. Skipping database call.`);
+    // We need to fetch the current balance to return it accurately.
+    const { data, error } = await supabaseAdmin.rpc('get_user_tokens', { p_user_id: userId });
+    if (error) {
+      console.error('Error fetching current token balance when amount is 0:', error);
+      return { success: false, error: 'Failed to fetch token balance', tokens: 0 };
+    }
+    return { success: true, tokens: data };
+  }
+
   try {
     // Use the server-side function to update tokens safely
     const { data, error } = await supabaseAdmin.rpc(
@@ -257,6 +274,25 @@ async function updateUserTokens(userId: string, amount: number) {
       error: String(error),
       tokens: 0
     };
+  }
+}
+
+/**
+ * Counts the tokens for a given text using the Gemini model.
+ * @param {string} text The text to count tokens for.
+ * @returns {Promise<number>} The number of tokens.
+ */
+async function countTokens(text: string): Promise<number> {
+  if (!geminiModel || !text) {
+    return 0;
+  }
+  try {
+    const { totalTokens } = await geminiModel.countTokens(text);
+    return totalTokens;
+  } catch (error) {
+    console.warn(`[TokenCounting] Could not count tokens: ${error.message}`);
+    // A rough estimate: 1 token per 4 characters as a fallback.
+    return Math.ceil(text.length / 4);
   }
 }
 
@@ -470,28 +506,40 @@ RESPOND ONLY WITH THE JSON - NO OTHER TEXT.
     const analysisText = response.text();
     console.log('[PatternAnalysis] Raw pattern analysis response (Gemini):', analysisText);
     
+    // Accurately count input and output tokens
+    const promptTokens = await countTokens(patternPrompt);
+    const outputTokens = await countTokens(analysisText);
+    const totalTokens = promptTokens + outputTokens;
+    console.log(`[PatternAnalysis] Gemini tokens used: ${totalTokens} (Prompt: ${promptTokens}, Output: ${outputTokens})`);
+    
     try {
       const patterns = JSON.parse(analysisText);
       console.log('[PatternAnalysis] Parsed pattern analysis (Gemini):', patterns);
       return {
         patterns,
-        tokens_used: promptTokens // Using promptTokens as a proxy. Actual total tokens depend on output length.
+        tokens_used: totalTokens
       };
     } catch (parseError) {
       console.error('[PatternAnalysis] Failed to parse pattern analysis JSON (Gemini):', parseError, "Raw response:", analysisText);
-      return null;
+      return {
+        patterns: null,
+        tokens_used: totalTokens // Still account for tokens used even if parsing fails
+      };
     }
   } catch (error) {
     console.error('[PatternAnalysis] Error in pattern analysis (Gemini):', error);
+    const promptTokens = await countTokens(patternPrompt); // Count prompt tokens on failure
     if (error.message.includes('SAFETY')) {
         console.warn('[PatternAnalysis] Gemini content blocked due to safety settings.');
-        // Potentially return a specific structure indicating blockage
         return {
             patterns: { pattern_detected: false, reason: "Content generation blocked by safety filters.", safety_blocked: true },
             tokens_used: promptTokens
         };
     }
-    return null;
+    return {
+        patterns: null,
+        tokens_used: promptTokens
+    };
   }
 }
 
@@ -545,7 +593,7 @@ serve(async (req) => {
 
     // 4. Make the Gemini API call
     let analysis = '';
-    let tokensUsed = 0; // Placeholder for token usage, Gemini might not provide this directly or in the same way for free tier
+    let tokensUsed = 0; // This will now be accurately calculated.
 
     try {
       console.log('Making Gemini API call with gemini-2.0-flash model');
@@ -568,12 +616,12 @@ serve(async (req) => {
       const response = result.response;
       analysis = response.text();
       
-      // Token counting with Gemini can be done with model.countTokens() if needed before generation,
-      // but generateContent response does not directly include tokensUsed like OpenAI.
-      // For free tier, this might be less critical. We'll estimate or omit for now.
-      // const tokenCountResult = await geminiModel.countTokens(fullPrompt);
-      // tokensUsed = tokenCountResult.totalTokens; 
-      console.log('Gemini analysis length:', analysis?.length);
+      // Accurately count tokens for both prompt and response
+      const promptTokens = await countTokens(fullPrompt);
+      const analysisTokens = await countTokens(analysis);
+      tokensUsed = promptTokens + analysisTokens;
+      
+      console.log(`Gemini analysis complete. Tokens used: ${tokensUsed} (Prompt: ${promptTokens}, Output: ${analysisTokens})`);
 
     } catch (geminiError) {
       console.error('Error during Gemini API call:', geminiError);
@@ -594,36 +642,24 @@ serve(async (req) => {
       );
     }
 
-    // --- OpenAI API Call (Commented out for future use) ---
-    // console.log('Making OpenAI API call with gpt-4o-mini model');
-    // const completion = await openai.chat.completions.create({
-    //   messages: [
-    //     { role: 'system', content: systemPrompt },
-    //     { role: 'user', content: text }
-    //   ],
-    //   model: 'gpt-4o-mini', 
-    //   max_tokens: maxTokens,
-    //   temperature: 0.7,
-    // });
-    // analysis = completion.choices[0].message.content;
-    // tokensUsed = completion.usage?.total_tokens || 0;
-    // --- End of OpenAI Code ---
-
-    // 5. Process basic analysis (Gemini response is already in 'analysis')
+    // 5. Process basic analysis
     console.log('Basic analysis complete (Gemini):', { 
       analysisLength: analysis?.length,
-      tokensUsed, // Note: This is currently a placeholder for Gemini
-      model: 'gemini-2.0-flash' // Updated model name in metadata
+      tokensUsed,
+      model: 'gemini-2.0-flash'
     });
 
     // 6. Pattern analysis for journaling (if enabled and is journal context)
     let patternAnalysis = null;
     if (enablePatternAnalysis && context?.type === 'journal') {
-      console.log('[PatternAnalysis] Starting pattern analysis for journal entry (still uses OpenAI gpt-4o-mini)');
+      console.log('[PatternAnalysis] Starting pattern analysis for journal entry (using Gemini)');
       const patternResult = await analyzeJournalingPatterns(userId, text, context);
+      
       if (patternResult) {
         patternAnalysis = patternResult.patterns;
-        console.log('[PatternAnalysis] Pattern analysis completed, total tokens:', patternResult.tokens_used);
+        const patternTokensUsed = patternResult.tokens_used || 0;
+        tokensUsed += patternTokensUsed; // Add pattern analysis tokens to the total
+        console.log(`[PatternAnalysis] Pattern analysis completed, tokens used: ${patternTokensUsed}. Grand total (so far): ${tokensUsed}`);
       }
     }
 
@@ -632,7 +668,7 @@ serve(async (req) => {
     
     if (!tokenUpdateResult.success) {
       console.error('Failed to update token balance after usage (Gemini):', tokenUpdateResult.error);
-      // Continue anyway and return the response, but include the error
+      // Continue anyway and return the response, but include the error in the 'tokens' object.
     }
 
     return new Response(
@@ -642,13 +678,13 @@ serve(async (req) => {
           analysis,
           patternAnalysis,
           metadata: {
-            tokensUsed: tokensUsed, // Placeholder for Gemini
-            model: 'gemini-2.0-flash', // Updated model name in metadata
+            tokensUsed: tokensUsed,
+            model: 'gemini-2.0-flash',
             hasPatternAnalysis: !!patternAnalysis,
             processingTimeMs: Date.now() % 10000 
           }
         },
-        tokens: { // This section might become less relevant with Gemini free tier
+        tokens: {
           used: tokensUsed,
           remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
           error: tokenUpdateResult.success ? null : tokenUpdateResult.error

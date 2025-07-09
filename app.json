@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/app-icons/appstore.png",
     "userInterfaceStyle": "light",
+    "scheme": "realityshift",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/shift-icon-transparent.png",

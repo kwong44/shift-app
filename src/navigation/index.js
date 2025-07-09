@@ -52,6 +52,7 @@ import PaywallScreen from '../screens/PaywallScreen';
 import SubscriptionSettingsScreen from '../screens/SubscriptionSettingsScreen';
 import { View, ActivityIndicator } from 'react-native';
 import { setNavigationRefForNotifications } from '../services/notificationService';
+import logger from '../utils/logger';
 
 const Stack = createStackNavigator();
 
@@ -121,6 +122,26 @@ const authModalOptions = {
   gestureDirection: 'vertical',
   presentation: 'modal',
   detachPreviousScreen: true,
+};
+
+// ----------------------------------------------------------
+// Deep Linking Configuration (RealityShift)
+// ----------------------------------------------------------
+//  - prefixes:     Register available URL schemes/hosts.
+//  - config:       Map path → screen names defined below.
+//
+//  We only need to handle the initial onboarding route for the
+//  verification flow:  realityshift://onboarding
+// ----------------------------------------------------------
+const linking = {
+  prefixes: ['realityshift://'],
+  config: {
+    screens: {
+      CelebratoryWelcome: 'onboarding',
+      // You can add more routes here as needed.
+    },
+  },
+  // No custom getStateFromPath override; React Navigation defaults suffice.
 };
 
 const Navigation = () => {
@@ -251,6 +272,7 @@ const Navigation = () => {
   return (
     <NavigationContainer
       ref={navigationRef}
+      linking={linking}
       theme={{
         colors: {
           background: 'white',
