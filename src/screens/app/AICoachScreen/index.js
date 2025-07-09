@@ -65,13 +65,10 @@ const Message = ({ content, isUser, tokenInfo, goals, onGoalAdded }) => {
   );
 };
 
-const CreditDisplay = ({ credits, onTopUp }) => (
-  <View style={styles.creditContainer}>
-    <TouchableOpacity onPress={onTopUp} style={styles.topUpButton}>
-      <Text style={styles.topUpText}>Top Up</Text>
-    </TouchableOpacity>
-  </View>
-);
+// NOTE: Top-up UI removed due to new subscription/paywall. Leaving
+// placeholder component (no rendering) so imports remain consistent
+// and future credit UI can be re-enabled without refactor.
+const CreditDisplay = () => null;
 
 const AICoachScreen = ({ navigation }) => {
   // State management
@@ -146,9 +143,8 @@ const AICoachScreen = ({ navigation }) => {
       },
       headerBackVisible: true,
       headerBackTitleVisible: false,
-      headerRight: () => !isLoadingTokens && credits !== null && (
-        <CreditDisplay credits={credits} onTopUp={handleTopUpCredits} />
-      ),
+      // Top-up button removed – subscription model handles payments.
+      headerRight: () => null,
     });
     
     // Debug log

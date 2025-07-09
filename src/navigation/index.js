@@ -5,7 +5,8 @@ import { useTheme } from 'react-native-paper';
 import { supabase } from '../config/supabase';
 import { getSession } from '../api/auth';
 import { hasCompletedAssessment } from '../api/selfAssessment';
-// Removed subscription context import - using credit-based system instead
+import { useSubscription } from '../contexts/SubscriptionContext';
+//
 
 // Import BottomTabNavigator
 import BottomTabNavigator from './BottomTabNavigator';
@@ -151,8 +152,10 @@ const Navigation = () => {
   const theme = useTheme();
   const navigationRef = React.useRef();
   
-  // Credit-based system - no hard paywall, users can access main app after onboarding
-  console.debug('[Navigation] Using credit-based system - no subscription paywall');
+  // Subscription-based hard paywall restored
+  console.debug('[Navigation] Hard paywall enabled – users must subscribe to access main app');
+
+  const { isSubscribed, isLoading: subscriptionLoading } = useSubscription();
 
   const checkOnboardingStatus = useCallback(async (userId) => {
     try {
@@ -260,7 +263,7 @@ const Navigation = () => {
     }
   }, [navigationRef.current]);
 
-  if (isLoading) {
+  if (isLoading || subscriptionLoading) {
     // Display a branded loading screen instead of returning null to prevent blank white screen.
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
@@ -322,8 +325,11 @@ const Navigation = () => {
               <Stack.Screen name="App" component={BottomTabNavigator} />
             </Stack.Group>
           </>
+        ) : !isSubscribed ? (
+          // Paywall Stack – block access until subscription is active
+          <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false }} />
         ) : (
-          // Main App Stack - Credit-based system allows access after onboarding
+          // Main App Stack – user is subscribed
           <Stack.Group screenOptions={screenOptions}>
             <Stack.Screen name="App" component={BottomTabNavigator} />
             <Stack.Screen name="HomeScreen" component={HomeScreen} />

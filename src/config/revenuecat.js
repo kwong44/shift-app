@@ -107,6 +107,65 @@ export const OFFERINGS = {
   welcome: 'welcome_credits_offering', // For new users
 };
 
+// -------------- SUBSCRIPTION (Hard-Paywall) CONFIG ------------------
+// Added to support the restored subscription-based hard paywall.
+// -------------------------------------------------------------------
+export const ENTITLEMENTS = {
+  /**
+   * Key of the entitlement configured in RevenueCat Dashboard that grants
+   * full, premium access to the app. KEEP IN SYNC with Dashboard value.
+   */
+  premium: 'premium',
+};
+
+/**
+ * Mapping of subscription products used for the hard paywall implementation.
+ * Prices are documented here for developer reference only – RevenueCat /
+ * App Store pricing is the source of truth.
+ */
+export const SUBSCRIPTION_PRODUCTS = {
+  // $3.99 per week → short-term trial-friendly option
+  weekly: {
+    productId: 'shift_subscription_weekly', // <-- configure in App Store & Play Store
+    price: '$3.99',
+    interval: 'week',
+  },
+  // $9.99 per month → standard plan
+  monthly: {
+    productId: 'shift_subscription_monthly',
+    price: '$9.99',
+    interval: 'month',
+  },
+  // $49.99 per year → best-value annual plan
+  annual: {
+    productId: 'shift_subscription_annual',
+    price: '$49.99',
+    interval: 'year',
+  },
+};
+
+/**
+ * Helper that returns the user's subscription status and latest customerInfo
+ * from RevenueCat. It checks the `premium` entitlement defined above.
+ *
+ * @returns {Promise<{isSubscribed: boolean, customerInfo: import('react-native-purchases').CustomerInfo | null}>}
+ */
+export const getSubscriptionStatus = async () => {
+  try {
+    console.debug('[RevenueCat] Checking subscription status (hard paywall)');
+    const customerInfo = await Purchases.getCustomerInfo();
+
+    const isSubscribed =
+      customerInfo?.entitlements?.active?.[ENTITLEMENTS.premium] !== undefined;
+
+    return { isSubscribed, customerInfo };
+  } catch (error) {
+    console.error('[RevenueCat] Failed to fetch subscription status:', error);
+    // Gracefully degrade – treat as not subscribed on error.
+    return { isSubscribed: false, customerInfo: null };
+  }
+};
+
 /**
  * Initialize RevenueCat SDK
  * Call this early in your app lifecycle (App.js)
@@ -343,6 +402,8 @@ export default {
   CREDIT_PRODUCTS,
   CREDIT_CONFIG,
   OFFERINGS,
+  ENTITLEMENTS,
+  SUBSCRIPTION_PRODUCTS,
   initializeRevenueCat,
   getCreditCustomerInfo,
   getAvailableOfferings,
@@ -350,4 +411,5 @@ export default {
   makePurchase, // Legacy alias
   restoreCreditPurchases,
   restorePurchases, // Legacy alias
+  getSubscriptionStatus,
 }; 

@@ -4,21 +4,23 @@ import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import Navigation from './src/navigation';
 import { paperTheme } from './src/config/theme';
-// Removed SubscriptionProvider - using credit-based system instead
+// Initialize RevenueCat SDK for subscription paywall
 import { initializeRevenueCat } from './src/config/revenuecat';
 import { registerDeviceForPushAsync } from './src/services/notificationService';
 import { useUser } from './src/hooks/useUser';
 import { DailyFocusProvider } from './src/contexts/DailyFocusContext';
+import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 
 console.debug('[App] Application starting');
 
 export default function App() {
   const { user } = useUser();
-  // Initialize RevenueCat SDK for credit purchases
+  // Initialize RevenueCat SDK for subscription paywall
+  console.debug('[App] Initializing RevenueCat SDK for subscription paywall');
   useEffect(() => {
     const initRevenueCat = async () => {
       try {
-        console.debug('[App] Initializing RevenueCat SDK for credit system');
+        console.debug('[App] Initializing RevenueCat SDK for subscription paywall');
         await initializeRevenueCat();
         console.debug('[App] RevenueCat SDK initialized successfully');
       } catch (error) {
@@ -39,13 +41,15 @@ export default function App() {
   }, [user?.id]);
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <DailyFocusProvider>
-        <SafeAreaProvider>
-          <StatusBar style="auto" />
-          <Navigation />
-        </SafeAreaProvider>
-      </DailyFocusProvider>
-    </PaperProvider>
+    <SubscriptionProvider>
+      <PaperProvider theme={paperTheme}>
+        <DailyFocusProvider>
+          <SafeAreaProvider>
+            <StatusBar style="auto" />
+            <Navigation />
+          </SafeAreaProvider>
+        </DailyFocusProvider>
+      </PaperProvider>
+    </SubscriptionProvider>
   );
 }

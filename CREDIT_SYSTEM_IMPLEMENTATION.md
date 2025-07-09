@@ -1,160 +1,87 @@
-# Credit System Implementation
+# Subscription (Hard Paywall) Implementation
 
 ## Overview
-The app has been converted from a **subscription-based hard paywall** to a **credit-based system** using RevenueCat for purchase processing. Users can now access the main app after onboarding and purchase credits when needed for premium features.
+The app has been reverted from a **credit-based pay-per-use model** back to a **subscription hard paywall**.  Users must purchase one of three auto-renewable subscriptions to access premium functionality after onboarding.
+
+| Tier | Duration | Price |
+|------|----------|-------|
+| Weekly  | 1 week  | **$3.99** |
+| Monthly | 1 month | **$9.99** |
+| Annual  | 1 year  | **$49.99** |
+
+---
 
 ## Key Changes
 
-### 🔄 **System Architecture**
-- **Before**: Hard paywall blocking all access until subscription
-- **After**: Open access with pay-per-use credits for premium features
+### 🔄 System Architecture
+* **Before:** Open access → credits deducted per feature → optional credit top-ups.
+* **After:** Onboarding → **Hard Paywall** → active subscription unlocks entire app.
 
-### 🏗️ **Technical Implementation**
+### 🏗️ Technical Implementation
 
-#### RevenueCat Configuration (`src/config/revenuecat.js`)
-- Updated products from subscriptions to **consumable credit packages**
-- Credit packages: Small (5,000 tokens), Medium (20,000 tokens), Large (50,000 tokens)
-- Automatic token addition to user account after purchase
+1. **RevenueCat Configuration (`src/config/revenuecat.js`)**
+   * Added `SUBSCRIPTION_PRODUCTS` map for the three tiers.
+   * Added `ENTITLEMENTS.premium` and helper `getSubscriptionStatus()`.
+2. **Subscription Context (`src/contexts/SubscriptionContext.js`)**
+   * Already existed – re-enabled in `App.js`.
+   * Manages entitlement checks / listener callbacks.
+3. **Navigation (`src/navigation/index.js`)**
+   * Injects `useSubscription()`.
+   * Blocks navigation with `PaywallScreen` until `isSubscribed === true`.
+4. **Paywall Screen (`src/screens/PaywallScreen.js`)**
+   * Unchanged UI; now the *sole* gateway post-onboarding.
+5. **App Root (`App.js`)**
+   * Wraps app in `SubscriptionProvider` again.
+   * RevenueCat SDK initialised for subscription use.
+6. **Removed Files / Code**
+   * `CreditsPurchaseScreen`, `creditUtils.js`, etc. remain in repo for potential future use but are no longer referenced in the flow.
 
-#### Navigation (`src/navigation/index.js`)
-- **Removed hard paywall** - users access main app after onboarding
-- CreditsPurchaseScreen available as modal when needed
-- Removed subscription dependency
+---
 
-#### New Credit Purchase Screen (`src/screens/CreditsPurchaseScreen.js`)
-- Beautiful gradient UI matching app theme
-- Package selection with token amounts and pricing
-- Purchase flow with RevenueCat integration
-- Real-time token balance display
+## User Flow
 
-#### Credit Utilities (`src/utils/creditUtils.js`)
-- `useTokenBalance()` - Hook for current token balance
-- `checkTokensAndPromptPurchase()` - Check tokens and show purchase prompt
-- Token formatting and conversion utilities
-
-### 🎯 **User Experience Flow**
-
-#### Old Flow (Subscription)
-```
-Auth → Onboarding → 🚫 HARD PAYWALL → Subscribe → Main App
+```text
+Authentication → Onboarding → 🚧 HARD PAYWALL 🚧 → Purchase Weekly/Monthly/Annual → Main App
 ```
 
-#### New Flow (Credits)
-```
-Auth → Onboarding → ✅ Main App → Use Features → Buy Credits When Needed
-```
+* If the user cancels purchase or closes the paywall, they remain blocked.
+* Restore purchases is available on Paywall screen.
 
-## Usage Examples
+---
 
-### Check Tokens Before Feature Use
-```javascript
-import { checkTokensAndPromptPurchase } from '../utils/creditUtils';
+## RevenueCat Dashboard Setup
 
-// In AI Coach or other premium feature
-const handleAICoachAction = async () => {
-  const canProceed = await checkTokensAndPromptPurchase(
-    navigation,
-    1000, // tokens required
-    'AI Coach conversation'
-  );
-  
-  if (canProceed) {
-    // Proceed with feature
-    startAICoachChat();
-  }
-  // If not enough tokens, user will see purchase prompt automatically
-};
-```
+1. **Products**
+   * `shift_subscription_weekly`
+   * `shift_subscription_monthly`
+   * `shift_subscription_annual`
+2. **Entitlement** – `premium`
+3. **Offering** – `default`
+   * WEEKLY → weekly product
+   * MONTHLY → monthly product
+   * ANNUAL → annual product (custom package)
 
-### Show Token Balance
-```javascript
-import { useTokenBalance, formatTokens } from '../utils/creditUtils';
+Refer to the step-by-step setup guide in the project docs for detailed App Store Connect instructions.
 
-const MyComponent = () => {
-  const { tokens, loading, refreshTokens } = useTokenBalance();
-  
-  return (
-    <Text>Balance: {formatTokens(tokens)}</Text>
-  );
-};
-```
-
-### Navigate to Credit Purchase
-```javascript
-// From any screen
-navigation.navigate('CreditsPurchase', {
-  minimumCreditsRequired: 1000,
-  showCloseButton: true,
-});
-```
-
-## RevenueCat Configuration Required
-
-### 1. Product Setup (App Store Connect/Google Play)
-Create these consumable products:
-- `shift_credits_small` - $1.99 - 5,000 tokens
-- `shift_credits_medium` - $6.99 - 20,000 tokens  
-- `shift_credits_large` - $14.99 - 50,000 tokens
-
-### 2. RevenueCat Dashboard
-- Create credit offerings with above products
-- Configure entitlements (not needed for consumables)
-- Set up API keys in `src/config/revenuecat.js`
-
-### 3. API Keys Setup
-Replace placeholders in `src/config/revenuecat.js`:
-```javascript
-export const REVENUECAT_CONFIG = {
-  ios: {
-    apiKey: 'appl_YOUR_ACTUAL_IOS_KEY', // Replace this
-  },
-  android: {
-    apiKey: 'goog_YOUR_ACTUAL_ANDROID_KEY', // Replace this
-  },
-};
-```
-
-## Credit System Benefits
-
-### ✅ **Advantages**
-- **Lower barrier to entry** - Users can try the app before purchasing
-- **Pay-per-use model** - More flexible than fixed subscriptions  
-- **Better conversion** - Users see value before being asked to pay
-- **Transparent pricing** - Clear cost per feature usage
-- **No recurring billing** - One-time purchases reduce churn
-
-### ⚖️ **Considerations**
-- Requires careful token balance management
-- Need to implement token checks before premium features
-- Revenue may be less predictable than subscriptions
-
-## Next Steps
-
-1. **Replace API keys** with actual RevenueCat keys
-2. **Create App Store products** matching the configuration
-3. **Update token costs** for each feature based on actual usage
-4. **Add token balance displays** throughout the app
-5. **Implement token checks** before AI Coach and other premium features
+---
 
 ## Testing
 
-### With Expo Go
-- RevenueCat runs in "Preview API mode"
-- Purchase flows work but no actual charges
-- Test UI and navigation flows
+### Local / Preview (OTA)
+* Use `eas update --branch preview` to push JS-only paywall changes to existing dev builds.
 
-### With Development Build
-- Full RevenueCat functionality
-- Real purchase testing with sandbox accounts
-- Test actual token addition to user accounts
+### TestFlight / Review
+* Build new binary with `eas build --profile production --platform ios`.
+* Verify paywall appears on first launch with a sandbox tester that has **no active subscriptions**.
+* Perform a test purchase for each tier, ensure entitlement unlocks and navigation proceeds to Home.
 
-## Files Modified
+---
 
-- `src/config/revenuecat.js` - Updated for credit products
-- `src/navigation/index.js` - Removed hard paywall
-- `src/screens/CreditsPurchaseScreen.js` - New credit purchase UI
-- `src/utils/creditUtils.js` - Credit management utilities
-- `App.js` - Removed SubscriptionProvider
-- `src/contexts/SubscriptionContext.js` - No longer used
+## Next Steps
+1. Prepare updated App Store screenshots of the Paywall (5.5-inch & 6.7-inch).
+2. Upload new build to TestFlight and submit for review.
+3. Monitor RevenueCat analytics to ensure entitlement activations are tracked correctly.
 
-The credit system is now ready for testing and can be easily extended with additional features and token costs as needed. 
+---
+
+*Last updated:* {{DATE}} 
