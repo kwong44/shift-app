@@ -14,6 +14,8 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Image,
+  TouchableOpacity,
 } from 'react-native';
 import {
   Button,
@@ -23,10 +25,10 @@ import {
   Chip,
   Divider,
   IconButton,
+  RadioButton,
   useTheme,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Purchases from 'react-native-purchases';
 import { useSubscription } from '../contexts/SubscriptionContext';
 
@@ -201,7 +203,7 @@ const PaywallScreen = ({ navigation }) => {
    */
   const getPackagePrice = (pkg) => {
     if (Platform.OS === 'ios') {
-      return pkg.product.price || 'N/A';
+      return pkg.product.priceString || pkg.product.price || 'N/A';
     }
     return pkg.product.price_string || pkg.product.price || 'N/A';
   };
@@ -210,8 +212,9 @@ const PaywallScreen = ({ navigation }) => {
    * Get package savings text
    */
   const getPackageSavings = (pkg) => {
+    // Show a 19% discount badge for the annual plan (matches marketing copy)
     if (pkg.packageType === Purchases.PACKAGE_TYPE.ANNUAL) {
-      return 'Save 17%';
+      return '19% OFF';
     }
     return null;
   };
@@ -227,6 +230,22 @@ const PaywallScreen = ({ navigation }) => {
         return 'per month';
       case Purchases.PACKAGE_TYPE.ANNUAL:
         return 'per year';
+      default:
+        return '';
+    }
+  };
+
+  /**
+   * Get suffix to append after the price (e.g. /wk, /mo, /yr)
+   */
+  const getPriceSuffix = (pkg) => {
+    switch (pkg.packageType) {
+      case Purchases.PACKAGE_TYPE.WEEKLY:
+        return '/wk';
+      case Purchases.PACKAGE_TYPE.MONTHLY:
+        return '/mo';
+      case Purchases.PACKAGE_TYPE.ANNUAL:
+        return '/yr';
       default:
         return '';
     }
@@ -276,148 +295,100 @@ const PaywallScreen = ({ navigation }) => {
   }
 
   return (
-    <LinearGradient
-      colors={[theme.colors.primary, theme.colors.primaryContainer]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Title style={[styles.title, { color: 'white' }]}>
-              Unlock Your Full Potential
-            </Title>
-            <Paragraph style={[styles.subtitle, { color: 'rgba(255,255,255,0.9)' }]}>
-              Transform your life with unlimited access to all premium features
-            </Paragraph>
-          </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* Headline */}
+        <Text style={styles.headline}>Shift</Text>
+        <Text style={styles.tagline}>Transform your life</Text>
 
-          {/* Features List */}
-          <Card style={styles.featuresCard}>
-            <Card.Content>
-              <Title style={styles.featuresTitle}>Premium Features</Title>
-              
-              {[
-                { icon: 'brain', text: 'Unlimited AI Coach conversations' },
-                { icon: 'infinity', text: 'Access to all exercises and content' },
-                { icon: 'chart-line', text: 'Advanced progress analytics' },
-                { icon: 'download', text: 'Offline content access' },
-                { icon: 'account-group', text: 'Priority customer support' },
-                { icon: 'new-box', text: 'Early access to new features' },
-              ].map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <IconButton
-                    icon={feature.icon}
-                    size={24}
-                    iconColor={theme.colors.primary}
-                    style={styles.featureIcon}
-                  />
-                  <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                    {feature.text}
+        {/* Illustration */}
+        <Image
+          source={require('../../assets/shift-icon-transparent.png')}
+          style={styles.illustration}
+          resizeMode="contain"
+        />
+
+        {/* Subscription plans */}
+        <View style={styles.plansWrapper}>
+          {offerings.current.availablePackages.map((pkg) => {
+            const isSelected = selectedPackage?.identifier === pkg.identifier;
+            const savings = getPackageSavings(pkg);
+
+            return (
+              <TouchableOpacity
+                key={pkg.identifier}
+                style={[styles.planRow, isSelected && styles.planRowSelected]}
+                onPress={() => setSelectedPackage(pkg)}
+                activeOpacity={0.9}
+              >
+                <RadioButton
+                  value={pkg.identifier}
+                  status={isSelected ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedPackage(pkg)}
+                  color={theme.colors.primary}
+                />
+
+                <View style={styles.planInfo}>
+                  <Text style={styles.planTitle}>
+                    {pkg.packageType === Purchases.PACKAGE_TYPE.ANNUAL
+                      ? 'Annual'
+                      : pkg.packageType === Purchases.PACKAGE_TYPE.MONTHLY
+                      ? 'Monthly'
+                      : 'Weekly'}
+                  </Text>
+                  <Text style={styles.planSubTitle}>
+                    {pkg.packageType === Purchases.PACKAGE_TYPE.ANNUAL
+                      ? '12 mo'
+                      : pkg.packageType === Purchases.PACKAGE_TYPE.MONTHLY
+                      ? '1 mo'
+                      : '1 wk'}{' '}
+                    • {getPackagePrice(pkg)}
                   </Text>
                 </View>
-              ))}
-            </Card.Content>
-          </Card>
 
-          {/* Subscription Packages */}
-          <View style={styles.packagesContainer}>
-            <Title style={[styles.packagesTitle, { color: 'white' }]}>
-              Choose Your Plan
-            </Title>
-            
-            {offerings.current.availablePackages.map((pkg, index) => {
-              const isSelected = selectedPackage?.identifier === pkg.identifier;
-              const savings = getPackageSavings(pkg);
-              
-              return (
-                <Card
-                  key={pkg.identifier}
-                  style={[
-                    styles.packageCard,
-                    isSelected && { 
-                      borderColor: theme.colors.secondary, 
-                      borderWidth: 2,
-                      elevation: 8,
-                    }
-                  ]}
-                  onPress={() => setSelectedPackage(pkg)}
-                >
-                  <Card.Content>
-                    <View style={styles.packageHeader}>
-                      <View style={styles.packageInfo}>
-                        <Text style={[styles.packageTitle, { color: theme.colors.text }]}>
-                          {pkg.product.title || `${pkg.packageType.charAt(0).toUpperCase() + pkg.packageType.slice(1)} Plan`}
-                        </Text>
-                        {savings && (
-                          <Chip
-                            mode="flat"
-                            style={[styles.savingsChip, { backgroundColor: theme.colors.secondaryContainer }]}
-                            textStyle={{ color: theme.colors.secondary }}
-                            compact
-                          >
-                            {savings}
-                          </Chip>
-                        )}
-                      </View>
-                      <View style={styles.packagePricing}>
-                        <Text style={[styles.packagePrice, { color: theme.colors.text }]}>
-                          {getPackagePrice(pkg)}
-                        </Text>
-                        <Text style={[styles.packageDuration, { color: theme.colors.text }]}>
-                          {getPackageDuration(pkg)}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    {pkg.product.description && (
-                      <Text style={[styles.packageDescription, { color: theme.colors.text }]}>
-                        {pkg.product.description}
-                      </Text>
-                    )}
-                  </Card.Content>
-                </Card>
-              );
-            })}
-          </View>
+                <View style={styles.priceColumn}>
+                  <Text style={styles.planPrice}>
+                    {getPackagePrice(pkg)}{getPriceSuffix(pkg)}
+                  </Text>
+                  {savings && (
+                    <Chip
+                      compact
+                      mode="flat"
+                      style={[styles.discountChip, { backgroundColor: theme.colors.primary }]}
+                      textStyle={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}
+                    >
+                      {savings}
+                    </Chip>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-          {/* Purchase Button */}
-          <View style={styles.purchaseContainer}>
-            <Button
-              mode="contained"
-              onPress={handlePurchase}
-              loading={purchasing}
-              disabled={purchasing || !selectedPackage}
-              style={styles.purchaseButton}
-              labelStyle={styles.purchaseButtonText}
-            >
-              {purchasing ? 'Processing...' : 'Start Premium'}
-            </Button>
-            
-            <Button
-              mode="text"
-              onPress={handleRestore}
-              loading={restoring}
-              disabled={restoring}
-              style={styles.restoreButton}
-              labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
-            >
-              {restoring ? 'Restoring...' : 'Restore Purchases'}
-            </Button>
-          </View>
+        {/* Continue Button */}
+        <Button
+          mode="contained"
+          onPress={handlePurchase}
+          loading={purchasing}
+          disabled={purchasing || !selectedPackage}
+          style={styles.continueButton}
+          labelStyle={styles.continueButtonLabel}
+        >
+          {purchasing ? 'Processing…' : 'Continue'}
+        </Button>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Subscriptions auto-renew. Cancel anytime in your account settings.
-            </Text>
-            <Text style={styles.footerText}>
-              By subscribing, you agree to our Terms of Service and Privacy Policy.
-            </Text>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+        {/* Restore */}
+        <TouchableOpacity onPress={handleRestore} disabled={restoring}>
+          <Text style={styles.restoreText}>
+            {restoring ? 'Restoring…' : 'Restore purchases'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -565,6 +536,93 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 4,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#C4C4C4',
+    marginHorizontal: 3,
+  },
+  dotActive: {
+    width: 10,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#707070',
+  },
+  contentContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  headline: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  tagline: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#6e6e6e',
+    marginTop: 4,
+  },
+  illustration: {
+    width: '80%',
+    height: 200,
+    marginVertical: 24,
+  },
+  plansWrapper: {
+    width: '100%',
+  },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  planRowSelected: {
+    borderColor: '#00C27A', // highlight green border
+  },
+  planInfo: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  planTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  planSubTitle: {
+    fontSize: 14,
+    color: '#6e6e6e',
+    marginTop: 2,
+  },
+  priceColumn: {
+    alignItems: 'flex-end',
+  },
+  planPrice: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  discountChip: {
+    marginTop: 4,
+  },
+  continueButton: {
+    width: '100%',
+    marginTop: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  continueButtonLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  restoreText: {
+    marginTop: 12,
+    textAlign: 'center',
+    color: '#6e6e6e',
   },
 });
 

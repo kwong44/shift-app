@@ -21,7 +21,7 @@ console.debug('[RevenueCat] Configuration module loaded');
 export const REVENUECAT_CONFIG = {
   // iOS App Store API Key
   ios: {
-    apiKey: 'appl_YOUR_IOS_API_KEY_HERE', // Replace with your iOS API key
+    apiKey: 'appl_SLvRpuUOnvdNlOGTpkhGvMByaYR', // Replace with your iOS API key
   },
   
   // Google Play Store API Key  
@@ -126,19 +126,19 @@ export const ENTITLEMENTS = {
 export const SUBSCRIPTION_PRODUCTS = {
   // $3.99 per week → short-term trial-friendly option
   weekly: {
-    productId: 'shift_subscription_weekly', // <-- configure in App Store & Play Store
+    productId: 'shift_subscription_weekly_v2', // <-- configure in App Store & Play Store
     price: '$3.99',
     interval: 'week',
   },
   // $9.99 per month → standard plan
   monthly: {
-    productId: 'shift_subscription_monthly',
+    productId: 'shift_subscription_monthly_v2',
     price: '$9.99',
     interval: 'month',
   },
   // $49.99 per year → best-value annual plan
   annual: {
-    productId: 'shift_subscription_annual',
+    productId: 'shift_subscription_annual_v2',
     price: '$49.99',
     interval: 'year',
   },

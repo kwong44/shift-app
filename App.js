@@ -10,6 +10,7 @@ import { registerDeviceForPushAsync } from './src/services/notificationService';
 import { useUser } from './src/hooks/useUser';
 import { DailyFocusProvider } from './src/contexts/DailyFocusContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
+import Purchases from 'react-native-purchases';
 
 console.debug('[App] Application starting');
 
@@ -32,6 +33,29 @@ export default function App() {
 
     initRevenueCat();
   }, []);
+
+  // 2) Once the Supabase user is known, log them into RevenueCat so they appear by UID
+  useEffect(() => {
+    const logInToRevenueCat = async () => {
+      if (!user?.id) return; // Wait until we have a real user ID
+
+      try {
+        const currentId = await Purchases.getAppUserID();
+
+        if (currentId !== user.id) {
+          console.debug('[App] Logging user into RevenueCat:', { prevId: currentId, newId: user.id });
+          await Purchases.logIn(user.id);
+          console.debug('[App] RevenueCat user login successful');
+        } else {
+          console.debug('[App] RevenueCat already using correct AppUserID');
+        }
+      } catch (error) {
+        console.error('[App] Failed to log in user to RevenueCat:', error);
+      }
+    };
+
+    logInToRevenueCat();
+  }, [user?.id]);
 
   // Phase 0: Register for push notifications when user logs in
   useEffect(() => {
