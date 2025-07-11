@@ -80,14 +80,14 @@ export const JournalEntryCard = ({
           multiline
           autoFocus={true}
           showSoftInputOnFocus={true}
-          cursorColor={COLORS.pinkGradient.start}
+          cursorColor={COLORS.yellowGradient.start}
           textAlignVertical="top"
           style={styles.journalInput}
           contentStyle={styles.journalInputContent}
           onContentSizeChange={(e) => setTextInputHeight(e.nativeEvent.contentSize.height)}
           theme={{
             colors: {
-              primary: COLORS.pinkGradient.start,
+              primary: COLORS.yellowGradient.start,
               text: COLORS.text,
               placeholder: COLORS.textLight,
               background: 'white',

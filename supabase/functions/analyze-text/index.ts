@@ -5,8 +5,11 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 // Import Google Generative AI SDK
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from 'https://esm.sh/@google/generative-ai';
+// Winston-style logger (Edge-safe)
+import logger from '../_shared/logger.ts';
+import { AVAILABLE_EXERCISES } from '../_shared/exercises.ts';
 
-console.log('Initializing analyze-text function with Gemini');
+logger.info('Initializing analyze-text function with Gemini');
 
 // Get environment variables
 // const openaiApiKey = Deno.env.get('OPENAI_API_KEY'); // OpenAI (Future Use)
@@ -14,17 +17,17 @@ const geminiApiKey = Deno.env.get('GEMINI_API_KEY'); // For Google Gemini
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-// Verify environment variables
-// if (!openaiApiKey) { // OpenAI (Future Use)
-//   console.error('Missing OPENAI_API_KEY environment variable'); // OpenAI (Future Use)
-// } // OpenAI (Future Use)
+// ---------------------------------------------------------------------------
+// Supabase Admin Client (Service Role)
+// ---------------------------------------------------------------------------
+const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
+  ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
+  : null;
 
-if (!geminiApiKey) {
-  console.error('Missing GEMINI_API_KEY environment variable');
-}
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase environment variables');
+if (supabaseAdmin) {
+  logger.info('Supabase admin client initialized');
+} else {
+  logger.error('Supabase environment variables missing; Supabase client NOT initialized');
 }
 
 // Initialize OpenAI client (Future Use)
@@ -38,187 +41,27 @@ let geminiModel;
 if (geminiApiKey) {
   genAI = new GoogleGenerativeAI(geminiApiKey);
   geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); 
-  console.log('Google Generative AI client initialized with gemini-2.0-flash');
+  logger.info('Google Generative AI client initialized with gemini-2.0-flash');
 } else {
-  console.error('Gemini API Key not found, Google AI client not initialized.');
+  logger.error('Gemini API Key not found, Google AI client not initialized.');
 }
 
 /**
- * Master Exercise List - Available exercises for recommendations
+ * Sanitize user-provided text for safe prompt embedding.
+ * - Escapes double quotes to avoid breaking template strings.
+ * - Truncates to a configurable maximum to stay within token limits.
+ * @param str Raw user text
+ * @param maxChars Maximum characters to retain (default 1500)
  */
-const AVAILABLE_EXERCISES = [
-  // Mindfulness Exercises
-  {
-    id: 'mindfulness_breath_5min',
-    title: 'Breath Focus',
-    type: 'Mindfulness',
-    description: 'Anchor your attention on breathing',
-    tags: ['stress_reduction', 'focus', 'calm', 'short_session', 'beginner'],
-    defaultDurationText: '5 min'
-  },
-  {
-    id: 'mindfulness_body_scan_8min',
-    title: 'Body Scan',
-    type: 'Mindfulness',
-    description: 'Release tension through awareness',
-    tags: ['relaxation', 'body_awareness', 'tension_release'],
-    defaultDurationText: '8 min'
-  },
-  {
-    id: 'mindfulness_senses_4min',
-    title: 'Five Senses',
-    type: 'Mindfulness',
-    description: 'Connect with your surroundings',
-    tags: ['grounding', 'present_moment', 'short_session'],
-    defaultDurationText: '4 min'
-  },
-
-  // Visualization Exercises
-  {
-    id: 'visualization_goals_5min',
-    title: 'Goal Achievement Visualization',
-    type: 'Visualization',
-    description: 'Visualize successfully achieving your goals',
-    tags: ['goal_setting', 'motivation', 'success_mindset'],
-    defaultDurationText: '5 min'
-  },
-  {
-    id: 'visualization_ideal_life_5min',
-    title: 'Ideal Life Visualization',
-    type: 'Visualization',
-    description: 'Envision your perfect future and lifestyle',
-    tags: ['future_planning', 'inspiration', 'positive_outlook'],
-    defaultDurationText: '5 min'
-  },
-  {
-    id: 'visualization_confidence_5min',
-    title: 'Self-Confidence Visualization',
-    type: 'Visualization',
-    description: 'Build confidence and positive self-image',
-    tags: ['self_esteem', 'confidence_boost', 'positive_self_image'],
-    defaultDurationText: '5 min'
-  },
-  {
-    id: 'visualization_contentment_5min',
-    title: 'Contentment Visualization',
-    type: 'Visualization',
-    description: 'Embrace gratitude and present moment awareness',
-    tags: ['gratitude', 'present_moment', 'inner_peace'],
-    defaultDurationText: '5 min'
-  },
-  {
-    id: 'visualization_calm_5min',
-    title: 'Inner Peace Visualization',
-    type: 'Visualization',
-    description: 'Find calmness and emotional balance',
-    tags: ['calm', 'emotional_regulation', 'relaxation'],
-    defaultDurationText: '5 min'
-  },
-
-  // Task Planning
-  {
-    id: 'tasks_planner',
-    title: 'Task Planning',
-    type: 'Task Planning',
-    description: 'Organize & Focus on your priorities',
-    tags: ['organization', 'productivity', 'planning', 'focus'],
-    defaultDurationText: 'Flexible'
-  },
-
-  // Deep Work Sessions
-  {
-    id: 'deepwork_pomodoro_25min',
-    title: 'Pomodoro Session',
-    type: 'Deep Work',
-    description: 'Classic 25-minute focus interval',
-    tags: ['focus', 'productivity', 'time_management', 'pomodoro'],
-    defaultDurationText: '25 min'
-  },
-  {
-    id: 'deepwork_extended_45min',
-    title: 'Extended Focus Session',
-    type: 'Deep Work',
-    description: '45-minute focused work period',
-    tags: ['focus', 'deep_work', 'productivity'],
-    defaultDurationText: '45 min'
-  },
-  {
-    id: 'deepwork_deep_50min',
-    title: 'Deep Work Block',
-    type: 'Deep Work',
-    description: '50-minute intense work session',
-    tags: ['deep_work', 'intense_focus', 'productivity'],
-    defaultDurationText: '50 min'
-  },
-
-  // Binaural Beats
-  {
-    id: 'binaural_focus_beta_20min',
-    title: 'Focus Beats (Beta)',
-    type: 'Binaural Beats',
-    description: 'Enhance concentration and mental clarity',
-    tags: ['focus', 'concentration', 'study', 'work', 'beta_waves'],
-    defaultDurationText: '20 min'
-  },
-  {
-    id: 'binaural_meditation_theta_15min',
-    title: 'Meditation Beats (Theta)',
-    type: 'Binaural Beats',
-    description: 'Deep relaxation and mindfulness support',
-    tags: ['meditation', 'relaxation', 'mindfulness', 'theta_waves'],
-    defaultDurationText: '15 min'
-  },
-  {
-    id: 'binaural_creativity_alpha_30min',
-    title: 'Creativity Beats (Alpha)',
-    type: 'Binaural Beats',
-    description: 'Boost creative thinking and flow state',
-    tags: ['creativity', 'flow_state', 'inspiration', 'alpha_waves'],
-    defaultDurationText: '30 min'
-  },
-  {
-    id: 'binaural_sleep_theta_30min',
-    title: 'Sleep Beats (Theta)',
-    type: 'Binaural Beats',
-    description: 'Aid in falling asleep and better rest',
-    tags: ['sleep', 'relaxation', 'insomnia_aid', 'theta_waves'],
-    defaultDurationText: '30 min'
-  },
-
-  // Journaling
-  {
-    id: 'journaling_gratitude',
-    title: 'Gratitude Journaling',
-    type: 'Journaling',
-    description: 'Express appreciation for positive aspects',
-    tags: ['gratitude', 'positive_psychology', 'reflection', 'well_being'],
-    defaultDurationText: '5-10 min'
-  },
-  {
-    id: 'journaling_reflection',
-    title: 'Daily Reflection',
-    type: 'Journaling',
-    description: 'Explore your thoughts and experiences',
-    tags: ['self_reflection', 'mindfulness', 'personal_growth'],
-    defaultDurationText: '5-10 min'
-  },
-  {
-    id: 'journaling_growth',
-    title: 'Growth Journaling',
-    type: 'Journaling',
-    description: 'Focus on personal progress and improvement',
-    tags: ['personal_development', 'goal_setting', 'learning'],
-    defaultDurationText: '5-10 min'
-  },
-  {
-    id: 'journaling_free_write',
-    title: 'Free Write',
-    type: 'Journaling',
-    description: 'Unstructured writing to clear your mind',
-    tags: ['mind_clearing', 'creativity', 'self_expression'],
-    defaultDurationText: 'Flexible'
+function sanitizeForPrompt(str: string, maxChars: number = 1500): string {
+  if (!str) return '';
+  let sanitized = str.replace(/"/g, '\\"');
+  if (sanitized.length > maxChars) {
+    logger.warn('Input truncated for prompt length safety', { original: sanitized.length, maxChars });
+    sanitized = sanitized.slice(0, maxChars) + '...';
   }
-];
+  return sanitized;
+}
 
 /**
  * Update a user's token balance
@@ -227,20 +70,20 @@ const AVAILABLE_EXERCISES = [
  * @returns The new token balance or error
  */
 async function updateUserTokens(userId: string, amount: number) {
-  console.log(`Updating tokens for user ${userId} by ${amount}`);
+  logger.debug(`Updating tokens for user ${userId} by ${amount}`);
   
   // Ensure we don't try to add tokens with this function, only deduct.
   if (amount > 0) {
-    console.warn(`updateUserTokens called with a positive amount (${amount}). The 'add_user_tokens' RPC is designed for both, but this function wrapper is intended for deductions. Proceeding, but this may be unintentional.`);
+    logger.warn(`updateUserTokens called with a positive amount (${amount}). The 'add_user_tokens' RPC is designed for both, but this function wrapper is intended for deductions. Proceeding, but this may be unintentional.`);
   }
 
   // If amount is 0, no need to call the database.
   if (amount === 0) {
-    console.log(`Token update amount is 0 for user ${userId}. Skipping database call.`);
+    logger.debug(`Token update amount is 0 for user ${userId}. Skipping database call.`);
     // We need to fetch the current balance to return it accurately.
     const { data, error } = await supabaseAdmin.rpc('get_user_tokens', { p_user_id: userId });
     if (error) {
-      console.error('Error fetching current token balance when amount is 0:', error);
+      logger.error('Error fetching current token balance when amount is 0:', error);
       return { success: false, error: 'Failed to fetch token balance', tokens: 0 };
     }
     return { success: true, tokens: data };
@@ -254,7 +97,7 @@ async function updateUserTokens(userId: string, amount: number) {
     );
     
     if (error) {
-      console.error('Error updating user tokens:', error);
+      logger.error('Error updating user tokens:', error);
       return { 
         success: false, 
         error: 'Failed to update token balance',
@@ -262,13 +105,13 @@ async function updateUserTokens(userId: string, amount: number) {
       };
     }
     
-    console.log(`Updated token balance for user ${userId} to ${data}`);
+    logger.info(`Updated token balance for user ${userId} to ${data}`);
     return { 
       success: true, 
       tokens: data
     };
   } catch (error) {
-    console.error('Error in updateUserTokens:', error);
+    logger.error('Error in updateUserTokens:', error);
     return { 
       success: false, 
       error: String(error),
@@ -290,7 +133,7 @@ async function countTokens(text: string): Promise<number> {
     const { totalTokens } = await geminiModel.countTokens(text);
     return totalTokens;
   } catch (error) {
-    console.warn(`[TokenCounting] Could not count tokens: ${error.message}`);
+    logger.warn(`[TokenCounting] Could not count tokens: ${error.message}`);
     // A rough estimate: 1 token per 4 characters as a fallback.
     return Math.ceil(text.length / 4);
   }
@@ -300,7 +143,7 @@ async function countTokens(text: string): Promise<number> {
  * Get user's recent journal entries for pattern analysis
  */
 async function getRecentJournalEntries(userId: string, days: number = 7) {
-  console.log(`[PatternAnalysis] Getting recent journal entries for user ${userId} (last ${days} days)`);
+  logger.debug(`[PatternAnalysis] Getting recent journal entries for user ${userId} (last ${days} days)`);
   
   try {
     const { data, error } = await supabaseAdmin
@@ -312,14 +155,14 @@ async function getRecentJournalEntries(userId: string, days: number = 7) {
       .limit(10);
 
     if (error) {
-      console.error('Error fetching recent journal entries:', error);
+      logger.error('Error fetching recent journal entries:', error);
       return [];
     }
 
-    console.log(`[PatternAnalysis] Found ${data?.length || 0} recent journal entries`);
+    logger.debug(`[PatternAnalysis] Found ${data?.length || 0} recent journal entries`);
     return data || [];
   } catch (error) {
-    console.error('Error in getRecentJournalEntries:', error);
+    logger.error('Error in getRecentJournalEntries:', error);
     return [];
   }
 }
@@ -327,8 +170,8 @@ async function getRecentJournalEntries(userId: string, days: number = 7) {
 /**
  * Get user's recent exercise completions for personalization
  */
-async function getRecentExerciseHistory(userId: string, days: number = 14) {
-  console.log(`[PatternAnalysis] Getting recent exercise history for user ${userId} (last ${days} days)`);
+async function getRecentExerciseHistory(userId: string, days: number = 7) {
+  logger.debug(`[PatternAnalysis] Getting recent exercise history for user ${userId} (last ${days} days)`);
   
   try {
     const { data, error } = await supabaseAdmin
@@ -340,34 +183,78 @@ async function getRecentExerciseHistory(userId: string, days: number = 14) {
       .limit(20);
 
     if (error) {
-      console.error('Error fetching recent exercise history:', error);
+      logger.error('Error fetching recent exercise history:', error);
       return [];
     }
 
-    console.log(`[PatternAnalysis] Found ${data?.length || 0} recent exercise completions`);
+    logger.debug(`[PatternAnalysis] Found ${data?.length || 0} recent exercise completions`);
     return data || [];
   } catch (error) {
-    console.error('Error in getRecentExerciseHistory:', error);
+    logger.error('Error in getRecentExerciseHistory:', error);
     return [];
   }
+}
+
+/**
+ * Compute explicit metrics to ground the pattern analysis.
+ */
+function computePatternMetrics(entries: any[], history: any[]): Record<string, any> {
+  const metrics: Record<string, any> = {};
+
+  // Emotion keywords (simple heuristic)
+  const emotionKeywords = ['stress', 'stressed', 'anxious', 'anxiety', 'happy', 'sad', 'motivated', 'tired'];
+  const keywordCounts: Record<string, number> = {};
+  entries.forEach((e) => {
+    emotionKeywords.forEach((kw) => {
+      const count = (e.content.match(new RegExp(`\\b${kw}\\b`, 'gi')) || []).length;
+      keywordCounts[kw] = (keywordCounts[kw] || 0) + count;
+    });
+  });
+  metrics.emotion_keyword_counts = keywordCounts;
+
+  // Time-of-day distribution
+  const timeBuckets = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  entries.forEach((e) => {
+    const h = e.time_of_day;
+    if (h < 12) timeBuckets.morning += 1;
+    else if (h < 17) timeBuckets.afternoon += 1;
+    else if (h < 21) timeBuckets.evening += 1;
+    else timeBuckets.night += 1;
+  });
+  metrics.time_of_day_distribution = timeBuckets;
+
+  // Exercise type frequency
+  const exerciseTypeFreq: Record<string, number> = {};
+  history.forEach((h) => {
+    exerciseTypeFreq[h.exercise_type] = (exerciseTypeFreq[h.exercise_type] || 0) + 1;
+  });
+  metrics.exercise_type_counts = exerciseTypeFreq;
+
+  metrics.total_entries = entries.length;
+  metrics.total_exercises = history.length;
+
+  return metrics;
 }
 
 /**
  * Analyze patterns and generate exercise recommendations
  */
 async function analyzeJournalingPatterns(userId: string, currentEntry: string, context: any) {
-  console.log(`[PatternAnalysis] Starting pattern analysis for user ${userId} (USING GEMINI)`);
+  logger.debug(`[PatternAnalysis] Starting pattern analysis for user ${userId} (USING GEMINI)`);
   
   if (!geminiModel) {
-    console.error('[PatternAnalysis] Gemini model not initialized. Skipping pattern analysis.');
+    logger.error('[PatternAnalysis] Gemini model not initialized. Skipping pattern analysis.');
     return null;
   }
 
-  const recentEntries = await getRecentJournalEntries(userId, 7);
-  const exerciseHistory = await getRecentExerciseHistory(userId, 14);
+  // OPTIMIZATION: Run database queries in parallel
+  const [recentEntries, exerciseHistory] = await Promise.all([
+    getRecentJournalEntries(userId, 7),
+    getRecentExerciseHistory(userId, 7)
+  ]);
   
   if (recentEntries.length < 2) {
-    console.log(`[PatternAnalysis] Insufficient data for pattern analysis (${recentEntries.length} entries)`);
+    logger.debug(`[PatternAnalysis] Insufficient data for pattern analysis (${recentEntries.length} entries)`);
     return null;
   }
 
@@ -398,92 +285,32 @@ async function analyzeJournalingPatterns(userId: string, currentEntry: string, c
     return acc;
   }, []);
 
+  // Compute metrics
+  const patternMetrics = computePatternMetrics(entryAnalysis, exerciseHistory);
+
   // System prompt for the Gemini model
   const systemInstructionForPatterns = 'You are an expert pattern analyst for personalized exercise recommendations. Respond only with valid JSON.';
 
   // Construct enhanced prompt for pattern analysis
-  const patternPrompt = `
-CONTEXT: You are analyzing journaling patterns to provide intelligent exercise recommendations.
-
-CURRENT JOURNAL ENTRY: "${currentEntry}"
-
-RECENT JOURNAL PATTERNS (last 7 days):
-${entryAnalysis.map((entry, i) => 
-  `Entry ${i + 1} (${new Date(entry.created_at).toLocaleDateString()}, ${entry.time_of_day}:00): 
-  Key themes: ${entry.content.slice(0, 100)}...
-  Previous insights: ${entry.insights}`
-).join('\n')}
-
-RECENT EXERCISE HISTORY (last 14 days):
-${exerciseHistory.map(ex => 
-  `${ex.exercise_type} (${ex.exercise_id}) - ${new Date(ex.completed_at).toLocaleDateString()}`
-).join('\n')}
-
-EXERCISE SEQUENCE PATTERNS:
-${exerciseSequences.map(seq => 
-  `${seq.first} -> ${seq.second} (${seq.hours_between.toFixed(1)}h apart)`
-).join('\n')}
-
-AVAILABLE EXERCISES (YOU MUST ONLY RECOMMEND FROM THIS LIST):
-${AVAILABLE_EXERCISES.map(ex => 
-  `- ${ex.id} | ${ex.title} (${ex.type}) | ${ex.description} | Duration: ${ex.defaultDurationText} | Tags: ${ex.tags.join(', ')}`
-).join('\n')}
-
-ANALYSIS INSTRUCTIONS:
-1. EMOTIONAL PATTERNS: Look for recurring emotions/themes across recent entries (stress, anxiety, motivation, etc.)
-2. TIME PATTERNS: Notice when they journal and their emotional state at different times
-3. EXERCISE EFFECTIVENESS: Identify which exercises they complete after certain emotional states
-4. SEQUENCE SUCCESS: Notice if certain exercise combinations are effective for them
-
-RECOMMENDATION CRITERIA:
-- Only recommend if you detect a clear pattern (e.g., "stressed 3+ times", "always anxious in morning")
-- CRITICAL: You MUST only use exercise_id values from the AVAILABLE EXERCISES list above
-- Personalize based on their exercise history and what has worked before
-- Be specific about timing (e.g., "when you feel X, try Y")
-- Reference their successful patterns when possible
-- Choose exercises whose tags match the identified emotional patterns
-
-OUTPUT FORMAT:
-If patterns detected:
-{
-  "pattern_detected": true,
-  "pattern_description": "Brief description of the pattern found",
-  "recommendation": {
-    "exercise_type": "One of: Mindfulness|Visualization|Deep Work|Task Planning|Binaural Beats|Journaling",
-    "exercise_id": "MUST be an exact exercise_id from the AVAILABLE EXERCISES list",
-    "reasoning": "Why this specific exercise based on their patterns",
-    "trigger": "When to use this recommendation",
-    "personalization": "How this relates to their past successful experiences"
-  }
-}
-
-If no significant patterns:
-{
-  "pattern_detected": false,
-  "reason": "Why no patterns were detected"
-}
-
-CRITICAL: Double-check that the exercise_id exists in the AVAILABLE EXERCISES list before responding.
-RESPOND ONLY WITH THE JSON - NO OTHER TEXT.
-  `;
+  const sanitizedCurrentEntry = sanitizeForPrompt(currentEntry, 1200);
+  const patternPrompt = await buildPatternPrompt(entryAnalysis, exerciseHistory, exerciseSequences, sanitizedCurrentEntry, patternMetrics);
 
   try {
-    console.log('[PatternAnalysis] Making Gemini API call for pattern analysis');
+    logger.debug('[PatternAnalysis] Making Gemini API call for pattern analysis');
     
     // Estimate prompt tokens (Gemini doesn't return used tokens directly in generateContent response for output)
-    let promptTokens = 0;
+    let inputTokens = 0;
     try {
       const countResult = await geminiModel.countTokens(patternPrompt);
-      promptTokens = countResult.totalTokens;
-      console.log(`[PatternAnalysis] Estimated prompt tokens for Gemini: ${promptTokens}`);
+      inputTokens = countResult.totalTokens;
+      logger.debug(`[PatternAnalysis] Estimated prompt tokens for Gemini: ${inputTokens}`);
     } catch (countError) {
-      console.warn('[PatternAnalysis] Could not count prompt tokens for Gemini:', countError.message);
+      logger.warn('[PatternAnalysis] Could not count prompt tokens for Gemini:', countError.message);
     }
 
     const generationConfig = {
       temperature: 0.3, // Lower temperature for more consistent pattern detection
-      maxOutputTokens: 500, // Ensure this is a supported parameter and adjust as needed
-      // responseMimeType: "application/json", // If forcing JSON output (might require model that supports it well)
+      maxOutputTokens: 500, // Reasonable cap for JSON payload size
     };
     const safetySettings = [
       { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -492,115 +319,307 @@ RESPOND ONLY WITH THE JSON - NO OTHER TEXT.
       { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     ];
     
-    // Constructing the request for Gemini
-    // The systemInstructionForPatterns provides overall guidance, patternPrompt is the user query with specific data
-    const result = await geminiModel.generateContent({
-      contents: [
-          { role: "user", parts: [{text: systemInstructionForPatterns}, {text: patternPrompt}] }
-      ],
-      generationConfig,
-      safetySettings,
-    });
+    /*
+     * Strict JSON generation with retry
+     * ---------------------------------------------------
+     * We ask Gemini for JSON (responseMimeType) and attempt
+     * to parse the result. On first failure, we retry once.
+     */
+    const MAX_JSON_ATTEMPTS = 2;
+    let patterns: any = null;
+    let outputTokensTotal = 0;
+    for (let attempt = 0; attempt < MAX_JSON_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        logger.warn(`[PatternAnalysis] Attempt #${attempt + 1} to retrieve valid JSON from Gemini`);
+      }
 
-    const response = result.response;
-    const analysisText = response.text();
-    console.log('[PatternAnalysis] Raw pattern analysis response (Gemini):', analysisText);
-    
-    // Accurately count input and output tokens
-    const promptTokens = await countTokens(patternPrompt);
-    const outputTokens = await countTokens(analysisText);
-    const totalTokens = promptTokens + outputTokens;
-    console.log(`[PatternAnalysis] Gemini tokens used: ${totalTokens} (Prompt: ${promptTokens}, Output: ${outputTokens})`);
-    
-    try {
-      const patterns = JSON.parse(analysisText);
-      console.log('[PatternAnalysis] Parsed pattern analysis (Gemini):', patterns);
-      return {
-        patterns,
-        tokens_used: totalTokens
-      };
-    } catch (parseError) {
-      console.error('[PatternAnalysis] Failed to parse pattern analysis JSON (Gemini):', parseError, "Raw response:", analysisText);
-      return {
-        patterns: null,
-        tokens_used: totalTokens // Still account for tokens used even if parsing fails
-      };
+      const result = await geminiModel.generateContent({
+        contents: [
+          { role: "system", parts: [{ text: systemInstructionForPatterns }] },
+          { role: "user", parts: [{ text: patternPrompt }] }
+        ],
+        generationConfig,
+        safetySettings,
+        responseMimeType: "application/json", // <— enforce JSON response
+      });
+
+      const response = result.response;
+      const analysisText = response.text();
+      logger.debug('[PatternAnalysis] Raw pattern analysis response (Gemini):', analysisText);
+
+      // Count tokens for this attempt
+      const outputTokens = await countTokens(analysisText);
+      outputTokensTotal += outputTokens;
+
+      try {
+        patterns = JSON.parse(analysisText);
+        // ✅ Successfully parsed JSON; break loop
+        break;
+      } catch (parseError) {
+        logger.error('[PatternAnalysis] JSON parse failed', { attempt: attempt + 1, error: parseError.message });
+        patterns = null;
+      }
     }
+
+    // Final token accounting
+    inputTokens = await countTokens(patternPrompt);
+    const totalTokens = inputTokens + outputTokensTotal;
+    logger.debug(`[PatternAnalysis] Gemini tokens used: ${totalTokens} (Prompt: ${inputTokens}, Output: ${outputTokensTotal})`);
+
+    // Validate pattern JSON before returning
+    const validatedPatterns = validatePatternOutput(patterns);
+    return {
+      patterns: validatedPatterns,
+      tokens_used: totalTokens
+    };
   } catch (error) {
-    console.error('[PatternAnalysis] Error in pattern analysis (Gemini):', error);
-    const promptTokens = await countTokens(patternPrompt); // Count prompt tokens on failure
+    logger.error('[PatternAnalysis] Error in pattern analysis (Gemini):', error);
+    const inputTokensFallback = await countTokens(patternPrompt); // Count prompt tokens on failure
     if (error.message.includes('SAFETY')) {
-        console.warn('[PatternAnalysis] Gemini content blocked due to safety settings.');
+        logger.warn('[PatternAnalysis] Gemini content blocked due to safety settings.');
         return {
             patterns: { pattern_detected: false, reason: "Content generation blocked by safety filters.", safety_blocked: true },
-            tokens_used: promptTokens
+            tokens_used: inputTokensFallback
         };
     }
     return {
         patterns: null,
-        tokens_used: promptTokens
+        tokens_used: inputTokensFallback
     };
   }
 }
 
-serve(async (req) => {
-  try {
-    // 1. Parse the request body
-    const { text, context, maxTokens = 75, userId, enablePatternAnalysis = false } = await req.json();
-    
-    // Debug log the request (excluding sensitive data)
-    console.log('Analyzing text (Gemini):', { 
-      textLength: text?.length,
-      contextKeys: context ? Object.keys(context) : [],
-      maxTokens, // Note: maxTokens might be handled differently by Gemini
-      userId,
-      enablePatternAnalysis
-    });
+// ---------------------------------------------------------------------------
+// Helper: Validate pattern analysis JSON output
+// ---------------------------------------------------------------------------
+const AVAILABLE_EXERCISE_IDS = new Set(AVAILABLE_EXERCISES.map((ex) => ex.id));
 
-    // 2. Validate the request
-    if (!text?.trim()) {
-      return new Response(
-        JSON.stringify({ error: 'Text is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+/**
+ * Validate the JSON returned by Gemini for pattern analysis.
+ * Ensures mandatory keys are present and exercise_id is valid.
+ * If validation fails it downgrades to pattern_detected=false with a reason.
+ */
+function validatePatternOutput(raw: any): any {
+  // If parsing failed upstream, we just propagate null
+  if (!raw || typeof raw !== 'object') {
+    return {
+      pattern_detected: false,
+      reason: 'Invalid or empty response from model',
+    };
+  }
+
+  // If model says no pattern, accept it
+  if (raw.pattern_detected === false) {
+    return raw;
+  }
+
+  // Verify structure
+  const rec = raw.recommendation || {};
+  const requiredKeys = ['exercise_type', 'exercise_id', 'reasoning', 'trigger', 'personalization'];
+  const hasAllKeys = requiredKeys.every((k) => k in rec);
+
+  if (!hasAllKeys) {
+    return {
+      pattern_detected: false,
+      reason: 'Missing required keys in recommendation',
+    };
+  }
+
+  // Verify exercise ID exists
+  if (!AVAILABLE_EXERCISE_IDS.has(rec.exercise_id)) {
+    return {
+      pattern_detected: false,
+      reason: `Unknown exercise_id: ${rec.exercise_id}`,
+    };
+  }
+
+  // Passed all checks
+  return raw;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Build pattern analysis prompt with adaptive truncation
+// ---------------------------------------------------------------------------
+const SAFE_PROMPT_TOKEN_LIMIT = 6000; // Soft limit for Gemini context (adjust as needed)
+
+/**
+ * Build the pattern analysis prompt. If the initial prompt exceeds SAFE_PROMPT_TOKEN_LIMIT
+ * we progressively truncate less-important sections until it fits.
+ */
+async function buildPatternPrompt(entryAnalysis: any[], exerciseHistory: any[], exerciseSequences: any[], currentEntrySanitized: string, patternMetrics: Record<string, any>): Promise<string> {
+  // Helper to format blocks
+  const formatPrompt = (entries: any[], history: any[], sequences: any[], useCompactExerciseList: boolean, metrics: Record<string, any>) => `
+CONTEXT: Analyze journal patterns for exercise recommendations.
+
+CURRENT ENTRY: "${currentEntrySanitized}"
+
+METRICS: ${JSON.stringify(metrics, null, 2)}
+
+RECENT ENTRIES (last 7 days):
+${entries.map((entry: any, i: number) => `- Entry ${i + 1}: ${entry.content.slice(0, 80)}...`).join('\n')}
+
+EXERCISE HISTORY (last 7 days):
+${history.map((ex: any) => `- ${ex.exercise_type}`).join('\n')}
+
+AVAILABLE EXERCISES (Recommend ONLY from this list):
+${AVAILABLE_EXERCISES.map(ex => `- ${ex.id} | ${ex.title}`).join('\n')}
+
+INSTRUCTIONS:
+1. Find recurring emotions in entries.
+2. Identify which exercises follow certain emotional states.
+3. Only recommend if a clear pattern exists.
+4. Personalize based on their successful patterns.
+5. You MUST use an exercise_id from the list.
+
+OUTPUT FORMAT (JSON only):
+{
+  "pattern_detected": boolean,
+  "pattern_description": "Brief description of the pattern",
+  "recommendation": {
+    "exercise_type": "string",
+    "exercise_id": "string",
+    "reasoning": "Why this exercise based on patterns",
+    "trigger": "When to use this recommendation",
+    "personalization": "How this relates to their past success"
+  }
+}
+If no pattern: { "pattern_detected": false, "reason": "Why" }
+`;
+
+  // Initial prompt with full details
+  let prompt = formatPrompt(entryAnalysis, exerciseHistory, exerciseSequences, false, patternMetrics);
+  let tokens = await countTokens(prompt);
+
+  // If too large, start truncation steps
+  if (tokens > SAFE_PROMPT_TOKEN_LIMIT) {
+    // Step 1: shorten lists
+    const trimmedEntries = entryAnalysis.slice(0, 5); // most recent 5
+    const trimmedHistory = exerciseHistory.slice(0, 8);
+    const trimmedSequences = exerciseSequences.slice(0, 5);
+    prompt = formatPrompt(trimmedEntries, trimmedHistory, trimmedSequences, false, patternMetrics);
+    tokens = await countTokens(prompt);
+  }
+
+  if (tokens > SAFE_PROMPT_TOKEN_LIMIT) {
+    // Step 2: use compact exercise list
+    const trimmedEntries = entryAnalysis.slice(0, 5);
+    const trimmedHistory = exerciseHistory.slice(0, 8);
+    const trimmedSequences = exerciseSequences.slice(0, 5);
+    prompt = formatPrompt(trimmedEntries, trimmedHistory, trimmedSequences, true, patternMetrics);
+    tokens = await countTokens(prompt);
+  }
+
+  if (tokens > SAFE_PROMPT_TOKEN_LIMIT) {
+    // Step 3: extreme trim - only current entry + compact exercise list
+    prompt = formatPrompt(entryAnalysis.slice(0, 1), [], [], true, patternMetrics);
+    // No further counting needed; we assume this will fit but can still count for logging
+    tokens = await countTokens(prompt);
+  }
+
+  logger.debug(`[PatternAnalysis] Final prompt tokens: ${tokens}`);
+  return prompt;
+}
+
+// ---------------------------------------------------------------------------
+// App Transformation Pillars
+// ---------------------------------------------------------------------------
+const TRANSFORMATION_PILLARS = ['Mindfulness', 'Visualization', 'Deep Work', 'Task Planning', 'Binaural Beats', 'Journaling'];
+
+// Helper: Build insight prompt for a single journal entry or generic text analysis
+// ---------------------------------------------------------------------------
+/**
+ * Build a concise yet information-rich prompt for Gemini to generate insightful
+ * feedback on a user provided journal entry (or arbitrary text). We embed
+ * lightweight context such as the prompt type and selected emotions so the
+ * model can tailor its answer, while keeping the payload compact to control
+ * token usage.
+ *
+ * We purposefully keep this function synchronous, but mark it `async` so that
+ * existing `await buildInsightPrompt(...)` calls remain valid and do not need
+ * to be refactored.
+ *
+ * @param entryText   The sanitized user text.
+ * @param context     Object that may include { type, promptType, emotions }
+ * @returns           A complete prompt string ready for the Gemini model.
+ */
+export async function buildInsightPrompt(entryText: string, context: any = {}): Promise<string> {
+  const promptType = context?.promptType || 'general';
+  const selectedEmotions = Array.isArray(context?.emotions) && context.emotions.length > 0
+    ? context.emotions.join(', ')
+    : 'None provided';
+
+  /*
+   * The TRANSFORMATION_PILLARS constant is defined higher in this file. We
+   * reference it here to nudge the model to ground its suggestions within the
+   * core areas of the app – ensuring downstream UI can categorise responses
+   * without additional parsing.
+   */
+  const pillarsList = TRANSFORMATION_PILLARS.map((p) => `- ${p}`).join('\n');
+
+  return `You are a world-class mindset and habits coach. Analyse the following user journal entry and return calming, actionable insights that are short, compassionate and immediately useful.\n\n` +
+    `ENTRY TYPE: ${context?.type || 'text'}\n` +
+    `PROMPT CATEGORY: ${promptType}\n` +
+    `EMOTIONS TAGGED: ${selectedEmotions}\n\n` +
+    `USER JOURNAL ENTRY (verbatim):\n"""\n${entryText}\n"""\n\n` +
+    `When crafting your answer:\n` +
+    `1. Start with a **one-sentence summary** capturing the emotional tone.\n` +
+    `2. Provide **two to three bullet-point insights** highlighting patterns or reframes.\n` +
+    `3. End with **one concrete suggestion** that maps to ONE of the following transformation pillars (exact name):\n${pillarsList}\n` +
+    `Keep the entire response under 120 words. Avoid mentioning that you are an AI model.`;
+}
+
+serve(
+  async (req) => {
+    // -----------------------------------------------------------------------
+    // CORS & OPTIONS check
+    // -----------------------------------------------------------------------
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    };
+    if (req.method === 'OPTIONS') {
+      return new Response('ok', { headers: corsHeaders });
     }
 
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'User ID is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!geminiModel) {
-      console.error('Gemini model not initialized. Check GEMINI_API_KEY.');
-      return new Response(
-        JSON.stringify({ error: 'AI model not available' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 3. Construct the prompt based on context
-    let systemPrompt = 'You are an AI life coach assistant. Analyze the following text and provide insights.';
-    if (context?.type === 'journal') {
-      systemPrompt += ' Keep your response to 1-2 short sentences. Focus on the main emotional theme and one simple, actionable insight. Be supportive and encouraging, not analytical or verbose.';
-    } else if (context?.type === 'goal') {
-      systemPrompt += ' Evaluate if the goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound) and suggest improvements.';
-    }
-    
-    const fullPrompt = `${systemPrompt}\n\nUser text: "${text}"`;
-    console.log('Constructed prompt for Gemini:', fullPrompt);
-
-    // 4. Make the Gemini API call
-    let analysis = '';
-    let tokensUsed = 0; // This will now be accurately calculated.
-
+    // -----------------------------------------------------------------------
+    // Main request handling
+    // -----------------------------------------------------------------------
     try {
-      console.log('Making Gemini API call with gemini-2.0-flash model');
-      const generationConfig = {
-        // temperature: 0.7, // Adjust as needed
-        // maxOutputTokens: maxTokens, // Ensure this is a supported parameter for gemini-2.0-flash
+      const { text, context, enablePatternAnalysis } = await req.json();
+      const sanitizedText = sanitizeForPrompt(text);
+
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        throw new Error('Missing Authorization header');
+      }
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabaseAdmin.auth.getUser(jwt);
+      if (!user) {
+        throw new Error('Invalid JWT');
+      }
+      
+      const user_id = user.id;
+      logger.info(`Request for user: ${user_id}`, { context: context?.type });
+
+      // Fallback response for any errors
+      const fallbackResponse = {
+        analysis: 'The AI model is temporarily unavailable. Please try again later.',
+        patternAnalysis: null,
+        tokensUsed: 0,
       };
+
+      // Generate AI insights
+      const prompt = await buildInsightPrompt(sanitizedText, context);
+      const tokenCount = await countTokens(prompt);
+      logger.debug(`[Insights] Built prompt, token count: ${tokenCount}`);
+      
+      const generationConfig = {
+        temperature: 0.6,
+        topK: 30,
+        topP: 0.7,
+        maxOutputTokens: 512,
+      };
+
       const safetySettings = [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -608,101 +627,59 @@ serve(async (req) => {
         { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
       ];
 
-      const result = await geminiModel.generateContent({
-        contents: [{ role: "user", parts: [{text: fullPrompt}]}],
+      const generationPromise = geminiModel.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig,
         safetySettings,
       });
-      const response = result.response;
-      analysis = response.text();
       
-      // Accurately count tokens for both prompt and response
-      const promptTokens = await countTokens(fullPrompt);
-      const analysisTokens = await countTokens(analysis);
-      tokensUsed = promptTokens + analysisTokens;
-      
-      console.log(`Gemini analysis complete. Tokens used: ${tokensUsed} (Prompt: ${promptTokens}, Output: ${analysisTokens})`);
-
-    } catch (geminiError) {
-      console.error('Error during Gemini API call:', geminiError);
-      // Fallback or specific error handling for Gemini
-      if (geminiError.message.includes('SAFETY')) {
-         analysis = "The generated content was blocked due to safety concerns. Please rephrase your input or try a different topic.";
-      } else {
-         analysis = "There was an issue generating the analysis with the AI model.";
-      }
-      // Potentially return an error response directly if it's a critical failure
-       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Failed to get analysis from AI model',
-          detail: geminiError.message 
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('AI model request timed out')), 20000)
       );
-    }
 
-    // 5. Process basic analysis
-    console.log('Basic analysis complete (Gemini):', { 
-      analysisLength: analysis?.length,
-      tokensUsed,
-      model: 'gemini-2.0-flash'
-    });
-
-    // 6. Pattern analysis for journaling (if enabled and is journal context)
-    let patternAnalysis = null;
-    if (enablePatternAnalysis && context?.type === 'journal') {
-      console.log('[PatternAnalysis] Starting pattern analysis for journal entry (using Gemini)');
-      const patternResult = await analyzeJournalingPatterns(userId, text, context);
-      
-      if (patternResult) {
-        patternAnalysis = patternResult.patterns;
-        const patternTokensUsed = patternResult.tokens_used || 0;
-        tokensUsed += patternTokensUsed; // Add pattern analysis tokens to the total
-        console.log(`[PatternAnalysis] Pattern analysis completed, tokens used: ${patternTokensUsed}. Grand total (so far): ${tokensUsed}`);
-      }
-    }
-
-    // 7. Deduct tokens used from the user's balance
-    const tokenUpdateResult = await updateUserTokens(userId, -tokensUsed); 
-    
-    if (!tokenUpdateResult.success) {
-      console.error('Failed to update token balance after usage (Gemini):', tokenUpdateResult.error);
-      // Continue anyway and return the response, but include the error in the 'tokens' object.
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          analysis,
-          patternAnalysis,
-          metadata: {
-            tokensUsed: tokensUsed,
-            model: 'gemini-2.0-flash',
-            hasPatternAnalysis: !!patternAnalysis,
-            processingTimeMs: Date.now() % 10000 
+      let analysis = fallbackResponse.analysis;
+      try {
+        const generationResult = await Promise.race([generationPromise, timeoutPromise]);
+        if (generationResult && generationResult.response) {
+          const candidate = generationResult.response.candidates?.[0];
+          if (candidate?.content?.parts?.[0]?.text) {
+            analysis = candidate.content.parts[0].text.trim();
+            logger.info(`[Insights] Successfully received analysis from Gemini.`);
+          } else {
+            logger.warn(`[Insights] Gemini response OK, but no content found.`, { candidate });
           }
-        },
-        tokens: {
-          used: tokensUsed,
-          remaining: tokenUpdateResult.success ? tokenUpdateResult.tokens : null,
-          error: tokenUpdateResult.success ? null : tokenUpdateResult.error
+        } else {
+          logger.error('[Insights] Invalid response from Gemini model.', { generationResult });
         }
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+      } catch (genError) {
+        logger.error('[Insights] Generation failed:', genError);
+      }
 
-  } catch (error) {
-    // Log the error details
-    console.error('Error in analyze-text (Gemini):', error);
+      // (Optional) Pattern analysis
+      let patternAnalysisResult = null;
+      if (enablePatternAnalysis) {
+        try {
+          patternAnalysisResult = await analyzeJournalingPatterns(user_id, sanitizedText, context);
+          logger.info(`[PatternAnalysis] Pattern analysis complete.`);
+        } catch (patternError) {
+          logger.error(`[PatternAnalysis] Failed:`, patternError);
+        }
+      }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}); 
+      // Send response
+      const responsePayload = { analysis, patternAnalysis: patternAnalysisResult, tokensUsed: tokenCount };
+      logger.info(`[Success] Returning response.`);
+      return new Response(JSON.stringify(responsePayload), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (error) {
+      logger.error('Unexpected error in analyze-text:', { msg: error.message, stack: error.stack });
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  },
+); 

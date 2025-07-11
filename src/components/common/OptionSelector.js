@@ -23,7 +23,7 @@ const OptionSelector = ({
       case 'blue':
         return [COLORS.blueGradient.start, COLORS.blueGradient.end];
       case 'pink':
-        return [COLORS.pinkGradient.start, COLORS.pinkGradient.end];
+        return [COLORS.yellowGradient.start, COLORS.yellowGradient.end];
       case 'teal':
         return [COLORS.tealGradient.start, COLORS.tealGradient.end];
       case 'coral':

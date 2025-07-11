@@ -35,7 +35,7 @@ const getExerciseGradientColors = (exercise) => {
     'Deep Work': ['#5AC8FA', '#4B9EF8'], // blue
     'Binaural Beats': ['#7D8CC4', '#5D6CAF'], // indigo
     'Task Planning': ['#6C63FF', '#5F52EE'], // purple
-    'Journaling': ['#F368E0', '#D63AC8'], // pink
+    'Journaling': ['#FFD700', '#FFA500'], // yellow
   };
 
   if (exercise.type && typeGradients[exercise.type]) {

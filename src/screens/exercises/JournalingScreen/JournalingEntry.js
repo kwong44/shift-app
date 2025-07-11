@@ -15,17 +15,16 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { SPACING, COLORS, RADIUS, FONT, SHADOWS } from '../../../config/theme';
-import { analyzeText } from '../../../api/aiCoach';
+import { analyzeText, AI_COACH_CONFIG } from '../../../api/aiCoach';
 import { createJournalEntry } from '../../../api/exercises';
 import { JournalEntryCard } from './components/JournalEntryCard';
 import PatternRecommendationCard from './components/PatternRecommendationCard';
 import { JOURNAL_PROMPTS, PROMPT_TYPES } from './constants';
 import { useUser } from '../../../hooks/useUser';
-import CustomDialog from '../../../components/common/CustomDialog';
+import JournalAnalysisDialog from './components/JournalAnalysisDialog';
 import { supabase } from '../../../config/supabase';
 import { getFavoriteExerciseIds } from '../../../api/profile';
 import useExerciseFavorites from '../../../hooks/useExerciseFavorites';
-import { checkUserTokens } from '../../../api/aiCoach';
 
 const { height } = Dimensions.get('window');
 
@@ -47,8 +46,6 @@ const JournalingEntry = ({ route, navigation }) => {
   const [insights, setInsights] = useState(null);
   const [patternAnalysis, setPatternAnalysis] = useState(null);
   const [savedEntryId, setSavedEntryId] = useState(null);
-  const [userCredits, setUserCredits] = useState(null);
-  const [loadingCredits, setLoadingCredits] = useState(false);
 
   // Favorites functionality
   const { 
@@ -79,43 +76,6 @@ const JournalingEntry = ({ route, navigation }) => {
 
     loadFavoriteStatus();
   }, [user?.id, masterExerciseId, setInitialFavoriteStatus]);
-
-  // Load user's credit balance
-  useEffect(() => {
-    const loadUserCredits = async () => {
-      if (!user?.id) {
-        console.debug('[JournalingEntry] No user ID available for credit loading');
-        return;
-      }
-      
-      console.debug('[JournalingEntry] Starting to load user credits for user:', user.id);
-      setLoadingCredits(true);
-      
-      try {
-        console.debug('[JournalingEntry] Calling checkUserTokens()...');
-        const creditsResponse = await checkUserTokens();
-        console.debug('[JournalingEntry] checkUserTokens response:', creditsResponse);
-        
-        if (creditsResponse && creditsResponse.hasEnough !== undefined) {
-          // checkUserTokens returns { hasEnough, tokens, credits, isLow }
-          const credits = creditsResponse.credits || 0;
-          setUserCredits(credits);
-          console.debug('[JournalingEntry] User credits loaded successfully:', credits);
-        } else {
-          console.warn('[JournalingEntry] Invalid response from checkUserTokens:', creditsResponse);
-          setUserCredits(0);
-        }
-      } catch (error) {
-        console.error('[JournalingEntry] Error loading user credits:', error);
-        setUserCredits(0);
-      } finally {
-        setLoadingCredits(false);
-        console.debug('[JournalingEntry] Finished loading credits, loadingCredits set to false');
-      }
-    };
-
-    loadUserCredits();
-  }, [user?.id]);
 
   const handleFavoriteToggle = async () => {
     if (!masterExerciseId) {
@@ -253,100 +213,83 @@ const JournalingEntry = ({ route, navigation }) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      console.debug('[JournalingEntry] Getting AI insights for saved journal entry');
+      console.debug('[JournalingEntry] Getting AI insights and pattern analysis for saved journal entry');
       
-      const aiResponse = await analyzeText(entry.trim(), {
-        type: 'journal',
-        promptType,
-        emotions: selectedEmotions
-      }, true);
+      // Single AI call with pattern analysis enabled
+      const response = await analyzeText(
+        entry.trim(),
+        {
+          type: 'journal',
+          promptType,
+          emotions: selectedEmotions,
+        },
+        true // enablePatternAnalysis
+      );
 
-      if (!aiResponse.success) {
-        throw new Error(aiResponse.error || 'Failed to analyze journal entry');
-      }
-
-      const journalInsights = aiResponse.data.analysis;
-      const journalPatternAnalysis = aiResponse.data.patternAnalysis;
-      console.debug('[JournalingEntry] AI analysis completed', {
-        hasInsights: !!journalInsights,
-        hasPatternAnalysis: !!journalPatternAnalysis,
-        patternDetected: journalPatternAnalysis?.pattern_detected,
-        tokensUsed: aiResponse.data.metadata.tokensUsed
+      const { analysis: journalInsights, patternAnalysis: detectedPatterns, tokensUsed } = response.data;
+      
+      console.debug('[JournalingEntry] AI analysis completed', { 
+        hasInsights: !!journalInsights, 
+        hasPatternAnalysis: !!detectedPatterns,
+        patternDetected: detectedPatterns?.pattern_detected,
+        tokensUsed 
       });
 
-      // Update the saved journal entry with AI insights
-      const { error: updateError } = await supabase
+      setInsights(journalInsights);
+      setPatternAnalysis(detectedPatterns);
+
+      // Update the journal entry with AI insights and metadata
+      console.debug('[JournalingEntry] Attempting to update journal entry with AI data:', savedEntryId);
+      const { data: updatedEntry, error: updateErr } = await supabase
         .from('journal_entries')
         .update({
           insights: journalInsights,
           ai_metadata: {
-            model: aiResponse.data.metadata.model,
-            tokensUsed: aiResponse.data.metadata.tokensUsed,
-            processingTimeMs: aiResponse.data.metadata.processingTimeMs,
-            hasPatternAnalysis: aiResponse.data.metadata.hasPatternAnalysis,
-            patternAnalysis: journalPatternAnalysis,
-            promptInfo: {
-              type: promptType,
-              prompt: JOURNAL_PROMPTS[promptType][currentPrompt]
-            },
-            emotions: selectedEmotions,
-            hasAiAnalysis: true
+            ...((await supabase.from('journal_entries').select('ai_metadata').eq('id', savedEntryId).single()).data.ai_metadata || {}),
+            hasAiAnalysis: true,
+            tokensUsed,
+            patternAnalysis: detectedPatterns || null
           }
         })
-        .eq('id', savedEntryId);
-
-      if (updateError) {
-        throw new Error(`Failed to update entry with insights: ${updateError.message}`);
+        .eq('id', savedEntryId)
+        .select()
+        .single();
+      
+      if (updateErr) {
+        throw new Error(`Failed to update journal entry with AI insights: ${updateErr.message}`);
       }
-
       console.debug('[JournalingEntry] Entry updated with AI insights successfully');
-      setInsights(journalInsights);
-      setPatternAnalysis(journalPatternAnalysis);
-      
-      // Refresh user credits after analysis (since credits were deducted)
-      try {
-        const creditsResponse = await checkUserTokens();
-        if (creditsResponse.success) {
-          setUserCredits(creditsResponse.credits);
-          console.debug('[JournalingEntry] User credits refreshed after AI analysis:', creditsResponse.credits);
-        }
-      } catch (creditsError) {
-        console.warn('[JournalingEntry] Failed to refresh credits after analysis:', creditsError);
-      }
-      
-      // Update daily_exercise_logs to reflect AI analysis
-      if (masterExerciseId) {
-        console.debug(`[JournalingEntry] Attempting to update daily_exercise_logs for journal entry ID: ${savedEntryId}`);
-        const { error: logUpdateError } = await supabase
-          .from('daily_exercise_logs')
-          .update({
-            metadata: {
-              prompt_type: promptType,
-              prompt_text: JOURNAL_PROMPTS[promptType]?.[currentPrompt],
-              entry_length: entry.trim().length,
-              emotions_selected_count: selectedEmotions?.length || 0,
-              has_ai_analysis: true,
-              ai_tokens_used: aiResponse.data.metadata.tokensUsed,
-              journal_entry_id: savedEntryId // This is correct for storing within metadata
-            }
-          })
-          // Corrected filter: Query within the JSONB metadata column
-          // Assumes savedEntryId is a string (UUID or text). If it's a number, casting might be needed.
-          .eq('metadata->>journal_entry_id', savedEntryId);
 
-        if (logUpdateError) {
-          console.warn('[JournalingEntry] Warning: Could not update daily_exercise_logs with AI analysis data:', logUpdateError);
-        } else {
-          console.debug('[JournalingEntry] Updated daily_exercise_logs with AI analysis data for journal_entry_id:', savedEntryId);
-        }
+      // Update the corresponding daily_exercise_logs entry
+      console.debug(`[JournalingEntry] Attempting to update daily_exercise_logs for journal entry ID: ${savedEntryId}`);
+      const { error: logUpdateError } = await supabase
+        .from('daily_exercise_logs')
+        .update({ 
+          metadata: {
+            ...((await supabase.from('daily_exercise_logs').select('metadata').eq('metadata->>journal_entry_id', savedEntryId).single()).data.metadata || {}),
+            has_ai_analysis: true,
+            tokens_used: tokensUsed,
+            pattern_detected: detectedPatterns?.pattern_detected || false,
+          }
+        })
+        .eq('metadata->>journal_entry_id', savedEntryId);
+      
+      if (logUpdateError) {
+        // Non-critical error, just log it
+        console.error(`[JournalingEntry] Failed to update daily_exercise_logs with AI analysis data for journal_entry_id: ${savedEntryId}`, logUpdateError.message);
+      } else {
+        console.debug(`[JournalingEntry] Updated daily_exercise_logs with AI analysis data for journal_entry_id: ${savedEntryId}`);
       }
-      
-      setIsAnalyzing(false);
-      
-    } catch (error) {
-      console.error('[JournalingEntry] Error analyzing entry:', error);
-      setError(error.message || 'Failed to analyze journal entry');
+
+    } catch (err) {
+      console.error('[JournalingEntry] Error during AI analysis:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'An unexpected error occurred during analysis.';
+      setError(errorMessage);
       setSnackbarVisible(true);
+      
+      // Fallback: Show the dialog with whatever insights we might have, if any
+      setShowDialog(true);
+    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -408,6 +351,16 @@ const JournalingEntry = ({ route, navigation }) => {
       default:
         console.warn('[JournalingEntry] Unknown exercise type:', exerciseType, 'falling back to ExercisesDashboard');
         navigation.navigate('ExercisesDashboard');
+    }
+  };
+
+  const handleDialogConfirm = () => {
+    // If we already have insights, the confirm button just finishes the flow
+    if (insights) {
+      handleFinish();
+    } else {
+      // Otherwise, it triggers the AI analysis
+      handleGetAiInsights();
     }
   };
 
@@ -488,130 +441,29 @@ const JournalingEntry = ({ route, navigation }) => {
         </SafeAreaView>
       </KeyboardAvoidingView>
 
-      <CustomDialog
-        visible={showDialog}
-        onDismiss={handleFinish}
-        title="Entry Saved"
-        content={
-          <View style={styles.dialogContent}>
-            <Text style={styles.dialogText}>
-              Great job! Your journal entry has been saved.
-            </Text>
-            
-            {/* Credit Balance Display */}
-            <View style={styles.creditBalanceContainer}>
-              <MaterialCommunityIcons 
-                name="circle-multiple" 
-                size={16} 
-                color={COLORS.primary} 
-                style={styles.creditIcon}
-              />
-              <Text style={styles.creditBalanceText}>
-                {loadingCredits ? 'Loading...' : `${userCredits || 0} credits available`}
-              </Text>
-            </View>
-
-            {/* AI Analysis Section */}
-            {!insights && (
-              <View style={styles.aiAnalysisSection}>
-                <Text style={styles.aiAnalysisTitle}>Get AI Insights & Pattern Analysis</Text>
-                <Text style={styles.aiAnalysisDescription}>
-                  Unlock personalized insights and exercise recommendations based on your journal entry.
-                </Text>
-                
-                {/* Cost Estimate */}
-                <View style={styles.costEstimateContainer}>
-                  <Text style={styles.costEstimateText}>
-                    Estimated cost: 3-5 credits
-                  </Text>
-                  <Text style={styles.costEstimateSubtext}>
-                    (Varies by entry length and analysis complexity)
-                  </Text>
-                </View>
-
-                {/* AI Analysis Button or Low Credits Warning */}
-                {userCredits !== null && userCredits < 5 && (
-                  <View style={styles.lowCreditsWarning}>
-                    <MaterialCommunityIcons 
-                      name="alert-circle-outline" 
-                      size={16} 
-                      color={COLORS.warning} 
-                    />
-                    <Text style={styles.lowCreditsText}>
-                      Low credits! Consider purchasing more for continued AI features.
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.aiActionButtons}>
-                  <Button
-                    mode="contained"
-                    onPress={handleGetAiInsights}
-                    disabled={isAnalyzing || (userCredits !== null && userCredits < 5)}
-                    loading={isAnalyzing}
-                    style={[
-                      styles.aiAnalysisButton,
-                      (userCredits !== null && userCredits < 5) && styles.disabledButton
-                    ]}
-                    labelStyle={styles.aiAnalysisButtonText}
-                    icon="brain"
-                  >
-                    {isAnalyzing ? 'Analyzing...' : 'Get AI Insights'}
-                  </Button>
-
-                  {(userCredits !== null && userCredits < 5) && (
-                    <Button
-                      mode="outlined"
-                      onPress={() => {
-                        setShowDialog(false); // Dismiss dialog first
-                        navigation.navigate('CreditsPurchase');
-                      }}
-                      style={styles.purchaseCreditsButton}
-                      labelStyle={styles.purchaseCreditsButtonText}
-                      icon="credit-card"
-                    >
-                      Buy Credits
-                    </Button>
-                  )}
-                </View>
-              </View>
-            )}
-            
-            {/* Show insights if available */}
-            {insights && (
-              <ScrollView 
-                style={styles.insightsScrollContainer}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                <Text style={styles.insightsLabel}>AI Insights:</Text>
-                <Text style={styles.insightsText}>
-                  {insights.length > 300 ? `${insights.substring(0, 300)}...` : insights}
-                </Text>
-                {insights.length > 300 && (
-                  <Text style={styles.readMoreText}>
-                    View full insights in your journal history
-                  </Text>
-                )}
-              </ScrollView>
-            )}
-          </View>
-        }
-        icon="check-circle-outline"
-        confirmText={insights ? "Done" : "Skip AI Analysis"}
-        onConfirm={handleFinish}
-        iconColor={COLORS.primary}
-        iconBackgroundColor={`${COLORS.primary}15`}
-        showFavoriteButton={!!masterExerciseId}
-        isFavorite={getFavoriteStatus(masterExerciseId, false)}
-        onFavoriteToggle={handleFavoriteToggle}
-        favoriteLoading={getLoadingStatus(masterExerciseId)}
-        patternAnalysis={patternAnalysis}
-        onNavigateToRecommendedExercise={(recommendation) => {
-          console.debug('[JournalingEntry] Pattern recommendation navigation triggered with:', recommendation);
-          handleNavigateToRecommendedExercise(recommendation);
-        }}
-      />
+      <Portal>
+        <JournalAnalysisDialog
+          visible={showDialog}
+          onDismiss={() => {
+            setShowDialog(false);
+            // Optionally navigate back or reset state
+            if (originRouteName) {
+              navigation.navigate(originRouteName);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          onConfirm={handleDialogConfirm}
+          isAnalyzing={isAnalyzing}
+          insights={insights}
+          patternAnalysis={patternAnalysis}
+          onFavoriteToggle={handleFavoriteToggle}
+          isFavorite={getFavoriteStatus(masterExerciseId)}
+          favoriteLoading={getLoadingStatus(masterExerciseId)}
+          onNavigate={handleNavigateToRecommendedExercise}
+          onGetAiInsights={handleGetAiInsights}
+        />
+      </Portal>
 
       <Snackbar
         visible={snackbarVisible}
@@ -660,7 +512,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.xs,
   },
   saveButtonLabel: {
-    color: COLORS.pinkGradient.start,
+    color: COLORS.yellowGradient.start,
     fontWeight: FONT.weight.semiBold,
     fontSize: FONT.size.md,
   },

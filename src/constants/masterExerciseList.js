@@ -255,7 +255,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'heart-outline',
     route: 'Journaling', 
     tags: ['gratitude', 'positive_psychology', 'reflection', 'well_being'],
-    gradientColors: COLORS.journalingGradients?.gratitude || ['#F368E0', '#D63AC8'], // pinkGradient
+    gradientColors: COLORS.journalingGradients?.gratitude || ['#FFD700', '#FFA500'], // yellowGradient
     defaultDurationText: '5-10 min', // User-defined
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'gratitude' }, 
@@ -269,7 +269,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'thought-bubble-outline',
     route: 'Journaling',
     tags: ['self_reflection', 'mindfulness', 'personal_growth'],
-    gradientColors: COLORS.journalingGradients?.reflection || ['#F368E0', '#D63AC8'], // pinkGradient
+    gradientColors: COLORS.journalingGradients?.reflection || ['#FFD700', '#FFA500'], // yellowGradient
     defaultDurationText: '5-10 min',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'reflection' },
@@ -283,7 +283,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'chart-line',
     route: 'Journaling',
     tags: ['personal_development', 'goal_setting', 'learning'],
-    gradientColors: COLORS.journalingGradients?.growth || ['#F368E0', '#D63AC8'], // pinkGradient
+    gradientColors: COLORS.journalingGradients?.growth || ['#FFD700', '#FFA500'], // yellowGradient
     defaultDurationText: '5-10 min',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'growth' },
@@ -297,7 +297,7 @@ export const MASTER_EXERCISE_LIST = [
     icon: 'pencil-outline',
     route: 'Journaling', 
     tags: ['mind_clearing', 'creativity', 'self_expression'],
-    gradientColors: COLORS.journalingGradients?.free_write || ['#F368E0', '#D63AC8'], // pinkGradient
+    gradientColors: COLORS.journalingGradients?.free_write || ['#FFD700', '#FFA500'], // yellowGradient
     defaultDurationText: 'Flexible',
     defaultDurationSeconds: null,
     defaultSettings: { promptType: 'free_write' }, // Special type for no prompt
@@ -313,7 +313,7 @@ console.debug('[MasterExerciseList] Loaded with consistent color scheme', {
     tasks: 'purpleGradient',
     deepWork: 'blueGradient',
     binaural: 'indigoGradient',
-    journaling: 'pinkGradient'
+    journaling: 'yellowGradient'
   }
 });
 
@@ -328,5 +328,5 @@ export const getExerciseById = (id) => {
 // - Visualization: coralGradient (#FF7675 → #FF5D5D) 
 // - Deep Work: blueGradient (#5AC8FA → #4B9EF8)
 // - Binaural Beats: indigoGradient (#7D8CC4 → #5D6CAF)
-// - Journaling: pinkGradient (#F368E0 → #D63AC8)
+// - Journaling: yellowGradient (#FFD700 → #FFA500)
 // - Task Planning: purpleGradient (#6C63FF → #5F52EE)

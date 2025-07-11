@@ -14,7 +14,7 @@ const STAT_GRADIENTS = {
   'fire': ['#FF9500', '#FF6B00'], // Streak - orange gradient
   'trophy': ['#FDCB6E', '#E17055'], // Achievements - yellow gradient
   'chart-line': ['#7D8CC4', '#5D6CAF'], // Progress - indigo gradient
-  'heart-pulse': ['#F368E0', '#D63AC8'], // Health - pink gradient
+  'heart-pulse': ['#FFD700', '#FFA500'], // Health - yellow gradient
 };
 
 // Debug logger

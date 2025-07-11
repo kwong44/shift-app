@@ -327,13 +327,10 @@ const HomeScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={[COLORS.primary + '40', COLORS.background]}
-          style={styles.loadingContainer}
-        >
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading your personalized journey...</Text>
-        </LinearGradient>
+        </View>
       </SafeAreaView>
     );
   }

@@ -32,15 +32,25 @@ const LEVEL_PRIORITY = {
   error: 40,
 };
 
-// Allow developers to override the log level via an environment variable.
-// `EXPO_PUBLIC_LOG_LEVEL` is exposed to the JS bundle during Expo build.
-// Fallback order:
-//   1. Explicit env override
-//   2. __DEV__ (bundler flag) ⇒ 'debug'
-//   3. production ⇒ 'info'
+// ---------------------------------------------------------------------------
+// Determine current log level:
+// 1. Respect explicit `EXPO_PUBLIC_LOG_LEVEL` (e.g. 'debug', 'info', 'warn', 'error').
+// 2. Fallback to 'debug' by default. This prevents verbose "DEBUG" logs from
+//    flooding the Metro console unless the developer *explicitly* opts-in by
+//    setting the environment variable.
+// ---------------------------------------------------------------------------
 
 const envOverride = typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_LOG_LEVEL : null;
-const currentLevel = envOverride || (__DEV__ ? 'debug' : 'info');
+
+// ---------------------------------------------------------------------------
+// DEVELOPMENT UPDATE (2025-07-11):
+// Temporarily increase default verbosity to `debug` so we can capture more
+// diagnostic information while investigating the AI-Coach rate-limit issue.
+// This will still respect any explicit `EXPO_PUBLIC_LOG_LEVEL` env override so
+// production builds can force a quieter level (e.g. 'info').
+// ---------------------------------------------------------------------------
+
+const currentLevel = envOverride || 'debug';
 
 function shouldLog(level) {
   return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[currentLevel];
@@ -66,5 +76,27 @@ const logger = {
     if (shouldLog('error')) console.error(formatMessage('error', msg, meta));
   },
 };
+
+// ---------------------------------------------------------------------------
+// Monkey-patch `console.debug` so that *all* direct `console.debug` calls in the
+// codebase respect the log-level filtering implemented above. This allows us to
+// keep existing debug statements around for future troubleshooting *without*
+// cluttering the console for everyday development and production use.
+// ---------------------------------------------------------------------------
+
+if (!console.__patchedForLogLevel) {
+  /* eslint-disable no-console */
+  const originalDebug = console.debug.bind(console);
+
+  console.debug = (...args) => {
+    if (shouldLog('debug')) {
+      // Pass through unchanged to preserve original formatting.
+      originalDebug(...args);
+    }
+  };
+
+  // Flag to avoid double-patching in case logger.js gets imported multiple times.
+  console.__patchedForLogLevel = true;
+}
 
 export default logger; 

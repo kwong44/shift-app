@@ -59,6 +59,10 @@ export const COLORS = {
     start: '#F368E0',
     end: '#D63AC8',
   },
+  yellowGradient: {
+    start: '#FFD700',
+    end: '#FFA500',
+  },
   tealGradient: {
     start: '#00B894',
     end: '#007E66',
@@ -102,10 +106,10 @@ export const COLORS = {
     sleep: ['#7D8CC4', '#5D6CAF'],
   },
   journalingGradients: {
-    gratitude: ['#F368E0', '#D63AC8'], // pinkGradient
-    reflection: ['#F368E0', '#D63AC8'],
-    growth: ['#F368E0', '#D63AC8'],
-    free_write: ['#F368E0', '#D63AC8'],
+    gratitude: ['#FFD700', '#FFA500'], // yellowGradient
+    reflection: ['#FFD700', '#FFA500'], // yellowGradient
+    growth: ['#FFD700', '#FFA500'], // yellowGradient
+    free_write: ['#FFD700', '#FFA500'], // yellowGradient
   },
   
   // Navigation & Interactive elements
@@ -317,6 +321,7 @@ export const createGradient = (colors, direction = 'vertical') => {
 export const GRADIENTS = {
   blue: createGradient([COLORS.blueGradient.start, COLORS.blueGradient.end]),
   pink: createGradient([COLORS.pinkGradient.start, COLORS.pinkGradient.end]),
+  yellow: createGradient([COLORS.yellowGradient.start, COLORS.yellowGradient.end]),
   teal: createGradient([COLORS.tealGradient.start, COLORS.tealGradient.end]),
   coral: createGradient([COLORS.coralGradient.start, COLORS.coralGradient.end]),
   purple: createGradient([COLORS.purpleGradient.start, COLORS.purpleGradient.end]),

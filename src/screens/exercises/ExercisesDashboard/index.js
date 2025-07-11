@@ -16,7 +16,7 @@ const EXERCISES = [
     defaultDurationText: '5-10 min',
     type: 'Writing',
     route: 'Journaling',  
-    gradientColors: COLORS.journalingGradients?.gratitude || ['#F368E0', '#D63AC8'], // pinkGradient
+    gradientColors: COLORS.journalingGradients?.gratitude || ['#FFD700', '#FFA500'], // yellowGradient
   },
    {
     id: 'tasks',
@@ -79,7 +79,7 @@ console.debug('[ExercisesDashboard] Mounted with enhanced exercise data structur
   exerciseCount: EXERCISES.length,
   exerciseTypes: EXERCISES.map(ex => ({ id: ex.id, type: ex.type })),
   colorMapping: {
-    journaling: 'pinkGradient',
+    journaling: 'yellowGradient',
     tasks: 'purpleGradient', 
     binaural: 'indigoGradient',
     visualization: 'coralGradient',

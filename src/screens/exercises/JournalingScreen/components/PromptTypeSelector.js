@@ -18,8 +18,8 @@ export const PromptTypeSelector = ({
     onSelectPromptType(value);
   };
 
-  // Use pink gradient color for journaling
-  const journalingColor = COLORS.pinkGradient.start;
+  // Use yellow gradient color for journaling
+  const journalingColor = COLORS.yellowGradient.start;
 
   return (
     <View style={styles.container}>
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   selectedCard: {
-    backgroundColor: `${COLORS.pinkGradient.start}08`,
+    backgroundColor: `${COLORS.yellowGradient.start}08`,
     borderWidth: 1,
-    borderColor: `${COLORS.pinkGradient.start}30`,
+    borderColor: `${COLORS.yellowGradient.start}30`,
   },
   cardContent: {
     padding: SPACING.sm,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   optionHighlight: {
     fontSize: FONT.size.sm,
     fontWeight: FONT.weight.medium,
-    color: COLORS.pinkGradient.start,
+    color: COLORS.yellowGradient.start,
   },
   checkIcon: {
     marginLeft: SPACING.sm,

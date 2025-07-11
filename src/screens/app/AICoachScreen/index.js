@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { Text, TextInput, IconButton, ActivityIndicator, Button, Badge } from 'react-native-paper';
 import { COLORS, SPACING, RADIUS } from '../../../config/theme';
-import { chatWithCoach, checkUserTokens } from '../../../api/aiCoach';
-import { getUserTokens, mockPurchaseTokens, TOKENS_CONFIG, tokensToCredits } from '../../../api/credits';
+import { chatWithCoach } from '../../../api/aiCoach';
 import conversationHistory, { CONVERSATION_CONFIG, getConversationHistory } from '../../../api/conversationHistory';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -75,10 +74,10 @@ const AICoachScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [tokens, setTokens] = useState(null);
-  const [credits, setCredits] = useState(null);
-  const [isLoadingTokens, setIsLoadingTokens] = useState(true);
-  const [showCreditWarning, setShowCreditWarning] = useState(false);
+  const [tokens] = useState(null);
+  const [credits] = useState(null);
+  const [isLoadingTokens] = useState(false);
+  const [showCreditWarning] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [loadingError, setLoadingError] = useState(false);
   const [weeklyGoals, setWeeklyGoals] = useState([]);
@@ -149,23 +148,7 @@ const AICoachScreen = ({ navigation }) => {
     
     // Debug log
     console.debug('[AICoachScreen] Header options updated');
-  }, [navigation, credits, isLoadingTokens]); // Keep dependencies for header updates
-
-  // Load tokens on mount and focus (SEPARATE useEffect to avoid loop)
-  useEffect(() => {
-    console.debug('[AICoachScreen] Setting up token loading on mount and focus');
-    
-    // Load tokens immediately on mount
-    loadUserTokens();
-    
-    // Set up focus listener to refresh tokens when screen is focused
-    const unsubscribe = navigation.addListener('focus', () => {
-      console.debug('[AICoachScreen] Screen focused, refreshing tokens');
-      loadUserTokens();
-    });
-    
-    return unsubscribe;
-  }, [navigation]); // Only depend on navigation, not on token states
+  }, [navigation]);
 
   // Load conversation history from the database
   const loadConversationHistory = async (retryCount = 0) => {
@@ -248,107 +231,13 @@ const AICoachScreen = ({ navigation }) => {
   };
 
   // Load user tokens from the database
-  const loadUserTokens = async () => {
-    try {
-      setIsLoadingTokens(true);
-      console.debug('[AICoachScreen] Loading user tokens');
-      const { tokens: userTokens, credits: userCredits } = await getUserTokens();
-      console.debug('[AICoachScreen] User tokens loaded:', { tokens: userTokens, credits: userCredits });
-      
-      setTokens(userTokens);
-      setCredits(userCredits);
-      
-      // Show warning if tokens are low
-      const isLow = userTokens <= TOKENS_CONFIG.lowBalanceThreshold && userTokens > 0;
-      setShowCreditWarning(isLow || userTokens === 0);
-      
-      if (isLow) {
-        console.debug('[AICoachScreen] Low token balance warning shown');
-      }
-    } catch (error) {
-      console.error('[AICoachScreen] Error loading user tokens:', error);
-    } finally {
-      setIsLoadingTokens(false);
-    }
-  };
+  const loadUserTokens = () => {};
 
   // Handle purchasing more tokens
-  const handleTopUpCredits = () => {
-    console.debug('[AICoachScreen] Opening token purchase flow');
-    
-    // Show token package options using the config
-    Alert.alert(
-      'Purchase Credits',
-      'Select a credit package to purchase:',
-      TOKENS_CONFIG.packages.map(pkg => ({
-        text: `${pkg.label} ($${pkg.price})`,
-        onPress: () => processPurchase(pkg.id),
-      })).concat([
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ])
-    );
-  };
+  const handleTopUpCredits = () => {};
 
   // Process the purchase
-  const processPurchase = async (packageId) => {
-    console.debug('[AICoachScreen] Processing purchase of package:', packageId);
-    
-    try {
-      setIsLoading(true);
-      
-      // Get the package details
-      const packageInfo = TOKENS_CONFIG.packages.find(p => p.id === packageId);
-      if (!packageInfo) {
-        throw new Error('Invalid package selected');
-      }
-      
-      // In a real app, this would show a payment UI and process the payment
-      // For now, we'll use our mock purchase function
-      const result = await mockPurchaseTokens(packageInfo.tokens);
-      
-      if (result.success) {
-        setTokens(result.newBalance.tokens);
-        setCredits(result.newBalance.credits);
-        
-        const isLow = result.newBalance.tokens <= TOKENS_CONFIG.lowBalanceThreshold && result.newBalance.tokens > 0;
-        setShowCreditWarning(isLow);
-        
-        // Convert for display (1000 tokens = 1 credit)
-        const creditsAdded = result.added.credits;
-        
-        // Success message
-        Alert.alert(
-          'Purchase Successful',
-          `${creditsAdded} credits (${result.added.tokens.toLocaleString()} tokens) have been added to your account.`,
-          [{ text: 'OK' }]
-        );
-        
-        // Haptic feedback for success
-        await Haptics.notificationAsync(HAPTIC_FEEDBACK.SUCCESS);
-        
-        // Log the purchase
-        console.debug('[AICoachScreen] Purchase completed:', {
-          package: packageId,
-          tokensAdded: result.added.tokens,
-          creditsAdded: result.added.credits,
-          newBalance: result.newBalance
-        });
-      } else {
-        throw new Error('Purchase failed');
-      }
-    } catch (error) {
-      console.error('[AICoachScreen] Error processing purchase:', error);
-      Alert.alert('Purchase Failed', 'Unable to process your purchase. Please try again.');
-      
-      // Haptic feedback for failure
-      await Haptics.notificationAsync(HAPTIC_FEEDBACK.ERROR);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const processPurchase = async () => {};
 
   // Handle sending a message to the AI Coach (Samantha)
   const handleSend = async () => {
@@ -493,7 +382,7 @@ const AICoachScreen = ({ navigation }) => {
                 
                 Alert.alert(
                   'Low Credit Balance',
-                  `You only have ${creditsRemaining} credits (${tokensRemaining.toLocaleString()} tokens) left. Purchase more credits to continue talking with Samantha.`,
+                  'Your subscription allows unlimited coaching chats.',
                   [
                     { text: 'Buy Credits', onPress: handleTopUpCredits },
                     { text: 'Not Now', style: 'cancel' }
@@ -538,7 +427,7 @@ const AICoachScreen = ({ navigation }) => {
           setTimeout(() => {
             Alert.alert(
               'Out of Credits',
-              `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to interact with the Samantha.`,
+              'You need an active subscription to interact with Samantha.',
               [
                 { text: 'Buy Credits', onPress: handleTopUpCredits },
                 { text: 'Not Now', style: 'cancel' }
@@ -613,32 +502,11 @@ const AICoachScreen = ({ navigation }) => {
   };
 
   // Check if user has enough tokens to chat - Rule: Always add debug logs
-  const hasEnoughTokens = !isLoadingTokens && tokens !== null && tokens >= TOKENS_CONFIG.minTokensRequired;
-  const shouldShowPurchaseButton = !isLoadingTokens && tokens !== null && tokens < TOKENS_CONFIG.minTokensRequired;
+  const hasEnoughTokens = true; // Subscription model – always enough
+  const shouldShowPurchaseButton = false;
 
   // Display token/credit warning banner
-  const renderCreditWarningBanner = () => {
-    if (!showCreditWarning || tokens === null) return null;
-    
-    const creditsText = credits === 0 
-      ? "You're out of credits!" 
-      : `Low credits (${credits} left)`;
-    
-    const tokensText = tokens === 0
-      ? ""
-      : ` (${tokens.toLocaleString()} tokens)`;
-    
-    return (
-      <TouchableOpacity 
-        style={styles.warningBanner} 
-        onPress={handleTopUpCredits}
-      >
-        <Text style={styles.warningText}>
-          {creditsText}{tokensText}. Tap to purchase more.
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const renderCreditWarningBanner = () => null;
 
   // Load user's weekly goals
   const loadWeeklyGoals = async () => {
@@ -767,8 +635,8 @@ const AICoachScreen = ({ navigation }) => {
               <View style={styles.tokenInfoContainer}>
                 <Text style={styles.tokenInfoText}>
                   {hasEnoughTokens 
-                    ? `You have ${credits} credits (${tokens.toLocaleString()} tokens)`
-                    : `You need at least ${tokensToCredits(TOKENS_CONFIG.minTokensRequired)} credits to chat`
+                    ? 'Subscribed'
+                    : 'Subscription required to chat'
                   }
                 </Text>
                 <Text style={styles.tokenCostText}>

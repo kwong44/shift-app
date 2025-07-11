@@ -198,7 +198,7 @@ const JournalingHistoryScreen = ({ navigation }) => {
           onChangeText={handleSearchChange}
           value={searchQuery}
           style={styles.searchbar}
-          iconColor={COLORS.pinkGradient.start}
+          iconColor={COLORS.yellowGradient.start}
           inputStyle={{ color: COLORS.text }}
           placeholderTextColor={COLORS.textLight}
           elevation={1}

@@ -29,7 +29,7 @@ const CustomButton = ({
           colors = [COLORS.blueGradient.start, COLORS.blueGradient.end];
           break;
         case 'pink':
-          colors = [COLORS.pinkGradient.start, COLORS.pinkGradient.end];
+          colors = [COLORS.yellowGradient.start, COLORS.yellowGradient.end];
           break;
         case 'teal':
           colors = [COLORS.tealGradient.start, COLORS.tealGradient.end];

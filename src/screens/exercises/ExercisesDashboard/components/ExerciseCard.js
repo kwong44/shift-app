@@ -33,7 +33,7 @@ const ENHANCED_ICONS = {
   },
   'book-outline': {
     icon: 'notebook-outline',
-    gradient: ['#F368E0', '#D63AC8'] // Pink gradient for journaling
+    gradient: ['#FFD700', '#FFA500'] // Yellow gradient for journaling
   },
   'weather-windy': {
     icon: 'weather-windy',
