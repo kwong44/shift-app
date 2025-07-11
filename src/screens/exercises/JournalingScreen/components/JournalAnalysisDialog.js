@@ -87,6 +87,16 @@ const JournalAnalysisDialog = ({
             >
               {isAnalyzing ? 'Analyzing...' : 'Get AI Insights'}
             </Button>
+
+            {/* Secondary Skip button shares full width */}
+            <Button
+              mode="outlined"
+              onPress={onConfirm}
+              style={styles.skipButton}
+              labelStyle={styles.skipButtonText}
+            >
+              Skip Analysis
+            </Button>
           </View>
         </View>
       )}
@@ -119,7 +129,7 @@ const JournalAnalysisDialog = ({
       title="Entry Saved"
       content={bodyContent}
       icon="check-circle-outline"
-      confirmText={insights ? 'Done' : 'Skip For Now'}
+      confirmText={insights ? 'Done' : null}
       onConfirm={onConfirm}
       iconColor={COLORS.primary}
       iconBackgroundColor={`${COLORS.primary}15`}
@@ -177,13 +187,23 @@ const styles = StyleSheet.create({
   },
   aiAnalysisButton: {
     backgroundColor: COLORS.primary,
+    alignSelf: 'stretch',
   },
   aiAnalysisButtonText: {
     color: COLORS.surface,
     fontWeight: FONT.weight.semiBold,
   },
+  skipButton: {
+    backgroundColor: 'transparent',
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+    alignSelf: 'stretch',
+  },
+  skipButtonText: {
+    color: COLORS.primary,
+  },
   insightsScrollContainer: {
-    maxHeight: 120,
+    maxHeight: 220,
     width: '100%',
     borderRadius: RADIUS.sm,
     backgroundColor: 'rgba(0,0,0,0.03)',

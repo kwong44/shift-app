@@ -163,14 +163,17 @@ const CustomDialog = ({
               </Button>
             )}
             
-            <Button
-              mode={confirmMode}
-              onPress={onConfirm || onDismiss}
-              style={[styles.button, styles.confirmButton, styles.fullWidthButton]}
-              labelStyle={styles.confirmButtonText}
-            >
-              {confirmText}
-            </Button>
+            {/* Render confirm button only if text is provided */}
+            {Boolean(confirmText) && (
+              <Button
+                mode={confirmMode}
+                onPress={onConfirm || onDismiss}
+                style={[styles.button, styles.confirmButton, styles.fullWidthButton]}
+                labelStyle={styles.confirmButtonText}
+              >
+                {confirmText}
+              </Button>
+            )}
           </View>
         </ScrollView>
       </Dialog>
